@@ -122,6 +122,20 @@
              (write-symbol table (append-string names name) info 0 0 0))
     (values table names indices first-global)))
 
+(defun elf-relocation-type (kind contract)
+  (case kind
+    (:call (backend-contract-call-relocation contract))
+    (:got (if (eq (backend-contract-architecture contract) :x86-64)
+              9 (fail "x86-64 GOT relocation used for AArch64")))
+    (:got-page (if (eq (backend-contract-architecture contract) :aarch64)
+                   311 (fail "AArch64 GOT page relocation used for x86-64")))
+    (:got-lo12 (if (eq (backend-contract-architecture contract) :aarch64)
+                   312 (fail "AArch64 GOT offset relocation used for x86-64")))
+    (otherwise (fail "unsupported ELF relocation kind ~A" kind))))
+
+(defun elf-relocation-addend (contract)
+  (if (eq (backend-contract-architecture contract) :aarch64) 0 -4))
+
 (defun build-relocations (relocations symbol-indices contract)
   (let ((table (byte-buffer)))
     (dolist (relocation relocations)
@@ -131,10 +145,9 @@
         (emit-integer table (relocation-offset relocation) 8)
         (emit-integer table
                       (+ (ash index 32)
-                         (ecase (relocation-kind relocation)
-                           (:call (backend-contract-call-relocation contract))
-                           (:got 9))) 8)
-        (emit-integer table -4 8)))
+                         (elf-relocation-type (relocation-kind relocation)
+                                              contract)) 8)
+        (emit-integer table (elf-relocation-addend contract) 8)))
     table))
 
 (defun make-sections (text data data-alignment rela symbols names first-global)

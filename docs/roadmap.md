@@ -15,14 +15,15 @@ is updated. Dates and staffing are deliberately unspecified.
 | IR pipeline | M2 complete | Verified typed HIR → CFG/SSA with `phi` joins → verified LIR; `-O1` inlines small pure leaves, folds constants, and removes dead pure values. |
 | x86-64 Linux / SysV / ELF64 | M3 complete for documented subset | Integer, pointer, `float`, and `double` values use register and stack locations; `void` results and naturally aligned scalar-field C structs of at most 16 bytes work, including mixed register classes. Larger and packed aggregates, varargs, and `long double` are rejected. |
 | x86-64 Windows / Microsoft x64 / COFF | M5 complete for documented subset | Four positional GP/SSE argument registers, shadow space, stack arguments, direct small structs and indirect structs up to 16 bytes, and COFF unwind records. MinGW-w64 links `.exe`, `.a`, and `.dll`; Wine runs the C interoperability corpus. |
-| C layout and data symbols | Working on Linux and Windows | `defcstruct` matches C size, alignment, and offsets for supported fields, including LP64 versus LLP64 `long`. ELF uses PIC GOT relocations; COFF uses relative data relocations. |
-| Local C source inclusion | Working on Linux and Windows | `ffi:source` compiles a `.c` file with the selected C compiler and merges it into the target relocatable object. |
+| AArch64 Linux / AAPCS64 / ELF64 | M6 complete for documented subset | Self-encoded AArch64 instructions, AAPCS64 GP/FP and stack calls, small C structs including homogeneous float aggregates, ELF call/GOT relocations, GNU cross linking, and QEMU execution. Larger aggregates and varargs remain unsupported. |
+| C layout and data symbols | Working on supported hosted targets | `defcstruct` matches C size, alignment, and offsets for supported fields, including LP64 versus LLP64 `long`. ELF uses PIC GOT relocations; COFF uses relative data relocations. |
+| Local C source inclusion | Working on supported hosted targets | `ffi:source` compiles a `.c` file with the selected C compiler and merges it into the target relocatable object. |
 | Hosted dynamic runtime | M4 complete for documented subset | Versioned 64-bit tagged values, conses, UTF-8 byte strings, symbols, packages, one-argument lexical closures, two values, and a single-threaded mark-and-sweep collector. See the [runtime contract](runtime.md) for limits. |
 | Allocation effect checks | Working M4 slice | `without-allocation` checks transitive direct calls; unknown imports and indirect calls fail unless a trusted import effect is declared. |
 | x86-64 none / ELF64 | Object only | Emits a runtime-free object; startup, linker layout, and boot execution are pending. |
 | Hosted ANSI Common Lisp | Pending M9 | `--profile=hosted` has an M4 managed-value subset; numeric tower, conditions, CLOS, streams, `eval`, and conformance remain pending. |
-| Executables and libraries | Working on Linux and Windows | `pslcc` invokes the selected GCC linker for executables and shared libraries, and `ar` for deterministic `.a`; dynamic source selects only required runtime objects. |
-| AArch64, RISC-V, macOS, Wasm | Pending | No code generation or object writing for these targets yet. |
+| Executables and libraries | Working on supported hosted targets | `pslcc` invokes the selected GCC linker for executables and shared libraries, and `ar` for deterministic `.a`; dynamic source selects only required runtime objects. |
+| RISC-V, macOS, Wasm | Pending | No code generation or object writing for these targets yet. |
 
 The existing `sh tests/smoke.sh` verifies ELF structure and relocations,
 byte-for-byte repeatability, C calls in both directions across GP, SSE, and
@@ -188,7 +189,7 @@ builds match byte for byte. The Windows platform module supplies stack bounds
 for the single-threaded collector. Larger aggregates, varargs, and
 `long double` remain unsupported, as on the documented Linux subset.
 
-## M6 — Second architecture: AArch64 Linux · Pending
+## M6 — Second architecture: AArch64 Linux · Complete for documented subset
 
 **Dependencies:** M2 backend contract and M3 C test corpus.
 
@@ -199,6 +200,17 @@ Reuse the same typed source, HIR, and LIR validation.
 **Gate:** native or QEMU AArch64 execution passes the portable arithmetic,
 control-flow, and C interoperability corpus; object inspection shows the
 expected AArch64 machine and relocation types.
+
+`sh tests/aarch64.sh` runs the shared typed and hosted programs under QEMU at
+`-O0` and `-O1`. It checks C calls in both directions, register and stack
+arguments, LP64 layout, imported and exported data, `ffi:source`, small C
+structs, homogeneous float aggregates with nested fields, and exhausted
+floating registers. The suite checks ELF machine and call/GOT relocations,
+byte-for-byte repeatable objects, archives, and shared libraries,
+and runtime-module exclusion. The compiler emits AArch64 machine words and
+ELF64 objects directly. GNU tools are used to compile C and link artifacts;
+QEMU is used only to execute cross-target tests. C structs larger than 16
+bytes, variadic calls, and `long double` remain outside the supported subset.
 
 ## M7 — Freestanding execution and RISC-V · Partial
 

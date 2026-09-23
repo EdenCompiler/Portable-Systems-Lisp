@@ -85,9 +85,15 @@
     (ecase (target-architecture target)
       (:x86-64
        (mapcar (lambda (function)
-                 (compile-function function contract
+                 (psl.backend.x86-64:compile-function function contract
                                    (compilation-signatures compilation)
                                    (compilation-abi-layouts compilation)))
+               (compilation-lir-functions compilation)))
+      (:aarch64
+       (mapcar (lambda (function)
+                 (psl.backend.aarch64:compile-function
+                  function contract (compilation-signatures compilation)
+                  (compilation-abi-layouts compilation)))
                (compilation-lir-functions compilation))))))
 
 (defun write-target-object (encoded signatures data target contract output)

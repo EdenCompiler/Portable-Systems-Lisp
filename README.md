@@ -3,7 +3,7 @@
 Portable Systems Lisp (PSL) is an experimental native compiler for Lisp code
 that works with machine integers, raw pointers, and C functions. It uses SBCL
 to compile source files into ELF or COFF object files and link executables and
-libraries for x86-64 Linux and Windows. The language is being
+libraries for x86-64 Linux, x86-64 Windows, and AArch64 Linux. The language is being
 built toward a hosted Common Lisp implementation and a freestanding systems
 profile; today, the compiler implements a small, typed subset of that design.
 
@@ -76,6 +76,9 @@ The default target is `x86_64-linux-gnu`. Use
 `x86_64-none-elf` produces an ELF64 object only. Both profiles compile the
 typed subset; `hosted` also accepts
 the first managed-value facilities.
+`--target=aarch64-linux-gnu` uses AAPCS64 and ELF64. The compiler encodes
+AArch64 instructions and writes ELF objects itself; linking uses
+`aarch64-linux-gnu-gcc` or `aarch64-linux-gnu-ar`.
 `-O1` is the default optimization level. `-c` writes a relocatable `.o` without
 linking. On native x86-64 Linux, the second form invokes `cc` or `ar` for an
 executable, `.a`, or `.so`. Extra C objects and libraries are explicit link
@@ -86,10 +89,11 @@ Windows target. The library API exposes both compilation and linking.
 ## Project status
 
 The core specification, first native object, compiler foundation, first C ABI
-path, first modular hosted runtime, and x86-64 Windows target are implemented
+path, first modular hosted runtime, x86-64 Windows target, and AArch64 Linux
+target are implemented
 for their documented subsets. The compiler has typed
 HIR, SSA, and low-level IR,
-with a shared frontend and x86-64 ELF and COFF object writers. C calls support
+with a shared frontend and machine backends that write ELF or COFF objects. C calls support
 integer and pointer values, `float`/`double`, stack arguments, and small
 scalar-field C structs by value. Naturally aligned C struct layouts and data
 symbols are supported. Hosted source can also use tagged values, conses,
@@ -110,5 +114,7 @@ See the [roadmap](docs/roadmap.md) for milestone status.
 - [Hosted runtime](docs/runtime.md) and [examples](examples/README.md).
 - [Engineering roadmap](docs/roadmap.md) and [contributor instructions](AGENTS.md).
 
-Run `sh tests/smoke.sh` for Linux and `sh tests/windows.sh` for Windows.
+Run `sh tests/smoke.sh` for x86-64 Linux, `sh tests/windows.sh` for Windows,
+and `sh tests/aarch64.sh` for AArch64 Linux under QEMU.
 The Windows suite needs MinGW-w64, Wine, and binutils alongside SBCL.
+The AArch64 suite needs the AArch64 GNU cross toolchain and `qemu-aarch64`.

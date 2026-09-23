@@ -1,7 +1,5 @@
 (in-package #:psl.backend.x86-64)
 
-(defstruct relocation offset name kind)
-(defstruct encoded-function name bytes relocations frame-size)
 (defstruct (emitter (:constructor make-emitter
                       (contract signatures signature abi-layouts)))
   contract signatures signature abi-layouts

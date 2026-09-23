@@ -30,8 +30,10 @@ src/
     optimize.lisp       inlining, constant folding, and dead-code removal
     dump.lisp           stable, readable IR inspection
   backend/
+    common.lisp         encoded functions and relocation records
     x86-64.lisp         LIR to x86-64 machine code and ABI argument mapping
     win64-abi.lisp      Microsoft x64 calls, returns, and shadow space
+    aarch64.lisp        LIR to AArch64 instructions and AAPCS64 calls
   object/
     elf64.lisp          ELF sections, symbols, and relocations
     coff.lisp           COFF sections, symbols, relocations, and unwind records
@@ -49,7 +51,7 @@ runtime/
 
 `compile-source` coordinates reader → analyzer → verified HIR → CFG/SSA →
 optional optimization → verified LIR → backend → object writer. The frontend
-does not encode machine instructions. The x86 backend receives LIR and an
+does not encode machine instructions. Each machine backend receives LIR and an
 explicit target contract containing ABI registers, pointer width, stack
 alignment, and object format. The ELF and COFF writers consume encoded
 functions and relocations rather than source forms.
@@ -61,19 +63,17 @@ The frontend computes C structure layout and passes the
 supported aggregate ABI metadata to the backend. The object writer owns data
 symbols and GOT relocations on Linux, while COFF uses relative relocations and
 `.pdata`/`.xdata` unwind records. The selected system linker and archiver
-produce Linux or Windows artifacts.
+produce Linux or Windows artifacts. The AArch64 backend encodes its own
+instructions; compiler object generation has no assembler or LLVM dependency.
 The SSA representation has basic blocks, typed values, terminators, and `phi`
 joins. The current language subset has conditional branches but no loop form.
 LIR uses virtual registers and explicit labels after `phi` edge copies are
 placed. See [the compiler pipeline](compiler.md) for stage APIs and invariants.
 
-This separation follows the broad division used by the [LLVM source tree](https://llvm.org/docs/GettingStarted.html),
-which has distinct IR, code generation, target, and object-related areas, and
-the [Rust compiler source tree](https://rustc-dev-guide.rust-lang.org/compiler-src.html),
-which separates compiler components from its libraries and code-generation
-backend. PSL uses a much smaller tree because it has one CPU backend and two
-object formats today. Add a directory when it contains real code, rather than
-creating empty placeholders for planned targets or runtimes.
+The source tree separates language analysis, portable IR, machine backends,
+object formats, and external toolchain integration. Add a directory when it
+contains real code, rather than creating empty placeholders for planned
+targets or runtimes.
 
 Each major compiler module has its own Lisp package. `psl.compiler` is the public
 library entry point and coordinates the pipeline. `psl` contains source-level

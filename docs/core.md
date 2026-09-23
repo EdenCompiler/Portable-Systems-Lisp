@@ -7,13 +7,14 @@ including facilities still awaiting implementation.
 ## Build and profiles
 
 The Stage 0 compiler runs under SBCL. `pslcc -c source.lisp -o output.o`
-produces an x86-64 relocatable object. `x86_64-linux-gnu` and
+produces a relocatable object. `x86_64-linux-gnu` and
 `x86_64-none-elf` use System V AMD64 and ELF64; `x86_64-windows-gnu` uses
-Microsoft x64 and COFF. `--profile=hosted|freestanding` selects
+Microsoft x64 and COFF; `aarch64-linux-gnu` uses AAPCS64 and ELF64.
+`--profile=hosted|freestanding` selects
 different source capabilities: both accept the typed machine subset, while
 `hosted` additionally accepts managed values. The compiler links Linux
 executables and libraries through GCC/binutils, and Windows `.exe`, `.a`, and
-`.dll` through MinGW-w64.
+`.dll` through MinGW-w64. AArch64 Linux linking uses the GNU cross linker.
 `-O0` skips optimization; the default `-O1` performs small-function inlining,
 machine-width constant folding, and dead pure-value removal. Use
 `--dump-ir=hir|ssa|lir|all` to inspect the verified pipeline.
@@ -56,7 +57,12 @@ including mixed integer/SSE register classes and stack fallback. On Windows,
 the first four parameter positions use `RCX`/`RDX`/`R8`/`R9` or the matching
 `XMM0`–`XMM3`; callers reserve 32 bytes of shadow space. C structs of size
 1, 2, 4, or 8 bytes pass directly, and other supported structs up to 16 bytes
-pass by pointer with an indirect result. Larger aggregates, packed structures
+pass by pointer with an indirect result. On AAPCS64, integer and pointer
+arguments use `x0`–`x7`, floating arguments use `v0`–`v7`, and later
+arguments use the stack. Supported C structs of at most 16 bytes use one or
+two general registers, or floating registers for homogeneous float
+aggregates of up to four members; the same rules apply to results.
+Larger aggregates, packed structures
 by value, variadic calls, and `long double` are not implemented. Imported and
 exported symbols use lower-case names for
 ordinary unescaped Lisp names.
@@ -80,7 +86,7 @@ complement. Comparisons produce internal Boolean values. Unqualified `cl:+`
 retains its Common Lisp meaning and is not supported in Stage 0 compiled
 expressions.
 
-`f32` and `f64` correspond to C `float` and `double` in both implemented ABIs.
+`f32` and `f64` correspond to C `float` and `double` in the implemented ABIs.
 Floating literals, parameters, calls, and returns work; floating arithmetic
 and comparisons are not implemented. C integer aliases follow the selected
 ABI: `c-char`/`c-uchar`, `c-short`/`c-ushort`,
@@ -97,8 +103,8 @@ live address. Stage 0 does not check bounds or lifetime at runtime.
 
 `psl:defstruct/packed` lays fields out in source order with no padding and
 alignment 1. Nested previously declared packed structures have known size.
-The x86-64 backend supports unaligned packed-field accesses. C ABI structures
-use each field's natural alignment and include trailing padding. Nested
+The x86-64 and AArch64 backends support unaligned packed-field accesses.
+C ABI structures use each field's natural alignment and include trailing padding. Nested
 structures are supported when declared first. `sizeof`, `alignof`, and
 `offset-of` use the selected target's layout. The C layout tests compare
 integer, floating, pointer, and nested fields with a C compiler.

@@ -93,20 +93,28 @@
   (:use #:cl #:psl.common #:psl.target)
   (:export #:emit-with-c-sources #:link-source-artifact))
 
-(defpackage #:psl.backend.x86-64
-  (:use #:cl #:psl.common #:psl.ir #:psl.binary #:psl.target)
-  (:export #:compile-function #:make-relocation #:relocation-name
-           #:relocation-offset #:relocation-kind #:encoded-function-name
+(defpackage #:psl.backend
+  (:use #:cl)
+  (:export #:make-relocation #:relocation-name #:relocation-offset
+           #:relocation-kind #:make-encoded-function #:encoded-function-name
            #:encoded-function-bytes #:encoded-function-relocations
            #:encoded-function-frame-size))
 
+(defpackage #:psl.backend.x86-64
+  (:use #:cl #:psl.common #:psl.ir #:psl.binary #:psl.target #:psl.backend)
+  (:export #:compile-function))
+
+(defpackage #:psl.backend.aarch64
+  (:use #:cl #:psl.common #:psl.ir #:psl.binary #:psl.target #:psl.backend)
+  (:export #:compile-function))
+
 (defpackage #:psl.object.elf64
-  (:use #:cl #:psl.common #:psl.ir #:psl.binary #:psl.backend.x86-64
+  (:use #:cl #:psl.common #:psl.ir #:psl.binary #:psl.backend
         #:psl.target)
   (:export #:write-elf-object))
 
 (defpackage #:psl.object.coff
-  (:use #:cl #:psl.common #:psl.ir #:psl.binary #:psl.backend.x86-64
+  (:use #:cl #:psl.common #:psl.ir #:psl.binary #:psl.backend
         #:psl.target)
   (:export #:write-coff-object))
 

@@ -186,7 +186,7 @@ if "$project_root/pslcc" --profile=hosted --target=x86_64-none-elf \
   printf 'Expected unavailable hosted runtime target failure\n' >&2
   exit 1
 fi
-grep -q 'managed Lisp runtime requires a supported x86-64 hosted target' \
+grep -q 'managed Lisp runtime requires a supported hosted target' \
   "$work_dir/stderr"
 
 if "$project_root/pslcc" --target=x86_64-none-elf -c \
@@ -211,7 +211,7 @@ if "$project_root/pslcc" --target=x86_64-none-elf \
   printf 'Expected non-native linking failure\n' >&2
   exit 1
 fi
-grep -q 'linking requires a supported x86-64 hosted target' "$work_dir/stderr"
+grep -q 'linking requires a supported hosted target' "$work_dir/stderr"
 test ! -e "$work_dir/invalid-program"
 
 if "$project_root/pslcc" -c --emit=exe \

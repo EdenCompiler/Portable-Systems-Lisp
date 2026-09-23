@@ -72,9 +72,13 @@
    *runtime-directory*))
 
 (defun target-tool (target name)
-  (ecase (target-system target)
-    (:linux (if (equal name "gcc") "cc" name))
-    (:windows (concatenate 'string "x86_64-w64-mingw32-" name))))
+  (cond
+    ((eq (target-architecture target) :aarch64)
+     (concatenate 'string "aarch64-linux-gnu-" name))
+    ((eq (target-system target) :linux)
+     (if (equal name "gcc") "cc" name))
+    ((eq (target-system target) :windows)
+     (concatenate 'string "x86_64-w64-mingw32-" name))))
 
 (defun source-directory (source)
   (make-pathname :name nil :type nil :defaults (truename source)))
@@ -161,7 +165,10 @@
       (unless (ecase (target-object-format target)
                 (:elf64
                  (and (equalp (subseq header 0 6) #(127 69 76 70 2 1))
-                      (= (aref header 18) 62) (= (aref header 19) 0)))
+                      (= (aref header 18)
+                         (backend-contract-elf-machine
+                          (resolve-backend-contract target)))
+                      (= (aref header 19) 0)))
                 (:coff
                  (and (= (aref header 0) #x64)
                       (= (aref header 1) #x86))))
@@ -262,9 +269,11 @@
     (runtime-module-closure (append runtime-roots input-roots))))
 
 (defun link-source-artifact (output kind target inputs compile-object)
-  (unless (and (eq (target-architecture target) :x86-64)
-               (member (target-system target) '(:linux :windows)))
-    (fail "linking requires a supported x86-64 hosted target"))
+  (unless (or (and (eq (target-architecture target) :x86-64)
+                   (member (target-system target) '(:linux :windows)))
+              (and (eq (target-architecture target) :aarch64)
+                   (eq (target-system target) :linux)))
+    (fail "linking requires a supported hosted target"))
   (let* ((directory (temporary-directory))
          (object (temporary-path directory "psl.o"))
          (destination (merge-pathnames output (truename ".")))

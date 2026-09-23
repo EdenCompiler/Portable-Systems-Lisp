@@ -7,7 +7,7 @@
            stack-alignment)
 
 (defun c-integer-type (target name)
-  (unless (member (target-abi target) '(:sysv-amd64 :win64))
+  (unless (member (target-abi target) '(:sysv-amd64 :win64 :aapcs64))
     (fail "C integer aliases are not defined for ABI ~A" (target-abi target)))
   (if (member name '(psl:c-long psl:c-ulong))
       (if (eq (target-abi target) :win64)
@@ -33,14 +33,21 @@
      (make-target :architecture :x86-64 :abi :win64
                   :system :windows :object-format :coff
                   :pointer-bits 64 :endianness :little))
+    ((equal name "aarch64-linux-gnu")
+     (make-target :architecture :aarch64 :abi :aapcs64
+                  :system :linux :object-format :elf64
+                  :pointer-bits 64 :endianness :little))
     (t (fail "unsupported target ~A" name))))
 
 (defun resolve-backend-contract (target)
-  (unless (and (eq (target-architecture target) :x86-64)
-               (or (and (eq (target-abi target) :sysv-amd64)
-                        (eq (target-object-format target) :elf64))
-                   (and (eq (target-abi target) :win64)
-                        (eq (target-object-format target) :coff)))
+  (unless (and (or (and (eq (target-architecture target) :x86-64)
+                         (or (and (eq (target-abi target) :sysv-amd64)
+                                  (eq (target-object-format target) :elf64))
+                             (and (eq (target-abi target) :win64)
+                                  (eq (target-object-format target) :coff))))
+                   (and (eq (target-architecture target) :aarch64)
+                        (eq (target-abi target) :aapcs64)
+                        (eq (target-object-format target) :elf64)))
                (= (target-pointer-bits target) 64)
                (eq (target-endianness target) :little))
     (fail "no backend contract for architecture ~A, ABI ~A, and format ~A"
@@ -60,4 +67,11 @@
       :pointer-bits 64 :endianness :little
       :argument-registers '(1 2 8 9)
       :float-argument-registers '(0 1 2 3)
-      :stack-alignment 16))))
+      :stack-alignment 16))
+    (:aapcs64
+     (make-backend-contract
+      :architecture :aarch64 :abi :aapcs64 :object-format :elf64
+      :pointer-bits 64 :endianness :little
+      :argument-registers '(0 1 2 3 4 5 6 7)
+      :float-argument-registers '(0 1 2 3 4 5 6 7)
+      :elf-machine 183 :call-relocation 283 :stack-alignment 16))))

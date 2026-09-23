@@ -84,6 +84,8 @@ echo $?
 - [layout.lisp](abi/layout.lisp): C struct layout.
 - [windows_odd_aggregate.lisp](abi/windows_odd_aggregate.lisp): a 12-byte
   C struct passed by reference under Microsoft x64.
+- [aarch64_hfa.lisp](abi/aarch64_hfa.lisp): four-float homogeneous aggregates,
+  nested fields, and floating-register exhaustion under AAPCS64.
 
 ## FFI
 
@@ -107,5 +109,5 @@ cc examples/basic/harness_add.c /tmp/psl-add.o -o /tmp/psl-add
 /tmp/psl-add
 ```
 
-Run `sh tests/smoke.sh` to build and execute all Lisp programs and C
-harnesses.
+Run `sh tests/smoke.sh` for x86-64 Linux, `sh tests/windows.sh` for Windows,
+or `sh tests/aarch64.sh` with the AArch64 cross toolchain and QEMU.
