@@ -91,22 +91,28 @@
 
 (defpackage #:psl.ffi.toolchain
   (:use #:cl #:psl.common #:psl.target)
-  (:export #:emit-with-c-sources #:link-source-artifact))
+  (:export #:emit-with-c-sources #:link-source-artifact
+           #:link-freestanding-artifact))
 
 (defpackage #:psl.backend
   (:use #:cl)
   (:export #:make-relocation #:relocation-name #:relocation-offset
-           #:relocation-kind #:make-encoded-function #:encoded-function-name
+           #:relocation-kind #:relocation-addend
+           #:make-encoded-function #:encoded-function-name
            #:encoded-function-bytes #:encoded-function-relocations
-           #:encoded-function-frame-size))
+           #:encoded-function-frame-size #:encoded-function-local-labels))
 
 (defpackage #:psl.backend.x86-64
   (:use #:cl #:psl.common #:psl.ir #:psl.binary #:psl.target #:psl.backend)
-  (:export #:compile-function))
+  (:export #:compile-function #:compile-linux-exit-startup))
 
 (defpackage #:psl.backend.aarch64
   (:use #:cl #:psl.common #:psl.ir #:psl.binary #:psl.target #:psl.backend)
   (:export #:compile-function))
+
+(defpackage #:psl.backend.riscv64
+  (:use #:cl #:psl.common #:psl.ir #:psl.binary #:psl.target #:psl.backend)
+  (:export #:compile-function #:compile-qemu-virt-startup))
 
 (defpackage #:psl.object.elf64
   (:use #:cl #:psl.common #:psl.ir #:psl.binary #:psl.backend

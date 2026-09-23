@@ -208,10 +208,10 @@ grep -q 'unsupported target' "$work_dir/stderr"
 if "$project_root/pslcc" --target=x86_64-none-elf \
     "$project_root/examples/basic/program.lisp" -o "$work_dir/invalid-program" \
     >"$work_dir/stdout" 2>"$work_dir/stderr"; then
-  printf 'Expected non-native linking failure\n' >&2
+  printf 'Expected missing freestanding entry failure\n' >&2
   exit 1
 fi
-grep -q 'linking requires a supported hosted target' "$work_dir/stderr"
+grep -q 'cannot find entry symbol _start' "$work_dir/stderr"
 test ! -e "$work_dir/invalid-program"
 
 if "$project_root/pslcc" -c --emit=exe \

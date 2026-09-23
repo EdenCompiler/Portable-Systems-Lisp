@@ -73,8 +73,13 @@
 
 (defun target-tool (target name)
   (cond
+    ((eq (target-architecture target) :riscv64)
+     (concatenate 'string
+                  (if (eq (target-system target) :none)
+                      "riscv64-unknown-elf-" "riscv64-linux-gnu-") name))
     ((eq (target-architecture target) :aarch64)
      (concatenate 'string "aarch64-linux-gnu-" name))
+    ((eq (target-system target) :none) name)
     ((eq (target-system target) :linux)
      (if (equal name "gcc") "cc" name))
     ((eq (target-system target) :windows)
@@ -272,6 +277,8 @@
   (unless (or (and (eq (target-architecture target) :x86-64)
                    (member (target-system target) '(:linux :windows)))
               (and (eq (target-architecture target) :aarch64)
+                   (eq (target-system target) :linux))
+              (and (eq (target-architecture target) :riscv64)
                    (eq (target-system target) :linux)))
     (fail "linking requires a supported hosted target"))
   (let* ((directory (temporary-directory))

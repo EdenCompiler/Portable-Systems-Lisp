@@ -72,7 +72,7 @@ The required integer types are `psl:u8`, `psl:u16`, `psl:u32`, `psl:u64`,
 `psl:s8`, `psl:s16`, `psl:s32`, `psl:s64`, `psl:usize`, and `psl:isize`. `uN`
 contains integers from 0 through 2^N−1. `sN` contains integers from −2^(N−1)
 through 2^(N−1)−1. `usize` and `isize` have the target pointer width; the
-currently supported x86-64 targets use 64 bits. Width and signedness are
+currently supported machine targets use 64 bits. Width and signedness are
 semantic types, not merely optimizer hints.
 
 An unannotated integer literal is an exact compile-time integer. When an
@@ -141,10 +141,11 @@ and its constant field offset. Structure layout does not change byte order;
 portable wire formats must use explicit endian conversion. Packed fields may be
 unaligned, so generated accesses must tolerate the target's rules or lower to
 safe byte operations. **Basic packed structures and naturally aligned C
-structures are implemented for x86-64. By-value C calls currently support
-scalar-field structures of at most two eightbytes, including mixed integer
-and SSE register classes; larger and packed aggregate cases remain outside
-the implemented subset.**
+structures are implemented for x86-64, AArch64, and RISC-V64. By-value C calls
+currently support small scalar-field structures according to each target ABI,
+including mixed integer and SSE register classes on System V AMD64 and
+floating-field rules on AArch64 and RISC-V64; larger and packed aggregate cases
+remain outside the implemented subset.**
 
 ## 6. Storage and allocation effects
 

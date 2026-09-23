@@ -34,6 +34,8 @@
     (unless (or (and (eq (target-architecture target) :x86-64)
                      (member (target-system target) '(:linux :windows)))
                 (and (eq (target-architecture target) :aarch64)
+                     (eq (target-system target) :linux))
+                (and (eq (target-architecture target) :riscv64)
                      (eq (target-system target) :linux)))
       (fail "managed Lisp runtime requires a supported hosted target"))))
 

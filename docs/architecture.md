@@ -34,11 +34,16 @@ src/
     x86-64.lisp         LIR to x86-64 machine code and ABI argument mapping
     win64-abi.lisp      Microsoft x64 calls, returns, and shadow space
     aarch64.lisp        LIR to AArch64 instructions and AAPCS64 calls
+    riscv64.lisp        LIR to RISC-V64 instructions and LP64D calls
   object/
     elf64.lisp          ELF sections, symbols, and relocations
     coff.lisp           COFF sections, symbols, relocations, and unwind records
   ffi/
     toolchain.lisp      C source and selected runtime module linking
+    freestanding.lisp   static links, startup selection, and linker scripts
+linker/
+  riscv64-virt.ld       QEMU virt RAM layout
+  x86_64-linux-user.ld  static x86-64 Linux user-mode layout
 runtime/
   psl_runtime.h         versioned hosted value and root ABI
   gc.c                  mark-and-sweep collector
@@ -63,8 +68,9 @@ The frontend computes C structure layout and passes the
 supported aggregate ABI metadata to the backend. The object writer owns data
 symbols and GOT relocations on Linux, while COFF uses relative relocations and
 `.pdata`/`.xdata` unwind records. The selected system linker and archiver
-produce Linux or Windows artifacts. The AArch64 backend encodes its own
-instructions; compiler object generation has no assembler or LLVM dependency.
+produce Linux or Windows artifacts. Freestanding links use explicit startup
+objects and linker scripts. Each backend encodes its own instructions;
+compiler object generation has no assembler or LLVM dependency.
 The SSA representation has basic blocks, typed values, terminators, and `phi`
 joins. The current language subset has conditional branches but no loop form.
 LIR uses virtual registers and explicit labels after `phi` edge copies are

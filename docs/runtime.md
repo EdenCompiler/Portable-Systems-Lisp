@@ -1,7 +1,7 @@
 # Hosted runtime (M4)
 
-The first hosted runtime supports x86-64 Linux, x86-64 Windows, and AArch64
-Linux as a single-threaded
+The first hosted runtime supports x86-64 Linux, x86-64 Windows, AArch64
+Linux, and RISC-V64 Linux as a single-threaded
 module set. Its
 public C interface is [runtime/psl_runtime.h](../runtime/psl_runtime.h), ABI
 version 1. It is selected only by hosted source that uses managed values.

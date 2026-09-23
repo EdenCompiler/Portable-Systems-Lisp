@@ -29,20 +29,25 @@
   (emit-integer buffer size 8))
 
 (defun collect-text (functions)
-  (let ((text (byte-buffer)) (definitions nil) (relocations nil))
+  (let ((text (byte-buffer)) (definitions nil) (relocations nil)
+        (local-labels nil))
     (dolist (function functions)
       (let ((offset (length text)))
         (push (list (encoded-function-name function) offset
                     (length (encoded-function-bytes function)))
               definitions)
         (append-buffer text (encoded-function-bytes function))
+        (dolist (label (encoded-function-local-labels function))
+          (push (cons (car label) (+ offset (cdr label))) local-labels))
         (dolist (relocation (encoded-function-relocations function))
           (push (make-relocation
                  :name (relocation-name relocation)
                  :offset (+ offset (relocation-offset relocation))
-                 :kind (relocation-kind relocation))
+                 :kind (relocation-kind relocation)
+                 :addend (relocation-addend relocation))
                 relocations))))
-    (values text (nreverse definitions) (nreverse relocations))))
+    (values text (nreverse definitions) (nreverse relocations)
+            (nreverse local-labels))))
 
 (defun collect-data (declarations)
   (let ((bytes (byte-buffer)) (definitions nil) (alignment 1))
@@ -88,7 +93,7 @@
       (fail "missing signature for function ~A" (first definition)))
     (signature-local-p signature)))
 
-(defun build-symbol-tables (functions data external signatures)
+(defun build-symbol-tables (functions local-labels data external signatures)
   (let* ((locals (remove-if-not
                   (lambda (definition)
                     (local-function-definition-p definition signatures))
@@ -97,29 +102,38 @@
                    (lambda (definition)
                      (local-function-definition-p definition signatures))
                    functions))
-         (ordered-functions (append locals globals))
-         (first-global (+ 3 (length locals)))
+         (first-global (+ 3 (length locals) (length local-labels)))
          (table (byte-buffer))
-        (names (byte-buffer))
-        (indices (make-hash-table :test #'equal)))
+         (names (byte-buffer))
+         (indices (make-hash-table :test #'equal))
+         (index 3))
     (emit-byte names 0)
     (write-symbol table 0 0 0 0 0)
     (write-symbol table 0 3 1 0 0) ; local .text section symbol
     (write-symbol table 0 3 2 0 0) ; local .data section symbol
-    (loop for (name offset size) in ordered-functions
-          for index from 3
+    (loop for (name offset size) in locals
           do (setf (gethash name indices) index)
              (write-symbol table (append-string names name)
-                           (if (< index first-global) #x02 #x12)
-                           1 offset size))
+                           #x02 1 offset size)
+             (incf index))
+    (loop for (name . offset) in local-labels
+          do (setf (gethash name indices) index)
+             (write-symbol table (append-string names name)
+                           #x00 1 offset 0)
+             (incf index))
+    (loop for (name offset size) in globals
+          do (setf (gethash name indices) index)
+             (write-symbol table (append-string names name)
+                           #x12 1 offset size)
+             (incf index))
     (loop for (name offset size) in data
-          for index from (+ 3 (length ordered-functions))
           do (setf (gethash name indices) index)
-             (write-symbol table (append-string names name) #x11 2 offset size))
+             (write-symbol table (append-string names name) #x11 2 offset size)
+             (incf index))
     (loop for (name . info) in external
-          for index from (+ 3 (length ordered-functions) (length data))
           do (setf (gethash name indices) index)
-             (write-symbol table (append-string names name) info 0 0 0))
+             (write-symbol table (append-string names name) info 0 0 0)
+             (incf index))
     (values table names indices first-global)))
 
 (defun elf-relocation-type (kind contract)
@@ -131,10 +145,12 @@
                    311 (fail "AArch64 GOT page relocation used for x86-64")))
     (:got-lo12 (if (eq (backend-contract-architecture contract) :aarch64)
                    312 (fail "AArch64 GOT offset relocation used for x86-64")))
+    (:rv-got-hi20 20)
+    (:rv-pcrel-lo12 24)
     (otherwise (fail "unsupported ELF relocation kind ~A" kind))))
 
 (defun elf-relocation-addend (contract)
-  (if (eq (backend-contract-architecture contract) :aarch64) 0 -4))
+  (if (eq (backend-contract-architecture contract) :x86-64) -4 0))
 
 (defun build-relocations (relocations symbol-indices contract)
   (let ((table (byte-buffer)))
@@ -147,7 +163,8 @@
                       (+ (ash index 32)
                          (elf-relocation-type (relocation-kind relocation)
                                               contract)) 8)
-        (emit-integer table (elf-relocation-addend contract) 8)))
+        (emit-integer table (or (relocation-addend relocation)
+                                (elf-relocation-addend contract)) 8)))
     table))
 
 (defun make-sections (text data data-alignment rela symbols names first-global)
@@ -204,6 +221,8 @@
   (patch-integer object 16 1 2)  ; ET_REL
   (patch-integer object 18 (backend-contract-elf-machine contract) 2)
   (patch-integer object 20 1 4)
+  (when (eq (backend-contract-architecture contract) :riscv64)
+    (patch-integer object 48 4 4)) ; EF_RISCV_FLOAT_ABI_DOUBLE
   (patch-integer object 40 section-offset 8)
   (patch-integer object 52 64 2)
   (patch-integer object 58 64 2)
@@ -232,13 +251,13 @@
   (unless (and (eq (backend-contract-object-format contract) :elf64)
                (eq (backend-contract-endianness contract) :little))
     (fail "ELF64 writer needs a little-endian ELF64 target"))
-  (multiple-value-bind (text function-definitions relocations)
+  (multiple-value-bind (text function-definitions relocations local-labels)
       (collect-text functions)
     (multiple-value-bind (data-bytes data-definitions data-alignment)
         (collect-data data)
       (multiple-value-bind (symbols names indices first-global)
           (build-symbol-tables
-           function-definitions data-definitions
+           function-definitions local-labels data-definitions
            (external-symbols signatures data relocations) signatures)
         (let* ((rela (build-relocations relocations indices contract))
                (sections (make-sections text data-bytes data-alignment

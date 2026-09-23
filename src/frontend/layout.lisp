@@ -138,7 +138,7 @@
       (or (integer-type-p type) (pointer-type-p type)
           (float-type-p type))))
 
-(defun aapcs-leaf-fields (layout context)
+(defun c-leaf-fields (layout context)
   (loop for field in (packed-layout-fields layout)
         for type = (field-layout-type field)
         for offset = (field-layout-offset field)
@@ -148,12 +148,12 @@
                      (unless (and nested (eq (packed-layout-kind nested) :c))
                        (fail "unsupported nested C aggregate ~S" type))
                      (loop for (part-offset . part-type)
-                             in (aapcs-leaf-fields nested context)
+                             in (c-leaf-fields nested context)
                            collect (cons (+ offset part-offset) part-type)))
                    (list (cons offset type)))))
 
 (defun aapcs-aggregate-class (layout context)
-  (let* ((leaves (aapcs-leaf-fields layout context))
+  (let* ((leaves (c-leaf-fields layout context))
          (types (mapcar #'cdr leaves)))
     (when (and leaves
                (every (lambda (type)
@@ -165,6 +165,21 @@
           (list :hfa (first types) (mapcar #'car leaves))
           (list :general (packed-layout-size layout))))))
 
+(defun riscv-aggregate-class (layout context)
+  (let* ((leaves (c-leaf-fields layout context))
+         (floats (count-if (lambda (field) (float-type-p (cdr field)))
+                           leaves))
+         (integers (count-if (lambda (field)
+                               (or (integer-type-p (cdr field))
+                                   (pointer-type-p (cdr field))))
+                             leaves)))
+    (when (and leaves (= (+ floats integers) (length leaves)))
+      (if (or (and (= floats 1) (= integers 0))
+              (and (= floats 2) (= integers 0))
+              (and (= floats 1) (= integers 1)))
+          (list :rv-fields leaves (packed-layout-size layout))
+          (list :rv-general (packed-layout-size layout))))))
+
 (defun c-aggregate-classes (type context)
   (let ((layout (and (consp type) (eq (first type) :struct)
                      (gethash (second type)
@@ -174,6 +189,8 @@
       (cond
         ((eq (target-abi (analysis-context-target context)) :aapcs64)
          (aapcs-aggregate-class layout context))
+        ((eq (target-abi (analysis-context-target context)) :lp64d)
+         (riscv-aggregate-class layout context))
         ((eq (target-abi (analysis-context-target context)) :win64)
          (when (every (lambda (field)
                         (windows-c-aggregate-field-p

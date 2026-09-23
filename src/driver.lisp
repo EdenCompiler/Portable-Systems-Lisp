@@ -94,6 +94,12 @@
                  (psl.backend.aarch64:compile-function
                   function contract (compilation-signatures compilation)
                   (compilation-abi-layouts compilation)))
+               (compilation-lir-functions compilation)))
+      (:riscv64
+       (mapcar (lambda (function)
+                 (psl.backend.riscv64:compile-function
+                  function contract (compilation-signatures compilation)
+                  (compilation-abi-layouts compilation)))
                (compilation-lir-functions compilation))))))
 
 (defun write-target-object (encoded signatures data target contract output)
@@ -152,13 +158,25 @@
                                              (profile "freestanding")
                                              (optimize t) dump-ir
                                              (dump-stream *standard-output*)
-                                             (kind :executable) inputs)
+                                             (kind :executable) inputs
+                                             startup linker-script
+                                             (entry "_start") map-file)
   (unless (member kind '(:executable :static :shared))
     (fail "unsupported output kind ~A" kind))
   (let ((selected-target (if (stringp target) (resolve-target target) target)))
-    (link-source-artifact
-     output kind selected-target inputs
-     (lambda (object)
-       (compile-source source object :target selected-target :profile profile
-                       :optimize optimize :dump-ir dump-ir
-                       :dump-stream dump-stream)))))
+    (let ((compile-object
+            (lambda (object)
+              (compile-source source object :target selected-target
+                              :profile profile :optimize optimize
+                              :dump-ir dump-ir :dump-stream dump-stream))))
+      (if (eq (target-system selected-target) :none)
+          (link-freestanding-artifact
+           output kind selected-target inputs compile-object
+           :profile profile :startup startup :linker-script linker-script
+           :entry entry :map-file map-file)
+          (progn
+            (when (or startup linker-script map-file
+                      (not (equal entry "_start")))
+              (fail "freestanding link options require a none target"))
+            (link-source-artifact output kind selected-target inputs
+                                  compile-object))))))

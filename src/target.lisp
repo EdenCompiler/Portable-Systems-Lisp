@@ -7,7 +7,7 @@
            stack-alignment)
 
 (defun c-integer-type (target name)
-  (unless (member (target-abi target) '(:sysv-amd64 :win64 :aapcs64))
+  (unless (member (target-abi target) '(:sysv-amd64 :win64 :aapcs64 :lp64d))
     (fail "C integer aliases are not defined for ABI ~A" (target-abi target)))
   (if (member name '(psl:c-long psl:c-ulong))
       (if (eq (target-abi target) :win64)
@@ -37,6 +37,14 @@
      (make-target :architecture :aarch64 :abi :aapcs64
                   :system :linux :object-format :elf64
                   :pointer-bits 64 :endianness :little))
+    ((equal name "riscv64-linux-gnu")
+     (make-target :architecture :riscv64 :abi :lp64d
+                  :system :linux :object-format :elf64
+                  :pointer-bits 64 :endianness :little))
+    ((equal name "riscv64-none-elf")
+     (make-target :architecture :riscv64 :abi :lp64d
+                  :system :none :object-format :elf64
+                  :pointer-bits 64 :endianness :little))
     (t (fail "unsupported target ~A" name))))
 
 (defun resolve-backend-contract (target)
@@ -47,6 +55,9 @@
                                   (eq (target-object-format target) :coff))))
                    (and (eq (target-architecture target) :aarch64)
                         (eq (target-abi target) :aapcs64)
+                        (eq (target-object-format target) :elf64))
+                   (and (eq (target-architecture target) :riscv64)
+                        (eq (target-abi target) :lp64d)
                         (eq (target-object-format target) :elf64)))
                (= (target-pointer-bits target) 64)
                (eq (target-endianness target) :little))
@@ -74,4 +85,11 @@
       :pointer-bits 64 :endianness :little
       :argument-registers '(0 1 2 3 4 5 6 7)
       :float-argument-registers '(0 1 2 3 4 5 6 7)
-      :elf-machine 183 :call-relocation 283 :stack-alignment 16))))
+      :elf-machine 183 :call-relocation 283 :stack-alignment 16))
+    (:lp64d
+     (make-backend-contract
+      :architecture :riscv64 :abi :lp64d :object-format :elf64
+      :pointer-bits 64 :endianness :little
+      :argument-registers '(10 11 12 13 14 15 16 17)
+      :float-argument-registers '(10 11 12 13 14 15 16 17)
+      :elf-machine 243 :call-relocation 19 :stack-alignment 16))))

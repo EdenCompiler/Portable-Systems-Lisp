@@ -69,6 +69,19 @@ profile and select only the runtime modules they use:
 echo $?
 ```
 
+## Freestanding
+
+- [virt_uart.lisp](freestanding/virt_uart.lisp): pure Lisp code writes one
+  byte to QEMU `virt`'s UART using a volatile raw pointer. The selected
+  RISC-V startup initializes the stack and reports `main`'s status to QEMU.
+
+```sh
+./pslcc --target=riscv64-none-elf --startup=qemu-virt \
+  examples/freestanding/virt_uart.lisp -o /tmp/virt-uart.elf
+qemu-system-riscv64 -machine virt -m 128M -nographic -bios none \
+  -kernel /tmp/virt-uart.elf -no-reboot
+```
+
 ## Basic
 
 - [add.lisp](basic/add.lisp): typed functions, a C export, a C import, and a macro.
@@ -86,6 +99,8 @@ echo $?
   C struct passed by reference under Microsoft x64.
 - [aarch64_hfa.lisp](abi/aarch64_hfa.lisp): four-float homogeneous aggregates,
   nested fields, and floating-register exhaustion under AAPCS64.
+- [riscv64_edges.lisp](abi/riscv64_edges.lisp): integer/stack register splits,
+  ninth arguments, and floating-register fallback under LP64D.
 
 ## FFI
 
@@ -110,4 +125,5 @@ cc examples/basic/harness_add.c /tmp/psl-add.o -o /tmp/psl-add
 ```
 
 Run `sh tests/smoke.sh` for x86-64 Linux, `sh tests/windows.sh` for Windows,
-or `sh tests/aarch64.sh` with the AArch64 cross toolchain and QEMU.
+`sh tests/aarch64.sh` for AArch64, or `sh tests/riscv64.sh` for RISC-V64
+Linux and freestanding QEMU execution.

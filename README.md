@@ -3,9 +3,10 @@
 Portable Systems Lisp (PSL) is an experimental native compiler for Lisp code
 that works with machine integers, raw pointers, and C functions. It uses SBCL
 to compile source files into ELF or COFF object files and link executables and
-libraries for x86-64 Linux, x86-64 Windows, and AArch64 Linux. The language is being
-built toward a hosted Common Lisp implementation and a freestanding systems
-profile; today, the compiler implements a small, typed subset of that design.
+libraries for x86-64 Linux, x86-64 Windows, AArch64 Linux, and RISC-V64 Linux.
+The language is being built toward a hosted Common Lisp implementation and a
+freestanding systems profile; today, the compiler implements a small, typed
+subset of that design.
 
 ```lisp
 (defun add42 (value)
@@ -73,12 +74,28 @@ the [shared data example](examples/ffi/shared_data.lisp), and the
 
 The default target is `x86_64-linux-gnu`. Use
 `--target=x86_64-windows-gnu` for Microsoft x64 and COFF with MinGW-w64;
-`x86_64-none-elf` produces an ELF64 object only. Both profiles compile the
+`x86_64-none-elf` produces freestanding ELF64 output. Both profiles compile the
 typed subset; `hosted` also accepts
 the first managed-value facilities.
 `--target=aarch64-linux-gnu` uses AAPCS64 and ELF64. The compiler encodes
 AArch64 instructions and writes ELF objects itself; linking uses
 `aarch64-linux-gnu-gcc` or `aarch64-linux-gnu-ar`.
+`--target=riscv64-linux-gnu` uses LP64D and ELF64 with the RISC-V GNU cross
+toolchain. `riscv64-none-elf` produces an ELF64 bare-metal object or a linked
+QEMU `virt` image. The compiler encodes all three machine backends itself.
+
+Freestanding links accept `--startup=linux-exit|qemu-virt`,
+`--entry=SYMBOL`, `--linker-script=FILE`, and `--map=FILE`. The `linux-exit`
+startup explicitly uses a Linux syscall for the x86-64 QEMU user-mode proof;
+the RISC-V `qemu-virt` startup runs without firmware or an OS:
+
+```sh
+./pslcc --target=riscv64-none-elf --startup=qemu-virt \
+  examples/native/arithmetic.lisp -o /tmp/psl-virt.elf
+qemu-system-riscv64 -machine virt -m 128M -nographic -bios none \
+  -kernel /tmp/psl-virt.elf -no-reboot
+```
+
 `-O1` is the default optimization level. `-c` writes a relocatable `.o` without
 linking. On native x86-64 Linux, the second form invokes `cc` or `ar` for an
 executable, `.a`, or `.so`. Extra C objects and libraries are explicit link
@@ -89,11 +106,10 @@ Windows target. The library API exposes both compilation and linking.
 ## Project status
 
 The core specification, first native object, compiler foundation, first C ABI
-path, first modular hosted runtime, x86-64 Windows target, and AArch64 Linux
-target are implemented
-for their documented subsets. The compiler has typed
-HIR, SSA, and low-level IR,
-with a shared frontend and machine backends that write ELF or COFF objects. C calls support
+path, first modular hosted runtime, x86-64 Windows, AArch64 Linux, RISC-V64
+Linux, and initial freestanding execution are implemented for their documented
+subsets. The compiler has typed HIR, SSA, and low-level IR, with a shared
+frontend and machine backends that write ELF or COFF objects. C calls support
 integer and pointer values, `float`/`double`, stack arguments, and small
 scalar-field C structs by value. Naturally aligned C struct layouts and data
 symbols are supported. Hosted source can also use tagged values, conses,
@@ -103,7 +119,8 @@ basic collector. See the [implemented core](docs/core.md) and
 
 The hosted profile is **not yet an ANSI Common Lisp implementation**. There
 is no numeric tower, conditions, CLOS, streams, or general `eval` yet. The
-freestanding target currently emits a relocatable object, not a bootable image.
+RISC-V freestanding output boots on QEMU `virt` with the selected startup and
+linker script. Other bare-metal boards need their own startup and memory map.
 See the [roadmap](docs/roadmap.md) for milestone status.
 
 ## Documentation and tests
@@ -115,6 +132,9 @@ See the [roadmap](docs/roadmap.md) for milestone status.
 - [Engineering roadmap](docs/roadmap.md) and [contributor instructions](AGENTS.md).
 
 Run `sh tests/smoke.sh` for x86-64 Linux, `sh tests/windows.sh` for Windows,
-and `sh tests/aarch64.sh` for AArch64 Linux under QEMU.
+`sh tests/aarch64.sh` for AArch64 Linux, and `sh tests/riscv64.sh` for
+RISC-V64 Linux and the freestanding QEMU proofs.
 The Windows suite needs MinGW-w64, Wine, and binutils alongside SBCL.
 The AArch64 suite needs the AArch64 GNU cross toolchain and `qemu-aarch64`.
+The RISC-V64 suite needs the RISC-V GNU cross toolchain, RISC-V bare-metal
+binutils, and QEMU user and system emulators.

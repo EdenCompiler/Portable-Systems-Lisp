@@ -20,10 +20,12 @@ is updated. Dates and staffing are deliberately unspecified.
 | Local C source inclusion | Working on supported hosted targets | `ffi:source` compiles a `.c` file with the selected C compiler and merges it into the target relocatable object. |
 | Hosted dynamic runtime | M4 complete for documented subset | Versioned 64-bit tagged values, conses, UTF-8 byte strings, symbols, packages, one-argument lexical closures, two values, and a single-threaded mark-and-sweep collector. See the [runtime contract](runtime.md) for limits. |
 | Allocation effect checks | Working M4 slice | `without-allocation` checks transitive direct calls; unknown imports and indirect calls fail unless a trusted import effect is declared. |
-| x86-64 none / ELF64 | Object only | Emits a runtime-free object; startup, linker layout, and boot execution are pending. |
+| x86-64 none / ELF64 | M7 executable subset | Runtime-free static image with an explicit entry or generated `linux-exit` startup, linker script, and map. QEMU user-mode executes the explicit Linux-syscall startup without libc. |
+| RISC-V64 Linux / LP64D / ELF64 | M7 complete for documented subset | Self-encoded machine code, GP/FP and stack calls, small C structs, ELF call/GOT relocations, GNU cross linking, and QEMU execution. Larger aggregates, variadics, and `long double` remain unsupported. |
+| RISC-V64 none / ELF64 | M7 executable subset | QEMU `virt` image with explicit startup, stack setup, UART access from Lisp, and SiFive Test exit status; no firmware, OS, libc, or hosted runtime is linked. Other boards require their own startup and memory map. |
 | Hosted ANSI Common Lisp | Pending M9 | `--profile=hosted` has an M4 managed-value subset; numeric tower, conditions, CLOS, streams, `eval`, and conformance remain pending. |
 | Executables and libraries | Working on supported hosted targets | `pslcc` invokes the selected GCC linker for executables and shared libraries, and `ar` for deterministic `.a`; dynamic source selects only required runtime objects. |
-| RISC-V, macOS, Wasm | Pending | No code generation or object writing for these targets yet. |
+| macOS and Wasm | Pending M10 | No object writer or code generation for these targets yet. |
 
 The existing `sh tests/smoke.sh` verifies ELF structure and relocations,
 byte-for-byte repeatability, C calls in both directions across GP, SSE, and
@@ -212,7 +214,7 @@ ELF64 objects directly. GNU tools are used to compile C and link artifacts;
 QEMU is used only to execute cross-target tests. C structs larger than 16
 bytes, variadic calls, and `long double` remain outside the supported subset.
 
-## M7 — Freestanding execution and RISC-V · Partial
+## M7 — Freestanding execution and RISC-V · Complete for documented subset
 
 **Dependencies:** M0 freestanding rules, M2 backend contract, M3 link control.
 
@@ -226,8 +228,22 @@ bytes, variadic calls, and `long double` remain outside the supported subset.
 
 **Gate:** QEMU executes both freestanding proofs; link maps show only selected
 objects; cross compilation succeeds from x86-64 without running target code
-during the build. The current `x86_64-none-elf` object alone does not pass this
-gate.
+during the build.
+
+`sh tests/riscv64.sh` compiles the shared typed, C interoperability, native,
+and hosted examples for RISC-V64 Linux at `-O0` and `-O1`, then runs them under
+QEMU user-mode. It checks LP64D register/stack edges, ELF machine flags and
+call/GOT relocations, repeatable objects and libraries, and runtime-module
+selection. The compiler writes RISC-V instructions and ELF objects itself;
+GNU tools only compile C and link artifacts. The same suite builds an x86-64
+static image with the explicit `linux-exit` syscall startup and a RISC-V64
+bare-metal image with the `qemu-virt` startup. QEMU executes both. It inspects
+undefined symbols, dynamic dependencies, and link maps; checks explicit entry
+and linker-script selection; runs a host-expanded macro program on RISC-V; and
+verifies UART output and success/failure exit through QEMU's SiFive Test device.
+The RISC-V image uses QEMU `virt` with 128 MiB RAM and `-bios none`. The x86-64
+proof intentionally uses Linux user-mode emulation and an explicit exit syscall;
+an x86-64 kernel or board startup is outside this slice.
 
 ## M8 — Self hosting · Pending
 

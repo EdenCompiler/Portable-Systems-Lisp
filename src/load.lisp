@@ -25,8 +25,10 @@
                   "backend/x86-64.lisp"
                   "backend/win64-abi.lisp"
                   "backend/aarch64.lisp"
+                  "backend/riscv64.lisp"
                   "object/elf64.lisp"
                   "object/coff.lisp"
                   "ffi/toolchain.lisp"
+                  "ffi/freestanding.lisp"
                   "driver.lisp"))
     (load (merge-pathnames file root))))

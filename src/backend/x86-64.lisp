@@ -496,3 +496,18 @@
      :bytes (emitter-bytes emitter)
      :relocations (nreverse (emitter-relocations emitter))
      :frame-size frame-size))))
+
+(defun compile-linux-exit-startup ()
+  (let ((buffer (byte-buffer)))
+    (emit-bytes buffer #x48 #x31 #xed) ; xor rbp, rbp
+    (emit-byte buffer #xe8) ; call main
+    (let ((call-offset (length buffer)))
+      (emit-integer buffer 0 4)
+      (emit-bytes buffer #x89 #xc7) ; mov edi, eax
+      (emit-bytes buffer #xb8 #x3c 0 0 0) ; mov eax, 60 (Linux exit)
+      (emit-bytes buffer #x0f #x05) ; syscall
+      (emit-byte buffer #xf4) ; hlt if exit unexpectedly returns
+      (make-encoded-function
+       :name "_start" :bytes buffer :frame-size 0
+       :relocations (list (make-relocation :offset call-offset
+                                          :name "main" :kind :call))))))
