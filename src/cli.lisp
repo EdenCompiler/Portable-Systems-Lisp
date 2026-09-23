@@ -1,0 +1,74 @@
+(load (merge-pathnames "load.lisp" *load-truename*))
+
+(in-package #:cl-user)
+
+(defstruct cli-options
+  source output compile-only
+  (target "x86_64-linux-gnu")
+  (profile "freestanding"))
+
+(defun usage (&optional (stream *standard-output*))
+  (format stream "Usage: pslcc -c SOURCE.lisp -o OUTPUT.o [--target=TRIPLE] [--profile=PROFILE]~%")
+  (format stream "Targets: x86_64-linux-gnu, x86_64-none-elf~%")
+  (format stream "Profiles: hosted, freestanding~%"))
+
+(defun required-value (option remaining)
+  (unless remaining (error "~A requires a value" option))
+  (values (first remaining) (rest remaining)))
+
+(defun apply-option (argument remaining options)
+  (cond
+    ((equal argument "-c")
+     (setf (cli-options-compile-only options) t))
+    ((equal argument "-o")
+     (multiple-value-bind (value rest) (required-value argument remaining)
+       (setf (cli-options-output options) value
+             remaining rest)))
+    ((equal argument "--target")
+     (multiple-value-bind (value rest) (required-value argument remaining)
+       (setf (cli-options-target options) value
+             remaining rest)))
+    ((equal argument "--profile")
+     (multiple-value-bind (value rest) (required-value argument remaining)
+       (setf (cli-options-profile options) value
+             remaining rest)))
+    ((and (<= 9 (length argument))
+          (string= argument "--target=" :end1 9))
+     (setf (cli-options-target options) (subseq argument 9)))
+    ((and (<= 10 (length argument))
+          (string= argument "--profile=" :end1 10))
+     (setf (cli-options-profile options) (subseq argument 10)))
+    ((member argument '("-h" "--help") :test #'equal)
+     (usage)
+     (sb-ext:exit :code 0))
+    ((and (plusp (length argument)) (char= (char argument 0) #\-))
+     (error "unknown option ~A" argument))
+    ((null (cli-options-source options))
+     (setf (cli-options-source options) argument))
+    (t (error "unexpected argument ~A" argument)))
+  remaining)
+
+(defun parse-arguments (arguments)
+  (let ((options (make-cli-options)))
+    (loop while arguments
+          do (setf arguments (apply-option (pop arguments) arguments options)))
+    options))
+
+(defun main (arguments)
+  (let ((options (parse-arguments arguments)))
+    (unless (cli-options-compile-only options)
+      (error "only -c object compilation is implemented"))
+    (unless (and (cli-options-source options) (cli-options-output options))
+      (error "-c requires SOURCE and -o OUTPUT"))
+    (psl.compiler:compile-source
+     (cli-options-source options) (cli-options-output options)
+     :target (cli-options-target options)
+     :profile (cli-options-profile options))
+    0))
+
+(handler-case
+    (sb-ext:exit :code (main (cdr sb-ext:*posix-argv*)))
+  (error (condition)
+    (format *error-output* "~A~%" condition)
+    (usage *error-output*)
+    (sb-ext:exit :code 1)))

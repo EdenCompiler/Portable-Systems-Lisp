@@ -1,0 +1,5 @@
+(defun add42 (value)
+  (declare (type u64 value)
+           (returns u64)
+           (c-export :c))
+  (wrap+ value 42))

@@ -1,0 +1,83 @@
+(defstruct/packed packet
+  (tag u8)
+  (count u16)
+  (payload u32))
+
+(defun packet_size ()
+  (declare (returns usize) (c-export :c))
+  (sizeof 'packet))
+
+(defun packet_alignment ()
+  (declare (returns usize) (c-export :c))
+  (alignof 'packet))
+
+(defun payload_offset ()
+  (declare (returns usize) (c-export :c))
+  (offset-of 'packet 'payload))
+
+(defun read_tag (packet-pointer)
+  (declare (type (ptr packet) packet-pointer)
+           (returns u8)
+           (c-export :c))
+  (deref (field-pointer packet-pointer 'tag)))
+
+(defun read_payload (packet-pointer)
+  (declare (type (ptr packet) packet-pointer)
+           (returns u32)
+           (c-export :c))
+  (deref (field-pointer packet-pointer 'payload)))
+
+(defun write_count (packet-pointer value)
+  (declare (type (ptr packet) packet-pointer)
+           (type u16 value)
+           (returns u16)
+           (c-export :c))
+  (store (field-pointer packet-pointer 'count) value))
+
+(defun second_byte (bytes)
+  (declare (type (ptr u8) bytes)
+           (returns u8)
+           (c-export :c))
+  (deref (pointer+ bytes 1)))
+
+(defun second_word (words)
+  (declare (type (ptr u16) words)
+           (returns u16)
+           (c-export :c))
+  (deref (pointer+ words 1)))
+
+(defun first_byte_via_cast (packet-pointer)
+  (declare (type (ptr packet) packet-pointer)
+           (returns u8)
+           (c-export :c))
+  (deref (ptr-cast (ptr u8) packet-pointer)))
+
+(defun read_address (address)
+  (declare (type usize address)
+           (returns u8)
+           (c-export :c))
+  (deref (ptr-from-address (ptr u8) address)))
+
+(defun read_signed_byte (bytes)
+  (declare (type (ptr s8) bytes)
+           (returns s8)
+           (c-export :c))
+  (deref bytes))
+
+(defun wrap_byte (value)
+  (declare (type u8 value)
+           (returns u8)
+           (c-export :c))
+  (wrap+ value 1))
+
+(defun previous_byte (bytes)
+  (declare (type (ptr u8) bytes)
+           (returns u8)
+           (c-export :c))
+  (deref (pointer+ bytes -1)))
+
+(defun read_status (status)
+  (declare (type (ptr u8 :volatile) status)
+           (returns u8)
+           (c-export :c))
+  (deref status))
