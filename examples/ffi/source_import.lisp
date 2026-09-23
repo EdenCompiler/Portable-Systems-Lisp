@@ -1,4 +1,4 @@
-(ffi:source "ffi_math.c")
+(ffi:source "math.c")
 (ffi:import-function "scale_c" ((value u64) (factor u64)) -> u64)
 
 (defun scale_then_add (value)

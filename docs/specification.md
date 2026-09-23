@@ -160,8 +160,10 @@ code perform no dynamic storage allocation or hidden allocating runtime call.
 Fixed stack slots and static storage are permitted. Unknown effects, indirect
 calls without a proof, and allocator calls make certification fail at compile
 time. Macro expansion occurs before effect checking, so host allocations made
-while expanding a macro do not count as target allocations. **Storage forms and
-effect checking are specified, not implemented.**
+while expanding a macro do not count as target allocations. **A first hosted
+managed heap and transitive `without-allocation` effect check are implemented
+in M4. General stack, static, and arena allocation forms remain specified but
+unimplemented.**
 
 ## 7. Compilation stages and target separation
 
@@ -184,8 +186,9 @@ target, the driver can invoke `cc` or `ar` for an executable, shared library,
 or static archive with explicit extra link inputs.
 The earlier `psl:defun/c` and `psl:extern-function` spellings are also accepted
 by Stage 0.
-A stable ABI for independently compiled dynamic Lisp components is a later
-feature; internal Lisp calls may use a private convention. Freestanding
+A versioned 64-bit tagged-value and root ABI exists for the M4 hosted runtime;
+the complete ABI for independently compiled dynamic Lisp components remains a
+later feature. Internal Lisp calls may use a private convention. Freestanding
 objects must not acquire hidden libc, GC, or OS dependencies. A compiler error
 must identify the unsupported form or violated rule and must not claim that an
 object was successfully produced.
@@ -215,5 +218,6 @@ object was successfully produced.
 The [smoke test](../tests/smoke.sh) runs corresponding integer, macro,
 pointer, C ABI, layout, and linking cases through generated ELF objects and C
 harnesses.
-Allocation forms and other later features must fail clearly until implemented,
-not emit code with guessed semantics.
+Unsupported allocation forms and other later features must fail clearly,
+not emit code with guessed semantics. The [hosted runtime contract](runtime.md)
+records the implemented M4 subset.

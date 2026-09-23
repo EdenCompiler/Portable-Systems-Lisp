@@ -12,6 +12,12 @@
         (values 0 (1- (ash 1 width))))))
 
 (defun analyze-literal (value context &optional expected)
+  (when (eq expected :value)
+    (unless (<= (- (ash 1 62)) value (1- (ash 1 62)))
+      (fail "integer literal ~S does not fit a hosted fixnum" value))
+    (return-from analyze-literal
+      (make-hir :kind :literal :type :value
+                :value (logior 1 (ldb (byte 64 0) (ash value 1))))))
   (let ((type (or expected (if (minusp value) :s64 :u64))))
     (multiple-value-bind (minimum maximum) (integer-bounds type context)
       (unless (<= minimum value maximum)
@@ -35,7 +41,9 @@
 (defun analyze-if (form environment context expected)
   (unless (= (length form) 4)
     (fail "IF requires condition, then, and else"))
-  (let* ((parts (list (analyze-expression (second form) environment context)
+  (let* ((parts (list (dynamic-truth-test
+                       (analyze-expression (second form) environment context)
+                       context)
                       (analyze-expression (third form) environment context expected)
                       (analyze-expression (fourth form) environment context expected)))
          (then (second parts))
@@ -51,6 +59,11 @@
                                                  environment context expected)))))
     (make-hir :kind :progn :type (hir-type (car (last parts)))
               :children parts :source *source-location*)))
+
+(defun analyze-without-allocation (form environment context expected)
+  (let ((body (analyze-progn (rest form) environment context expected)))
+    (push body (analysis-context-allocation-regions context))
+    body))
 
 (defun analyze-binding (binding environment context)
   (unless (and (listp binding) (= (length binding) 2)
@@ -237,16 +250,32 @@
 
 (defun analyze-expanded-expression (form environment context expected)
   (cond
-      ((eq form nil) (make-hir :kind :literal :type :boolean :value 0))
-      ((eq form t) (make-hir :kind :literal :type :boolean :value 1))
+      ((eq form nil) (make-hir :kind :literal
+                              :type (if (eq expected :value) :value :boolean)
+                              :value (if (eq expected :value) 2 0)))
+      ((eq form t) (make-hir :kind :literal
+                            :type (if (eq expected :value) :value :boolean)
+                            :value (if (eq expected :value) 6 1)))
       ((integerp form) (analyze-literal form context expected))
       ((floatp form) (analyze-float-literal form expected))
+      ((stringp form) (analyze-string-literal form context expected))
       ((symbolp form) (analyze-variable form environment))
       ((not (consp form)) (fail "unsupported expression ~S" form))
       ((form-p form "if") (analyze-if form environment context expected))
       ((form-p form "progn")
        (analyze-progn (rest form) environment context expected))
+      ((psl-form-p form "without-allocation")
+       (analyze-without-allocation form environment context expected))
       ((form-p form "let") (analyze-let form environment context expected))
+      ((form-p form "multiple-value-bind")
+       (analyze-multiple-value-bind form environment context expected))
+      ((form-p form "values")
+       (analyze-values2 form environment context))
+      ((and (form-p form "function") (= (length form) 2)
+            (form-p (second form) "lambda"))
+       (analyze-lambda-expression (second form) environment context))
+      ((form-p form "lambda")
+       (analyze-lambda-expression form environment context))
       ((or (psl-form-p form "sizeof") (psl-form-p form "alignof")
            (psl-form-p form "offset-of"))
        (analyze-layout-query form context))
@@ -265,6 +294,9 @@
        (analyze-ffi-call form environment context))
       ((ffi-form-p form "address-of")
        (analyze-data-address form context))
+      ((runtime-operation form)
+       (analyze-runtime-call form (runtime-operation form)
+                             environment context))
       ((binary-form-p form) (analyze-binary form environment context expected))
       ((and (symbolp (first form))
             (gethash (source-name (first form))
@@ -277,12 +309,20 @@
          (analyze-call form signature environment context)))
       (t (fail "unsupported form ~S" form))))
 
+(defun expand-source-form (source)
+  (loop with form = source
+        do (when (form-p form "multiple-value-bind")
+             (return form))
+           (multiple-value-bind (next changed) (macroexpand-1 form)
+             (unless changed (return form))
+             (setf form next))))
+
 (defun analyze-expression (source environment context &optional expected)
   (let* ((*source-location*
            (or (and (consp source) *source-locations*
                     (gethash source *source-locations*))
                *source-location*))
-         (form (handler-case (macroexpand source)
+         (form (handler-case (expand-source-form source)
                  (error (condition)
                    (fail "macro expansion failed: ~A" condition))))
          (node (analyze-expanded-expression form environment context expected)))
@@ -291,7 +331,7 @@
     node))
 
 (defun supported-abi-argument-type-p (type context)
-  (or (integer-type-p type) (pointer-type-p type)
+  (or (integer-type-p type) (pointer-type-p type) (eq type :value)
       (float-type-p type) (c-aggregate-classes type context)))
 
 (defun supported-abi-result-type-p (type context)
@@ -379,10 +419,10 @@
       (make-function-def :signature signature :parameters parameters :body hir
                          :source *source-location*))))
 
-(defun analyze-source (forms target &optional locations)
+(defun analyze-source (forms target &optional locations (profile "freestanding"))
   "Return typed HIR functions and all known function signatures."
   (let ((*source-locations* locations)
-        (context (make-context target))
+        (context (make-context target profile))
         (definitions (make-hash-table :test #'eq)))
     (dolist (form forms)
       (let ((*source-location* (and locations (gethash form locations))))
@@ -416,8 +456,14 @@
             ((or (psl-form-p form "defun/c") (form-p form "defun"))
              (push (analyze-definition (gethash form definitions) context)
                    functions)))))
-      (values (nreverse functions)
+      (setf functions (nreverse functions))
+      (setf functions
+            (append functions
+                    (nreverse (analysis-context-generated-functions context))))
+      (verify-allocation-regions functions context)
+      (values functions
               (analysis-context-signatures context)
               (nreverse (analysis-context-c-sources context))
               (nreverse (analysis-context-data context))
-              (c-abi-layouts context)))))
+              (c-abi-layouts context)
+              (nreverse (analysis-context-runtime-modules context))))))

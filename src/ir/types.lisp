@@ -15,7 +15,7 @@
     ((:u8 :s8) 8)
     ((:u16 :s16) 16)
     ((:u32 :s32) 32)
-    ((:u64 :s64) 64)
+    ((:u64 :s64 :value) 64)
     ((:usize :isize) pointer-bits)
     (otherwise nil)))
 

@@ -3,7 +3,7 @@
 The SBCL library exposes the same stages used by `pslcc`:
 
 ```lisp
-(let ((unit (psl.compiler:read-unit "examples/add.lisp")))
+(let ((unit (psl.compiler:read-unit "examples/basic/add.lisp")))
   (unwind-protect
        (let ((program (psl.compiler:analyze-unit unit)))
          (psl.compiler:lower-unit program)
@@ -22,6 +22,10 @@ coordinates these calls and always disposes the source package.
 `psl.compiler:compile-and-link` runs that pipeline and uses the selected
 native linker or archiver for an executable, static archive, or shared
 library. Its `:inputs` list names additional C objects or libraries.
+`compile-source` returns the output path and, as a second value, the hosted
+runtime modules requested by the source. `compilation-runtime-modules` exposes
+the same list after `analyze-unit`. Linked artifacts include the transitive
+module dependencies; object-only compilation leaves their symbols unresolved.
 
 ## IR contracts
 

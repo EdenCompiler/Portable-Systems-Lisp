@@ -1,0 +1,6 @@
+(defun main ()
+  (declare (returns c-int) (c-export :c))
+  (multiple-value-bind (first second) (values 20 22)
+    (if (= (unbox-fixnum first) 20)
+        (if (= (unbox-fixnum second) 22) 0 1)
+        1)))

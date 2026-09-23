@@ -9,7 +9,10 @@
            #:c-long #:c-ulong #:c-long-long #:c-ulong-long
            #:c-size-t #:c-ptrdiff-t
            #:f32 #:f64 #:c-float #:c-double #:void
-           #:returns #:export #:c-export))
+           #:returns #:export #:c-export #:without-allocation
+           #:value #:box-fixnum #:unbox-fixnum #:make-byte-string
+           #:string-byte #:set-string-byte #:make-package-from-name
+           #:intern-symbol #:collect-garbage))
 
 (defpackage #:psl.ffi
   (:nicknames #:ffi)
@@ -26,7 +29,8 @@
 (defpackage #:psl.ir
   (:use #:cl #:psl.common)
   (:export #:signature #:make-signature #:signature-name #:signature-arguments
-           #:signature-result #:signature-external-p
+           #:signature-result #:signature-external-p #:signature-effect
+           #:signature-local-p
            #:function-def #:make-function-def #:function-def-signature
            #:function-def-parameters #:function-def-body #:function-def-source
            #:hir #:make-hir #:hir-kind #:hir-type #:hir-value #:hir-children
@@ -108,4 +112,5 @@
            #:lower-unit #:optimize-unit #:linearize-unit #:emit-unit
            #:compilation #:compilation-hir-functions
            #:compilation-ssa-functions #:compilation-lir-functions
-           #:compilation-target #:compilation-signatures #:dump-stage))
+           #:compilation-target #:compilation-signatures
+           #:compilation-runtime-modules #:dump-stage))

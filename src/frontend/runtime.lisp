@@ -1,0 +1,77 @@
+(in-package #:psl.frontend)
+
+(defparameter *runtime-operations*
+  '((cl:cons "psl_rt_cons" (:value :value) :value :cons :allocates)
+    (cl:car "psl_rt_car" (:value) :value :cons :none)
+    (cl:cdr "psl_rt_cdr" (:value) :value :cons :none)
+    (cl:eq "psl_rt_eq" (:value :value) :boolean :value :none)
+    (cl:make-symbol "psl_rt_make_symbol" (:value) :value :symbol :allocates)
+    (cl:symbol-name "psl_rt_symbol_name" (:value) :value :symbol :none)
+    (cl:package-name "psl_rt_package_name" (:value) :value :package :none)
+    (cl:funcall "psl_rt_call_closure" (:value :value)
+     :value :closure :unknown)
+    (psl:box-fixnum "psl_rt_fixnum" (:s64) :value :value :none)
+    (psl:unbox-fixnum "psl_rt_unbox_fixnum" (:value) :s64 :value :none)
+    (psl:make-byte-string "psl_rt_make_string" (:usize :u8)
+     :value :string :allocates)
+    (psl:string-byte "psl_rt_string_byte" (:value :usize)
+     :u8 :string :none)
+    (psl:set-string-byte "psl_rt_string_set_byte" (:value :usize :u8)
+     :void :string :none)
+    (psl:make-package-from-name "psl_rt_make_package" (:value)
+     :value :package :allocates)
+    (psl:intern-symbol "psl_rt_intern" (:value :value)
+     :value :package :allocates)
+    (psl:collect-garbage "psl_rt_collect" () :void :gc :allocates)))
+
+(defun runtime-operation (form)
+  (and (consp form) (assoc (first form) *runtime-operations*)))
+
+(defun require-hosted-runtime (context)
+  (unless (equal (analysis-context-profile context) "hosted")
+    (fail "managed Lisp operations require --profile=hosted"))
+  (let ((target (analysis-context-target context)))
+    (unless (and (eq (target-architecture target) :x86-64)
+                 (eq (target-system target) :linux))
+      (fail "managed Lisp runtime currently requires x86_64-linux-gnu"))))
+
+(defun register-runtime-call (name arguments result module effect context)
+  (let ((signatures (analysis-context-signatures context))
+        (runtime-signatures (analysis-context-runtime-signatures context)))
+    (when (and (gethash name signatures)
+               (not (gethash name runtime-signatures)))
+      (fail "runtime symbol ~A conflicts with a source declaration" name))
+    (unless (gethash name runtime-signatures)
+      (setf (gethash name signatures)
+            (make-signature :name name :arguments arguments :result result
+                            :external-p t :effect effect)
+            (gethash name runtime-signatures) t))
+    (pushnew module (analysis-context-runtime-modules context))
+    name))
+
+(defun analyze-runtime-call (form operation environment context)
+  (require-hosted-runtime context)
+  (destructuring-bind (source name parameter-types result module effect)
+      operation
+    (declare (ignore source))
+    (unless (= (length (rest form)) (length parameter-types))
+      (fail "wrong number of arguments for ~A" (first form)))
+    (let ((arguments
+            (loop for source in (rest form)
+                  for type in parameter-types
+                  collect (analyze-expression source environment context type))))
+      (unless (equal (mapcar #'hir-type arguments) parameter-types)
+        (fail "argument type mismatch in ~A" (first form)))
+      (make-hir :kind :call :type result
+                :value (register-runtime-call name parameter-types result
+                                              module effect context)
+                :children arguments))))
+
+(defun dynamic-truth-test (condition context)
+  (if (eq (hir-type condition) :value)
+      (make-hir :kind :call :type :boolean
+                :value (register-runtime-call
+                        "psl_rt_truthy" '(:value) :boolean :value :none context)
+                :children (list condition)
+                :source (hir-source condition))
+      condition))

@@ -1,0 +1,6 @@
+(defun other_answer ()
+  (declare (returns c-int) (c-export :c))
+  (let ((captured (box-fixnum 41)))
+    (let ((closure #'(lambda (argument)
+                       (cons captured argument))))
+      (if (= (unbox-fixnum (car (funcall closure 1))) 41) 0 1))))

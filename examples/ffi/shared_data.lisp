@@ -1,4 +1,4 @@
-(ffi:source "ffi_data_provider.c")
+(ffi:source "data_provider.c")
 (ffi:import-data "c_counter" c-long)
 (ffi:import-data "c_ratio" c-double)
 (ffi:import-data "c_pointer" (ptr u8))

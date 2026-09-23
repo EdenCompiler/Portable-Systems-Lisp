@@ -1,0 +1,15 @@
+(defun square (value)
+  (declare (type u64 value)
+           (returns u64)
+           (c-export :c))
+  (wrap* value value))
+
+(defun sum-of-squares (left right)
+  (declare (type u64 left right)
+           (returns u64)
+           (c-export :c))
+  (wrap+ (square left) (square right)))
+
+(defun main ()
+  (declare (returns c-int) (c-export :c))
+  (if (= (sum-of-squares 3 4) 25) 0 1))

@@ -9,10 +9,10 @@ including facilities still awaiting implementation.
 The Stage 0 compiler runs under SBCL. `pslcc -c source.lisp -o output.o`
 produces an x86-64 ELF64 relocatable object. Accepted targets are
 `x86_64-linux-gnu` and `x86_64-none-elf`; both currently use the System V AMD64
-calling convention and ELF64 writer. `--profile=hosted|freestanding`
-is accepted, but both flags currently compile the same typed subset. The
-compiler can link native Linux executables, static archives, and shared
-libraries by invoking `cc` or `ar`; it does not provide a hosted Lisp runtime.
+calling convention and ELF64 writer. `--profile=hosted|freestanding` selects
+different source capabilities: both accept the typed machine subset, while
+`hosted` additionally accepts managed values. The compiler links native Linux
+executables, static archives, and shared libraries through `cc` or `ar`.
 `-O0` skips optimization; the default `-O1` performs small-function inlining,
 machine-width constant folding, and dead pure-value removal. Use
 `--dump-ir=hir|ssa|lir|all` to inspect the verified pipeline.
@@ -97,12 +97,47 @@ structures are supported when declared first. `sizeof`, `alignof`, and
 `offset-of` use the selected target's layout. The C layout tests compare
 integer, floating, pointer, and nested fields with a C compiler.
 
+## Hosted managed values
+
+`--profile=hosted` accepts the opaque 64-bit `value` type. Integer literals
+in a `value` position become signed fixnums; string literals become UTF-8
+byte strings; `nil` and `t` have distinct
+immediate representations. `cons`, `car`, `cdr`, `eq`, `make-symbol`,
+`symbol-name`, and `package-name` operate on managed values. A managed `nil`
+is false in `if`; every other managed value is true. The `psl` extensions
+`box-fixnum`, `unbox-fixnum`, `make-byte-string`, `string-byte`,
+`set-string-byte`, `make-package-from-name`, `intern-symbol`, and
+`collect-garbage` expose the first runtime facilities. Managed values are
+rejected in raw structure fields and raw pointer types because those locations
+are not traced.
+
+`#'(lambda (argument) ...)` captures visible `value` bindings and can be
+called with `funcall`; this first closure convention accepts one argument
+and returns one managed value. `(multiple-value-bind (a b) (values x y) ...)`
+binds two managed values. The binding currently requires a direct `values`
+expression. General lambda lists and full
+Common Lisp multiple-value propagation are not implemented.
+
+`without-allocation` checks all direct calls reachable from the region.
+Unknown imported calls, managed allocation, explicit GC, and indirect closure
+calls fail certification. An import may end with `:no-allocation` to declare a
+trusted nonallocating effect. This promise is checked at compile time;
+incorrect foreign annotations remain the caller's responsibility.
+
+The runtime is a separately linked, single-threaded mark-and-sweep module set.
+Only facilities used by hosted source and their dependencies are linked.
+`pslcc -c` leaves runtime calls as undefined object symbols; linking a hosted
+executable or library selects the required modules. The exact representation,
+root interface, dependency edges, and current limitations are in the
+[runtime contract](runtime.md). The hosted profile is still not ANSI Common
+Lisp conforming.
+
 ## C source, function, and data imports
 
 C integration is marked at the source boundary:
 
 ```lisp
-(ffi:source "ffi_math.c")
+(ffi:source "math.c")
 (ffi:import-function "scale_c" ((value u64) (factor u64)) -> u64)
 
 (defun scale_then_add (value)
@@ -141,11 +176,11 @@ The compiler emits ELF64 `ET_REL` for `EM_X86_64`, with `.text`, `.data`, `.rela
 `R_X86_64_PLT32` relocations. Data addresses use `R_X86_64_GOTPCREL` so they
 work in shared objects and across preemptible symbols. Identical inputs,
 options, and compiler version produce identical bytes when macros are
-deterministic. No libc, GC, tagged
-object model, or PSL startup symbol is inserted into a typed object.
+deterministic. A typed object has no implicit libc, GC, tagged-object, or PSL
+startup symbol. Managed hosted objects reference only selected runtime modules.
 
 The `x86_64-none-elf` target produces an object, not a bootable image. The
 hosted profile is not yet an ANSI Common Lisp implementation. Checked and
 saturating arithmetic, general static and arena storage,
-certified allocation-free regions, dynamic objects, and other targets remain
+other targets remain
 on the [roadmap](roadmap.md).

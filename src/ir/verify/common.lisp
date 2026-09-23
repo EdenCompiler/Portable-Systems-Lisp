@@ -2,6 +2,7 @@
 
 (defun valid-type-p (type)
   (or (integer-type-p type) (float-type-p type) (eq type :void)
+      (eq type :value)
       (eq type :boolean)
       (and (consp type) (eq (first type) :struct)
            (= (length type) 2) (stringp (second type)))
@@ -22,6 +23,8 @@
   (cond ((eq type :f32) (typep value 'single-float))
         ((eq type :f64) (typep value 'double-float))
         ((eq type :boolean) (member value '(0 1)))
+        ((eq type :value) (and (integerp value) (<= 0 value)
+                               (< value (ash 1 64))))
         (t (integer-fits-p value type pointer-bits))))
 
 (defun expect-count (items count description)

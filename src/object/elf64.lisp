@@ -82,27 +82,45 @@
     (sort (remove-duplicates symbols :key #'car :test #'equal)
           #'string< :key #'car)))
 
-(defun build-symbol-tables (functions data external)
-  (let ((table (byte-buffer))
+(defun local-function-definition-p (definition signatures)
+  (let ((signature (gethash (first definition) signatures)))
+    (unless signature
+      (fail "missing signature for function ~A" (first definition)))
+    (signature-local-p signature)))
+
+(defun build-symbol-tables (functions data external signatures)
+  (let* ((locals (remove-if-not
+                  (lambda (definition)
+                    (local-function-definition-p definition signatures))
+                  functions))
+         (globals (remove-if
+                   (lambda (definition)
+                     (local-function-definition-p definition signatures))
+                   functions))
+         (ordered-functions (append locals globals))
+         (first-global (+ 3 (length locals)))
+         (table (byte-buffer))
         (names (byte-buffer))
         (indices (make-hash-table :test #'equal)))
     (emit-byte names 0)
     (write-symbol table 0 0 0 0 0)
     (write-symbol table 0 3 1 0 0) ; local .text section symbol
     (write-symbol table 0 3 2 0 0) ; local .data section symbol
-    (loop for (name offset size) in functions
+    (loop for (name offset size) in ordered-functions
           for index from 3
           do (setf (gethash name indices) index)
-             (write-symbol table (append-string names name) #x12 1 offset size))
+             (write-symbol table (append-string names name)
+                           (if (< index first-global) #x02 #x12)
+                           1 offset size))
     (loop for (name offset size) in data
-          for index from (+ 3 (length functions))
+          for index from (+ 3 (length ordered-functions))
           do (setf (gethash name indices) index)
              (write-symbol table (append-string names name) #x11 2 offset size))
     (loop for (name . info) in external
-          for index from (+ 3 (length functions) (length data))
+          for index from (+ 3 (length ordered-functions) (length data))
           do (setf (gethash name indices) index)
              (write-symbol table (append-string names name) info 0 0 0))
-    (values table names indices)))
+    (values table names indices first-global)))
 
 (defun build-relocations (relocations symbol-indices contract)
   (let ((table (byte-buffer)))
@@ -119,7 +137,7 @@
         (emit-integer table -4 8)))
     table))
 
-(defun make-sections (text data data-alignment rela symbols names)
+(defun make-sections (text data data-alignment rela symbols names first-global)
   (let ((section-names (byte-buffer)))
     (emit-byte section-names 0)
     (let ((sections
@@ -131,7 +149,8 @@
                                 :data rela :alignment 8 :link 4 :info 1
                                 :entry-size 24)
                   (make-section :name ".symtab" :type 2 :flags 0
-                                :data symbols :alignment 8 :link 5 :info 3
+                                :data symbols :alignment 8 :link 5
+                                :info first-global
                                 :entry-size 24)
                   (make-section :name ".strtab" :type 3 :flags 0 :data names)
                   (make-section :name ".shstrtab" :type 3 :flags 0
@@ -204,11 +223,11 @@
       (collect-text functions)
     (multiple-value-bind (data-bytes data-definitions data-alignment)
         (collect-data data)
-      (multiple-value-bind (symbols names indices)
+      (multiple-value-bind (symbols names indices first-global)
           (build-symbol-tables
            function-definitions data-definitions
-           (external-symbols signatures data relocations))
+           (external-symbols signatures data relocations) signatures)
         (let* ((rela (build-relocations relocations indices contract))
                (sections (make-sections text data-bytes data-alignment
-                                        rela symbols names)))
+                                        rela symbols names first-global)))
           (write-object-file (assemble-object sections contract) output))))))

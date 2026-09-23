@@ -2,7 +2,13 @@
 
 (defstruct field-layout name type offset)
 (defstruct packed-layout name fields size alignment kind)
-(defstruct analysis-context target signatures layouts c-sources data)
+(defstruct analysis-context target profile signatures layouts c-sources data
+           allocation-regions runtime-modules generated-functions
+           runtime-signatures (lambda-counter 0) (string-counter 0))
+
+(defun reserved-prefix-p (name prefix)
+  (and (<= (length prefix) (length name))
+       (string= prefix name :end2 (length prefix))))
 
 (defun ensure-user-name (symbol kind)
   (unless (symbolp symbol)
@@ -11,16 +17,22 @@
                 (list (find-package :cl) (find-package :psl)
                       (find-package :ffi)))
     (fail "~A name ~A conflicts with a Common Lisp or compiler name"
-          kind symbol)))
+          kind symbol))
+  (let ((name (string-downcase (symbol-name symbol))))
+    (when (or (reserved-prefix-p name "psl_rt_")
+              (reserved-prefix-p name "psl_lambda_"))
+      (fail "~A name ~A is reserved for generated code" kind symbol))))
 
-(defun make-context (target)
-  (make-analysis-context :target target
+(defun make-context (target profile)
+  (make-analysis-context :target target :profile profile
                          :signatures (make-hash-table :test #'equal)
+                         :runtime-signatures (make-hash-table :test #'equal)
                          :layouts (make-hash-table :test #'equal)
                          :c-sources nil))
 
 (defun type-size (type context)
   (cond
+    ((eq type :value) 8)
     ((or (integer-type-p type) (float-type-p type))
      (if (float-type-p type)
          (if (eq type :f32) 4 8)
@@ -47,9 +59,12 @@
   (unless (and (listp form) (= (length form) 2) (symbolp (first form)))
     (fail "invalid structure field ~S" form))
   (let* ((type (type-name (second form) context))
+         (managed-p (eq type :value))
          (aligned-offset (if c-layout-p
                              (align-offset offset (type-alignment type context))
                              offset)))
+    (when managed-p
+      (fail "managed values require a traced runtime object, not a raw structure field"))
     (values (make-field-layout :name (source-name (first form))
                                :type type :offset aligned-offset)
             (+ aligned-offset (type-size type context)))))

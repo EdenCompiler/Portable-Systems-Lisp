@@ -118,7 +118,7 @@
    "may be used before assignment"))
 
 (let ((unit (psl.compiler:read-unit
-             (merge-pathnames "../examples/standalone.lisp"
+             (merge-pathnames "../examples/basic/standalone.lisp"
                               *load-truename*))))
   (unwind-protect
        (let ((compilation (psl.compiler:analyze-unit unit)))

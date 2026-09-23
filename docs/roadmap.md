@@ -11,14 +11,16 @@ is updated. Dates and staffing are deliberately unspecified.
 | Capability | State | Evidence or limit |
 | --- | --- | --- |
 | Stage 0 host | Working | Compiler runs under SBCL. |
-| Typed source and macros | Partial | Ordinary `defun` with type/C-export declarations, host-side `defmacro`, typed scalar and small C-struct values, lexical `let`, calls, and control flow. Dynamic Lisp remains pending. |
+| Typed source and macros | Working subset | Ordinary `defun` with type/C-export declarations, host-side `defmacro`, typed scalar and small C-struct values, lexical `let`, calls, and control flow. |
 | IR pipeline | M2 complete | Verified typed HIR → CFG/SSA with `phi` joins → verified LIR; `-O1` inlines small pure leaves, folds constants, and removes dead pure values. |
 | x86-64 Linux / SysV / ELF64 | M3 complete for documented subset | Integer, pointer, `float`, and `double` values use register and stack locations; `void` results and naturally aligned scalar-field C structs of at most 16 bytes work, including mixed register classes. Larger and packed aggregates, varargs, and `long double` are rejected. |
 | C layout and data symbols | Working x86-64 Linux slice | `defcstruct` matches C size, alignment, and offsets for supported fields. C data imports/exports use ELF data symbols and PIC GOT relocations. |
 | Local C source inclusion | Working x86-64 Linux slice | `ffi:source` compiles a `.c` file with `cc` and merges it into the relocatable object; cross toolchains are pending. |
+| Hosted dynamic runtime | M4 complete for documented subset | Versioned 64-bit tagged values, conses, UTF-8 byte strings, symbols, packages, one-argument lexical closures, two values, and a single-threaded mark-and-sweep collector. See the [runtime contract](runtime.md) for limits. |
+| Allocation effect checks | Working M4 slice | `without-allocation` checks transitive direct calls; unknown imports and indirect calls fail unless a trusted import effect is declared. |
 | x86-64 none / ELF64 | Object only | Emits a runtime-free object; startup, linker layout, and boot execution are pending. |
-| Hosted Common Lisp | Pending | `--profile=hosted` currently accepts the same typed subset as freestanding. |
-| Executables and libraries | Working x86-64 Linux slice | `pslcc` invokes `cc` for executables and `.so`, `ar` for deterministic `.a`; additional link inputs are explicit. Other target linkers are pending. |
+| Hosted ANSI Common Lisp | Pending M9 | `--profile=hosted` has an M4 managed-value subset; numeric tower, conditions, CLOS, streams, `eval`, and conformance remain pending. |
+| Executables and libraries | Working x86-64 Linux slice | `pslcc` invokes `cc` for executables and `.so`, `ar` for deterministic `.a`; dynamic source selects only required runtime objects. Other target linkers are pending. |
 | Windows, AArch64, RISC-V, macOS, Wasm | Pending | No code generation or object writing for these targets yet. |
 
 The existing `sh tests/smoke.sh` verifies ELF structure and relocations,
@@ -126,7 +128,7 @@ calls, and `long double` remain unsupported and are documented in
 [the implemented core](core.md); they are not silently lowered
 with an incompatible convention.
 
-## M4 — Modular dynamic Lisp runtime · Pending
+## M4 — Modular dynamic Lisp runtime · Complete for documented subset
 
 **Dependencies:** M0 object semantics, M2 effect information, M3 linker path.
 
@@ -148,6 +150,18 @@ with an incompatible convention.
 cover reachable and unreachable objects, module-selection tests show unused GC
 and dynamic modules absent from typed binaries, and allocation-free violations
 fail at compile time.
+
+The [runtime contract](runtime.md) defines the tagged representation, root
+interface, module dependencies, and hosted source limits. `sh tests/smoke.sh`
+runs list, string/package, closure, and multiple-value programs at `-O0` and
+`-O1`; it checks selected runtime symbols, two separately compiled closure
+objects linked together, static and shared linking, typed
+binary exclusion, and allocation-effect diagnostics. `sh tests/runtime.sh`
+exercises reachable and unreachable objects through the collector and checks
+the C runtime ABI. Direct string literals and captured lexical values work;
+closure calls currently accept one argument, and multiple-value binding
+currently accepts two values from a direct `values` form. General Common Lisp
+behavior remains the M9 goal.
 
 ## M5 — Second operating system: x86-64 Windows · Pending
 

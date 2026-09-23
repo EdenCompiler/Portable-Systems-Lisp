@@ -22,12 +22,17 @@
                  (every (lambda (item) (member item '(:const :volatile))) qualifiers)
                  (= (length qualifiers) (length (remove-duplicates qualifiers))))
       (fail "invalid pointer type ~S" form))
+    (when (eq (type-name (second form) context) :value)
+      (fail "raw pointers to managed values are not supported"))
     (list :ptr (type-name (second form) context)
           (not (null (member :const qualifiers)))
           (not (null (member :volatile qualifiers))))))
 
 (defun type-name (form context)
   (cond
+    ((eq form 'psl:value)
+     (require-hosted-runtime context)
+     :value)
     ((and (consp form) (eq (first form) 'psl:ptr))
      (pointer-type form context))
     ((and (symbolp form)
@@ -68,14 +73,19 @@
   (unless (and (>= (length form) 5) (named-p (fourth form) "->"))
     (fail "expected (~A name ((arg type) ...) -> result ...)"
           (if external-p "ffi:import-function" "defun")))
-  (let* ((name (source-name (second form)))
+  (let* ((annotation (nthcdr 5 form))
+         (name (source-name (second form)))
          (parameters (parse-parameters (third form) context))
          (sig (make-signature :name name :arguments (mapcar #'cdr parameters)
                               :result (type-name (fifth form) context)
-                              :external-p external-p)))
-    (when (and external-p (nthcdr 5 form))
-      (fail "extern function ~A cannot have a body" name))
-    (values sig parameters (nthcdr 5 form))))
+                              :external-p external-p
+                              :effect (if (and external-p
+                                               (equal annotation '(:no-allocation)))
+                                          :none :unknown))))
+    (when (and external-p annotation
+               (not (equal annotation '(:no-allocation))))
+      (fail "extern function ~A accepts only :NO-ALLOCATION" name))
+    (values sig parameters (unless external-p annotation))))
 
 (defun plain-parameters (forms)
   (unless (and (listp forms) (every #'symbolp forms))

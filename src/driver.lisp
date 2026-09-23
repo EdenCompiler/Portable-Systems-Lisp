@@ -4,7 +4,7 @@
 
 (defstruct source-unit source forms package locations)
 (defstruct compilation source target profile signatures c-sources data
-           abi-layouts
+           abi-layouts runtime-modules
            hir-functions ssa-functions lir-functions lowered-p linearized-p)
 
 (defun read-unit (source)
@@ -26,9 +26,10 @@
     (fail "unsupported profile ~A" profile))
   (let ((selected-target (if (stringp target) (resolve-target target) target))
         (*package* (source-unit-package unit)))
-    (multiple-value-bind (functions signatures c-sources data abi-layouts)
+    (multiple-value-bind (functions signatures c-sources data abi-layouts
+                          runtime-modules)
         (analyze-source (source-unit-forms unit) selected-target
-                        (source-unit-locations unit))
+                        (source-unit-locations unit) profile)
       (unless (or functions data) (fail "source contains no functions or data"))
       (dolist (function functions)
         (verify-hir-function function signatures
@@ -38,6 +39,7 @@
                         :target selected-target :profile profile
                         :signatures signatures :c-sources c-sources :data data
                         :abi-layouts abi-layouts
+                        :runtime-modules runtime-modules
                         :hir-functions functions))))
 
 (defun lower-unit (compilation)
@@ -135,7 +137,8 @@
            (linearize-unit compilation)
            (when (member :lir dump-ir)
              (dump-stage compilation :lir dump-stream))
-           (emit-unit compilation output))
+           (values (emit-unit compilation output)
+                   (compilation-runtime-modules compilation)))
       (dispose-unit unit))))
 
 (defun compile-and-link (source output &key (target "x86_64-linux-gnu")

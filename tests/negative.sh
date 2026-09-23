@@ -108,8 +108,89 @@ cat >"$work_dir/reserved-macro.lisp" <<'SOURCE'
 SOURCE
 expect_error 'conflicts with a Common Lisp or compiler name' "$work_dir/reserved-macro.lisp"
 
+cat >"$work_dir/unknown-allocation.lisp" <<'SOURCE'
+(ffi:import-function "opaque_c" () -> u64)
+(defun calls-opaque ()
+  (declare (returns u64) (c-export :c))
+  (ffi:call opaque_c))
+(defun invalid ()
+  (declare (returns u64) (c-export :c))
+  (without-allocation (calls-opaque)))
+SOURCE
+expect_error 'WITHOUT-ALLOCATION cannot certify call to calls-opaque' \
+  "$work_dir/unknown-allocation.lisp"
+
+cat >"$work_dir/declared-no-allocation.lisp" <<'SOURCE'
+(ffi:import-function "known_c" () -> u64 :no-allocation)
+(defun valid ()
+  (declare (returns u64) (c-export :c))
+  (without-allocation (ffi:call known_c)))
+SOURCE
+"$project_root/pslcc" -c "$work_dir/declared-no-allocation.lisp" \
+  -o "$work_dir/declared-no-allocation.o"
+nm -u "$work_dir/declared-no-allocation.o" | grep -q known_c
+
+cat >"$work_dir/allocating-region.lisp" <<'SOURCE'
+(defun invalid ()
+  (declare (returns value) (c-export :c))
+  (without-allocation (cons 1 nil)))
+SOURCE
+if "$project_root/pslcc" --profile=hosted -c \
+    "$work_dir/allocating-region.lisp" -o "$work_dir/invalid.o" \
+    >"$work_dir/stdout" 2>"$work_dir/stderr"; then
+  printf 'Expected allocating region failure\n' >&2
+  exit 1
+fi
+grep -q 'WITHOUT-ALLOCATION cannot certify call to psl_rt_cons' \
+  "$work_dir/stderr"
+
+cat >"$work_dir/unknown-closure-effect.lisp" <<'SOURCE'
+(defun invalid (closure)
+  (declare (type value closure) (returns value) (c-export :c))
+  (without-allocation (funcall closure 1)))
+SOURCE
+if "$project_root/pslcc" --profile=hosted -c \
+    "$work_dir/unknown-closure-effect.lisp" -o "$work_dir/invalid.o" \
+    >"$work_dir/stdout" 2>"$work_dir/stderr"; then
+  printf 'Expected indirect call effect failure\n' >&2
+  exit 1
+fi
+grep -q 'WITHOUT-ALLOCATION cannot certify call to psl_rt_call_closure' \
+  "$work_dir/stderr"
+
+cat >"$work_dir/untraced-managed-field.lisp" <<'SOURCE'
+(defstruct/packed bad (item value))
+(defun invalid ()
+  (declare (returns c-int) (c-export :c))
+  0)
+SOURCE
+if "$project_root/pslcc" --profile=hosted -c \
+    "$work_dir/untraced-managed-field.lisp" -o "$work_dir/invalid.o" \
+    >"$work_dir/stdout" 2>"$work_dir/stderr"; then
+  printf 'Expected untraced managed field failure\n' >&2
+  exit 1
+fi
+grep -q 'managed values require a traced runtime object' "$work_dir/stderr"
+
+if "$project_root/pslcc" --profile=freestanding -c \
+    "$project_root/examples/hosted/list.lisp" -o "$work_dir/invalid.o" \
+    >"$work_dir/stdout" 2>"$work_dir/stderr"; then
+  printf 'Expected dynamic value profile failure\n' >&2
+  exit 1
+fi
+grep -q 'managed Lisp operations require --profile=hosted' "$work_dir/stderr"
+
+if "$project_root/pslcc" --profile=hosted --target=x86_64-none-elf \
+    -c "$project_root/examples/hosted/list.lisp" -o "$work_dir/invalid.o" \
+    >"$work_dir/stdout" 2>"$work_dir/stderr"; then
+  printf 'Expected unavailable hosted runtime target failure\n' >&2
+  exit 1
+fi
+grep -q 'managed Lisp runtime currently requires x86_64-linux-gnu' \
+  "$work_dir/stderr"
+
 if "$project_root/pslcc" --target=x86_64-none-elf -c \
-    "$project_root/examples/ffi_source.lisp" -o "$work_dir/invalid.o" \
+    "$project_root/examples/ffi/source_import.lisp" -o "$work_dir/invalid.o" \
     >"$work_dir/stdout" 2>"$work_dir/stderr"; then
   printf 'Expected C source target failure\n' >&2
   exit 1
@@ -117,7 +198,7 @@ fi
 grep -q 'requires x86_64-linux-gnu' "$work_dir/stderr"
 
 if "$project_root/pslcc" --target=unknown -c \
-    "$project_root/examples/standalone.lisp" -o "$work_dir/invalid.o" \
+    "$project_root/examples/basic/standalone.lisp" -o "$work_dir/invalid.o" \
     >"$work_dir/stdout" 2>"$work_dir/stderr"; then
   printf 'Expected unsupported target failure\n' >&2
   exit 1
@@ -125,7 +206,7 @@ fi
 grep -q 'unsupported target' "$work_dir/stderr"
 
 if "$project_root/pslcc" --target=x86_64-none-elf \
-    "$project_root/examples/program.lisp" -o "$work_dir/invalid-program" \
+    "$project_root/examples/basic/program.lisp" -o "$work_dir/invalid-program" \
     >"$work_dir/stdout" 2>"$work_dir/stderr"; then
   printf 'Expected non-native linking failure\n' >&2
   exit 1
@@ -134,7 +215,7 @@ grep -q 'linking currently requires x86_64-linux-gnu' "$work_dir/stderr"
 test ! -e "$work_dir/invalid-program"
 
 if "$project_root/pslcc" -c --emit=exe \
-    "$project_root/examples/program.lisp" -o "$work_dir/invalid.o" \
+    "$project_root/examples/basic/program.lisp" -o "$work_dir/invalid.o" \
     >"$work_dir/stdout" 2>"$work_dir/stderr"; then
   printf 'Expected conflicting output options to fail\n' >&2
   exit 1
