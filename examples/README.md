@@ -20,7 +20,7 @@ file.
 Each file defines `main` and returns exit status 0 when its own check passes.
 They use no `ffi:` forms, C source files, or C harnesses. Stage 0 still requires
 `(c-export :c)` on each function, including `main`, and uses the system C
-toolchain to link Linux executables.
+toolchain to link Linux or Windows executables.
 
 From the repository root, compile and run one:
 
@@ -34,6 +34,15 @@ Use `-c` to produce an object without invoking a C compiler:
 
 ```sh
 ./pslcc -c examples/native/arithmetic.lisp -o /tmp/psl-arithmetic.o
+```
+
+For Windows, compile with `--target=x86_64-windows-gnu` and a `.exe` output;
+MinGW-w64 links it and Wine can run it on Linux:
+
+```sh
+./pslcc --target=x86_64-windows-gnu examples/native/arithmetic.lisp \
+  -o /tmp/psl-arithmetic.exe
+wine /tmp/psl-arithmetic.exe
 ```
 
 ## Hosted values
@@ -73,6 +82,8 @@ echo $?
 - [stack.lisp](abi/stack.lisp): stack arguments.
 - [void.lisp](abi/void.lisp): void calls.
 - [layout.lisp](abi/layout.lisp): C struct layout.
+- [windows_odd_aggregate.lisp](abi/windows_odd_aggregate.lisp): a 12-byte
+  C struct passed by reference under Microsoft x64.
 
 ## FFI
 

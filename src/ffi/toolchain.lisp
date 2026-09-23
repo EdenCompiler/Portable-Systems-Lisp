@@ -62,11 +62,19 @@
       (mapc #'visit (sort (copy-list roots) #'string< :key #'symbol-name)))
     (nreverse ordered)))
 
-(defun runtime-source (module)
+(defun runtime-source (module target)
   (merge-pathnames
-   (if (eq module :platform) "platform_linux.c"
+   (if (eq module :platform)
+       (ecase (target-system target)
+         (:linux "platform_linux.c")
+         (:windows "platform_windows.c"))
        (format nil "~(~A~).c" module))
    *runtime-directory*))
+
+(defun target-tool (target name)
+  (ecase (target-system target)
+    (:linux (if (equal name "gcc") "cc" name))
+    (:windows (concatenate 'string "x86_64-w64-mingw32-" name))))
 
 (defun source-directory (source)
   (make-pathname :name nil :type nil :defaults (truename source)))
@@ -106,8 +114,9 @@
   (and (<= 7 (length name))
        (string= "psl_rt_" name :end2 7)))
 
-(defun input-runtime-modules (input)
-  (let ((output (tool-output "nm" (list "-u" (namestring (pathname input)))))
+(defun input-runtime-modules (input target)
+  (let ((output (tool-output (target-tool target "nm")
+                             (list "-u" (namestring (pathname input)))))
         (modules nil))
     (with-input-from-string (stream output)
       (loop for line = (read-line stream nil nil)
@@ -136,36 +145,48 @@
       (when (probe-file path) (delete-file path))))
   (sb-posix:rmdir directory))
 
-(defun compile-c-source (source object &optional runtime-p)
-  (run-tool "cc" (append (list "-std=c11" "-fPIC" "-fno-stack-protector")
-                         (when runtime-p (list "-pthread"))
+(defun compile-c-source (source object target &optional runtime-p)
+  (run-tool (target-tool target "gcc")
+            (append (list "-std=c11" "-fno-stack-protector")
+                         (when (eq (target-system target) :linux)
+                           (list "-fPIC"))
+                         (when (and runtime-p
+                                    (eq (target-system target) :linux))
+                           (list "-pthread"))
                          (list "-c" source "-o" (namestring object))))
   (with-open-file (stream object :element-type '(unsigned-byte 8))
     (let ((header (make-array 20 :element-type '(unsigned-byte 8))))
-      (unless (and (= (read-sequence header stream) 20)
-                   (equalp (subseq header 0 6) #(127 69 76 70 2 1))
-                   (= (aref header 18) 62)
-                   (= (aref header 19) 0))
-        (fail "C compiler did not produce x86-64 little-endian ELF64: ~A"
+      (unless (= (read-sequence header stream) 20)
+        (fail "C compiler produced a truncated object: ~A" source))
+      (unless (ecase (target-object-format target)
+                (:elf64
+                 (and (equalp (subseq header 0 6) #(127 69 76 70 2 1))
+                      (= (aref header 18) 62) (= (aref header 19) 0)))
+                (:coff
+                 (and (= (aref header 0) #x64)
+                      (= (aref header 1) #x86))))
+        (fail "C compiler produced an object for the wrong target: ~A"
               source)))))
 
 (defun runtime-object-name (module)
   (format nil "runtime-~(~A~).o" module))
 
-(defun compile-runtime-modules (modules directory)
+(defun compile-runtime-modules (modules directory target)
   (loop for module in modules
         for object = (temporary-path directory (runtime-object-name module))
-        do (compile-c-source (namestring (runtime-source module)) object t)
+        do (compile-c-source (namestring (runtime-source module target))
+                             object target t)
         collect object))
 
-(defun merge-objects (objects output)
-  (run-tool "cc" (append (list "-r" "-o" (namestring output))
+(defun merge-objects (objects output target)
+  (run-tool (target-tool target "gcc")
+            (append (list "-r" "-o" (namestring output))
                          (mapcar #'namestring objects))))
 
 (defun emit-with-c-sources (source output target c-sources emit-psl)
   (let ((*source-location* (cdar c-sources)))
-    (unless (eq (target-system target) :linux)
-      (fail "FFI:SOURCE currently requires x86_64-linux-gnu")))
+    (unless (member (target-system target) '(:linux :windows))
+      (fail "FFI:SOURCE requires a supported hosted target")))
   (let* ((resolved (mapcar (lambda (declaration)
                              (resolve-c-source declaration source))
                            c-sources))
@@ -181,39 +202,69 @@
                 (merged (temporary-path directory "merged.o")))
            (funcall emit-psl psl-object)
            (loop for c-source in resolved for c-object in c-objects
-                 do (compile-c-source c-source c-object))
-           (merge-objects (cons psl-object c-objects) merged)
+                 do (compile-c-source c-source c-object target))
+           (merge-objects (cons psl-object c-objects) merged target)
            (sb-posix:rename (namestring merged) (namestring (pathname output)))
            output)
       (remove-temporary-directory directory names))))
 
-(defun validate-link-inputs (kind inputs)
+(defun validate-link-inputs (kind inputs target)
   (dolist (input inputs)
     (unless (probe-file input)
       (fail "link input does not exist: ~A" input))
     (when (and (eq kind :static)
-               (not (equalp (pathname-type input) "o")))
+               (not (or (equalp (pathname-type input) "o")
+                        (and (eq (target-system target) :windows)
+                             (equalp (pathname-type input) "obj")))))
       (fail "static library inputs must be object files: ~A" input))))
 
-(defun link-artifact (object output kind inputs &optional runtime-p)
-  (validate-link-inputs kind inputs)
+(defun linker-runtime-options (target runtime-p)
+  (when (and runtime-p (eq (target-system target) :linux))
+    (list "-pthread")))
+
+(defun linker-shared-options (target)
+  (append (list "-shared")
+          (when (eq (target-system target) :windows)
+            (list "-Wl,--disable-auto-image-base,--no-insert-timestamp"))))
+
+(defun link-artifact (object output kind inputs target &optional runtime-p)
+  (validate-link-inputs kind inputs target)
   (let ((paths (cons (namestring object) (mapcar #'namestring inputs))))
     (ecase kind
       (:executable
-       (run-tool "cc" (append (when runtime-p (list "-pthread"))
-                              (list "-o" (namestring output)) paths)))
+       (run-tool (target-tool target "gcc")
+                 (append (linker-runtime-options target runtime-p)
+                         (when (eq (target-system target) :windows)
+                           (list "-Wl,--no-insert-timestamp"))
+                         (list "-o" (namestring output)) paths)))
       (:shared
-       (run-tool "cc" (append (when runtime-p (list "-pthread"))
-                              (list "-shared" "-o" (namestring output))
-                               paths)))
+       (run-tool (target-tool target "gcc")
+                 (append (linker-runtime-options target runtime-p)
+                         (linker-shared-options target)
+                         (list "-o" (namestring output)) paths)))
       (:static
-       (run-tool "ar" (append (list "rcsD" (namestring output)) paths)))))
+       (run-tool (target-tool target "ar")
+                 (append (list "rcsD" (namestring output)) paths)))))
   output)
+
+(defun staged-artifact-name (destination kind target)
+  (if (eq (target-system target) :windows)
+      (if (and (eq kind :executable)
+               (not (pathname-type destination)))
+          (concatenate 'string (file-namestring destination) ".exe")
+          (file-namestring destination))
+      "artifact"))
+
+(defun selected-runtime-modules (runtime-roots inputs target)
+  (let ((input-roots
+          (mapcan (lambda (input) (input-runtime-modules input target))
+                  inputs)))
+    (runtime-module-closure (append runtime-roots input-roots))))
 
 (defun link-source-artifact (output kind target inputs compile-object)
   (unless (and (eq (target-architecture target) :x86-64)
-               (eq (target-system target) :linux))
-    (fail "linking currently requires x86_64-linux-gnu"))
+               (member (target-system target) '(:linux :windows)))
+    (fail "linking requires a supported x86-64 hosted target"))
   (let* ((directory (temporary-directory))
          (object (temporary-path directory "psl.o"))
          (destination (merge-pathnames output (truename ".")))
@@ -224,26 +275,27 @@
             (format nil "~A/.psl-link-XXXXXX"
                     (string-right-trim "/"
                                        (namestring destination-directory)))))
-         (staged-output (temporary-path staging-directory "artifact"))
+         (staged-name (staged-artifact-name destination kind target))
+         (staged-output (temporary-path staging-directory staged-name))
          (runtime-names nil))
     (unwind-protect
          (progn
-           (validate-link-inputs kind (mapcar #'pathname inputs))
+           (validate-link-inputs kind (mapcar #'pathname inputs) target)
            (multiple-value-bind (compiled runtime-roots)
                (funcall compile-object object)
              (declare (ignore compiled))
-             (let* ((input-roots (mapcan #'input-runtime-modules inputs))
-                    (modules (runtime-module-closure
-                              (append runtime-roots input-roots)))
+             (let* ((modules (selected-runtime-modules
+                              runtime-roots inputs target))
                     (runtime-objects nil))
                (setf runtime-names (mapcar #'runtime-object-name modules)
-                     runtime-objects (compile-runtime-modules modules directory))
+                     runtime-objects
+                       (compile-runtime-modules modules directory target))
                (link-artifact object staged-output kind
                               (append runtime-objects
                                       (mapcar #'pathname inputs))
-                              (not (null modules)))))
+                              target (not (null modules)))))
            (sb-posix:rename (namestring staged-output)
                             (namestring destination))
            output)
       (remove-temporary-directory directory (cons "psl.o" runtime-names))
-      (remove-temporary-directory staging-directory '("artifact")))))
+      (remove-temporary-directory staging-directory (list staged-name)))))

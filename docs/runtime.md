@@ -1,6 +1,7 @@
 # Hosted runtime (M4)
 
-The first hosted runtime is an x86-64 Linux, single-threaded module set. Its
+The first hosted runtime supports x86-64 Linux and Windows as a single-threaded
+module set. Its
 public C interface is [runtime/psl_runtime.h](../runtime/psl_runtime.h), ABI
 version 1. It is selected only by hosted source that uses managed values.
 Ordinary typed objects and binaries have no PSL runtime dependency.
@@ -25,8 +26,9 @@ rest are swept without moving live objects. The collector runs on the only
 supported thread. Conservative false positives can retain an unreachable
 object until a later collection.
 
-The runtime starts lazily. `startup.c` asks `platform_linux.c` for the current
-thread's stack bounds. Neither startup nor platform code is built into the
+The runtime starts lazily. `startup.c` asks `platform_linux.c` or
+`platform_windows.c` for the current thread's stack bounds. Neither startup nor
+platform code is built into the
 language frontend. The collector runs automatically after its allocation
 threshold or explicitly through `collect-garbage`.
 
@@ -40,7 +42,7 @@ the source. `src/ffi/toolchain.lisp` records the dependency edges:
 | `value` | none | Fixnum, truth, and identity operations. |
 | `gc` | `startup` | Heap, root registration, marking, and sweeping. |
 | `startup` | `platform` | Lazy stack-bound setup. |
-| `platform` | none | Linux stack-bound query. |
+| `platform` | none | Selected OS stack-bound query. |
 | `cons` | `gc` | Cons allocation and access. |
 | `string` | `gc` | Mutable byte strings. |
 | `symbol` | `string` | Symbol allocation and names. |
@@ -48,7 +50,7 @@ the source. `src/ffi/toolchain.lisp` records the dependency edges:
 | `closure` | `gc` | Closure allocation and invocation. |
 | `values` | `gc` | Two-value return storage. |
 
-`pslcc -c` leaves runtime calls as ELF relocations and does not compile C
+`pslcc -c` leaves runtime calls as ELF or COFF relocations and does not compile C
 runtime modules. For executables, static libraries, and shared libraries,
 `pslcc` compiles only selected modules and passes their objects to the system
 linker or archiver. A typed program selects no modules. Generated lambda

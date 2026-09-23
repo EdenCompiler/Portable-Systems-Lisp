@@ -32,8 +32,8 @@
     (fail "managed Lisp operations require --profile=hosted"))
   (let ((target (analysis-context-target context)))
     (unless (and (eq (target-architecture target) :x86-64)
-                 (eq (target-system target) :linux))
-      (fail "managed Lisp runtime currently requires x86_64-linux-gnu"))))
+                 (member (target-system target) '(:linux :windows)))
+      (fail "managed Lisp runtime requires a supported x86-64 hosted target"))))
 
 (defun register-runtime-call (name arguments result module effect context)
   (let ((signatures (analysis-context-signatures context))

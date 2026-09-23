@@ -14,14 +14,15 @@ is updated. Dates and staffing are deliberately unspecified.
 | Typed source and macros | Working subset | Ordinary `defun` with type/C-export declarations, host-side `defmacro`, typed scalar and small C-struct values, lexical `let`, calls, and control flow. |
 | IR pipeline | M2 complete | Verified typed HIR → CFG/SSA with `phi` joins → verified LIR; `-O1` inlines small pure leaves, folds constants, and removes dead pure values. |
 | x86-64 Linux / SysV / ELF64 | M3 complete for documented subset | Integer, pointer, `float`, and `double` values use register and stack locations; `void` results and naturally aligned scalar-field C structs of at most 16 bytes work, including mixed register classes. Larger and packed aggregates, varargs, and `long double` are rejected. |
-| C layout and data symbols | Working x86-64 Linux slice | `defcstruct` matches C size, alignment, and offsets for supported fields. C data imports/exports use ELF data symbols and PIC GOT relocations. |
-| Local C source inclusion | Working x86-64 Linux slice | `ffi:source` compiles a `.c` file with `cc` and merges it into the relocatable object; cross toolchains are pending. |
+| x86-64 Windows / Microsoft x64 / COFF | M5 complete for documented subset | Four positional GP/SSE argument registers, shadow space, stack arguments, direct small structs and indirect structs up to 16 bytes, and COFF unwind records. MinGW-w64 links `.exe`, `.a`, and `.dll`; Wine runs the C interoperability corpus. |
+| C layout and data symbols | Working on Linux and Windows | `defcstruct` matches C size, alignment, and offsets for supported fields, including LP64 versus LLP64 `long`. ELF uses PIC GOT relocations; COFF uses relative data relocations. |
+| Local C source inclusion | Working on Linux and Windows | `ffi:source` compiles a `.c` file with the selected C compiler and merges it into the target relocatable object. |
 | Hosted dynamic runtime | M4 complete for documented subset | Versioned 64-bit tagged values, conses, UTF-8 byte strings, symbols, packages, one-argument lexical closures, two values, and a single-threaded mark-and-sweep collector. See the [runtime contract](runtime.md) for limits. |
 | Allocation effect checks | Working M4 slice | `without-allocation` checks transitive direct calls; unknown imports and indirect calls fail unless a trusted import effect is declared. |
 | x86-64 none / ELF64 | Object only | Emits a runtime-free object; startup, linker layout, and boot execution are pending. |
 | Hosted ANSI Common Lisp | Pending M9 | `--profile=hosted` has an M4 managed-value subset; numeric tower, conditions, CLOS, streams, `eval`, and conformance remain pending. |
-| Executables and libraries | Working x86-64 Linux slice | `pslcc` invokes `cc` for executables and `.so`, `ar` for deterministic `.a`; dynamic source selects only required runtime objects. Other target linkers are pending. |
-| Windows, AArch64, RISC-V, macOS, Wasm | Pending | No code generation or object writing for these targets yet. |
+| Executables and libraries | Working on Linux and Windows | `pslcc` invokes the selected GCC linker for executables and shared libraries, and `ar` for deterministic `.a`; dynamic source selects only required runtime objects. |
+| AArch64, RISC-V, macOS, Wasm | Pending | No code generation or object writing for these targets yet. |
 
 The existing `sh tests/smoke.sh` verifies ELF structure and relocations,
 byte-for-byte repeatability, C calls in both directions across GP, SSE, and
@@ -163,7 +164,7 @@ closure calls currently accept one argument, and multiple-value binding
 currently accepts two values from a direct `values` form. General Common Lisp
 behavior remains the M9 goal.
 
-## M5 — Second operating system: x86-64 Windows · Pending
+## M5 — Second operating system: x86-64 Windows · Complete for documented subset
 
 **Dependencies:** M2 target boundary and M3 ABI/linking tests.
 
@@ -174,6 +175,18 @@ selection while reusing the frontend and generic IR passes.
 **Gate:** a Windows runner links and executes C↔PSL tests, checks C data layout,
 and inspects COFF symbols/relocations. Changes to the reader, macro expander,
 or generic optimizer are not required merely to add this target.
+
+`sh tests/windows.sh` compiles with `--target=x86_64-windows-gnu`, links with
+MinGW-w64, and runs under Wine at `-O0` and `-O1`. It checks C calls in both
+directions across positional GP/SSE and stack arguments, C structs passed by
+register or reference (including a 12-byte copy), LLP64 layout, data
+imports/exports (including functions and data imported from separate C DLLs), `ffi:source`,
+static archives, DLLs, and hosted runtime
+programs. `objdump` checks COFF symbols and relocations;
+`RtlLookupFunctionEntry` checks linked unwind registration. Repeated `.o`, `.a`, `.dll`, and `.exe`
+builds match byte for byte. The Windows platform module supplies stack bounds
+for the single-threaded collector. Larger aggregates, varargs, and
+`long double` remain unsupported, as on the documented Linux subset.
 
 ## M6 — Second architecture: AArch64 Linux · Pending
 

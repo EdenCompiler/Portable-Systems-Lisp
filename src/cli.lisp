@@ -14,7 +14,7 @@
 
 (defun usage (&optional (stream *standard-output*))
   (format stream "Usage: pslcc [-c|--emit=exe|static|shared] SOURCE.lisp -o OUTPUT [--link-input=FILE]... [--target=TRIPLE] [--profile=PROFILE] [-O0|-O1] [--dump-ir=hir|ssa|lir|all]~%")
-  (format stream "Targets: x86_64-linux-gnu, x86_64-none-elf~%")
+  (format stream "Targets: x86_64-linux-gnu, x86_64-none-elf, x86_64-windows-gnu~%")
   (format stream "Profiles: hosted, freestanding~%"))
 
 (defun required-value (option remaining)

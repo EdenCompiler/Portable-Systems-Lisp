@@ -7,12 +7,13 @@ including facilities still awaiting implementation.
 ## Build and profiles
 
 The Stage 0 compiler runs under SBCL. `pslcc -c source.lisp -o output.o`
-produces an x86-64 ELF64 relocatable object. Accepted targets are
-`x86_64-linux-gnu` and `x86_64-none-elf`; both currently use the System V AMD64
-calling convention and ELF64 writer. `--profile=hosted|freestanding` selects
+produces an x86-64 relocatable object. `x86_64-linux-gnu` and
+`x86_64-none-elf` use System V AMD64 and ELF64; `x86_64-windows-gnu` uses
+Microsoft x64 and COFF. `--profile=hosted|freestanding` selects
 different source capabilities: both accept the typed machine subset, while
-`hosted` additionally accepts managed values. The compiler links native Linux
-executables, static archives, and shared libraries through `cc` or `ar`.
+`hosted` additionally accepts managed values. The compiler links Linux
+executables and libraries through GCC/binutils, and Windows `.exe`, `.a`, and
+`.dll` through MinGW-w64.
 `-O0` skips optimization; the default `-O1` performs small-function inlining,
 machine-width constant folding, and dead pure-value removal. Use
 `--dump-ir=hir|ssa|lir|all` to inspect the verified pipeline.
@@ -47,13 +48,17 @@ layout-known packed structure. `defcstruct` declares a naturally aligned C
 structure. C-compatible
 integer, raw-pointer, `f32`, and `f64` scalar arguments and returns are
 implemented, along with `void` results and `(ptr void)` for C `void*`.
-Integer and pointer arguments use up to six general registers;
-floating arguments use up to eight SSE registers. Further arguments use the
+On System V, integer and pointer arguments use up to six general registers,
+floating arguments use up to eight SSE registers, and later arguments use the
 stack. Naturally aligned C structs of one or two eightbytes containing integer,
 pointer, `float`, or `double` fields can be passed and returned by value,
-including mixed integer/SSE register classes and stack fallback. Larger
-aggregates, packed structures by value, variadic calls, and `long double` are
-not implemented. Imported and exported symbols use lower-case names for
+including mixed integer/SSE register classes and stack fallback. On Windows,
+the first four parameter positions use `RCX`/`RDX`/`R8`/`R9` or the matching
+`XMM0`–`XMM3`; callers reserve 32 bytes of shadow space. C structs of size
+1, 2, 4, or 8 bytes pass directly, and other supported structs up to 16 bytes
+pass by pointer with an indirect result. Larger aggregates, packed structures
+by value, variadic calls, and `long double` are not implemented. Imported and
+exported symbols use lower-case names for
 ordinary unescaped Lisp names.
 
 Supported expressions are machine integer and floating literals, `t`, `nil`,
@@ -75,12 +80,13 @@ complement. Comparisons produce internal Boolean values. Unqualified `cl:+`
 retains its Common Lisp meaning and is not supported in Stage 0 compiled
 expressions.
 
-`f32` and `f64` correspond to C `float` and `double` in the current ABI.
+`f32` and `f64` correspond to C `float` and `double` in both implemented ABIs.
 Floating literals, parameters, calls, and returns work; floating arithmetic
 and comparisons are not implemented. C integer aliases follow the selected
-System V AMD64 LP64 ABI: `c-char`/`c-uchar`, `c-short`/`c-ushort`,
+ABI: `c-char`/`c-uchar`, `c-short`/`c-ushort`,
 `c-int`/`c-uint`, `c-long`/`c-ulong`, `c-long-long`/`c-ulong-long`,
-`c-size-t`, and `c-ptrdiff-t`.
+`c-size-t`, and `c-ptrdiff-t`. Windows uses LLP64, so `c-long` and `c-ulong`
+are 32-bit there; they are 64-bit on Linux.
 
 `(psl:ptr T)` is a raw pointer type, with optional `:const` and `:volatile`
 qualifiers. `psl:pointer+` advances by elements; field access uses the
@@ -146,8 +152,8 @@ C integration is marked at the source boundary:
 ```
 
 `ffi:source` names a local `.c` file relative to the Lisp source file. For
-`x86_64-linux-gnu`, `pslcc -c` compiles it with `cc` and combines it with the
-PSL object into one relocatable object. The C output must be x86-64 ELF64.
+Linux or Windows, `pslcc -c` compiles it with the selected C compiler and
+combines it with the PSL object into one relocatable ELF64 or COFF object.
 An `ffi:import-function` may also refer
 to a C symbol supplied by a later link step, with no `ffi:source`. Imported
 functions must be invoked with `ffi:call`; ordinary Lisp functions use normal
@@ -158,26 +164,35 @@ for integer, floating, or pointer data. Exported scalar data accepts a typed
 literal initializer; pointer and structure data currently accept only zero
 initialization. The compiler
 does not parse C headers to check declarations. Source-file integration is
-not yet available for the `none` target or other toolchains. FFI signatures
+not available for the `none` target. FFI signatures
 are trusted declarations.
 
-On x86-64 Linux, `pslcc source.lisp -o program` links an executable,
+On x86-64 Linux or Windows, `pslcc source.lisp -o program` links an executable,
 `--emit=static` writes a deterministic `.a`, and `--emit=shared` writes a
-position-independent `.so`. Repeat `--link-input=FILE` for C objects or
-libraries needed by the link. Static archive inputs must be object files.
+`.so` or `.dll`. Repeat `--link-input=FILE` for C objects or
+libraries needed by the link. Static archive inputs must be object files:
+`.o` on Linux, or `.o`/`.obj` on Windows.
+Windows imports from another DLL use its MinGW import library as a link input;
+the MinGW linker exports public PSL symbols from a generated DLL.
 The `-c` path emits an object without invoking `cc` or `ar`, unless the source
-explicitly contains `ffi:source`. Link outputs currently require the native
-`x86_64-linux-gnu` target.
+explicitly contains `ffi:source`. Link outputs require Linux or Windows;
+the `none` target remains object-only.
 
 ## Object and runtime contract
 
-The compiler emits ELF64 `ET_REL` for `EM_X86_64`, with `.text`, `.data`, `.rela.text`,
+The Linux and `none` targets emit ELF64 `ET_REL` for `EM_X86_64`, with `.text`,
+`.data`, `.rela.text`,
 `.symtab`, `.strtab`, `.shstrtab`, and a non-executable-stack note. Calls use
 `R_X86_64_PLT32` relocations. Data addresses use `R_X86_64_GOTPCREL` so they
 work in shared objects and across preemptible symbols. Identical inputs,
 options, and compiler version produce identical bytes when macros are
 deterministic. A typed object has no implicit libc, GC, tagged-object, or PSL
 startup symbol. Managed hosted objects reference only selected runtime modules.
+Windows emits AMD64 COFF with `.text`, `.data`, `.pdata`, and `.xdata`, plus
+`IMAGE_REL_AMD64_REL32` and `IMAGE_REL_AMD64_ADDR32NB` relocations. Its
+`.pdata`/`.xdata` records describe the fixed function prologue for stack
+unwinding. Windows linked outputs use a zero linker timestamp, and DLLs use a
+stable image base for reproducible builds.
 
 The `x86_64-none-elf` target produces an object, not a bootable image. The
 hosted profile is not yet an ANSI Common Lisp implementation. Checked and

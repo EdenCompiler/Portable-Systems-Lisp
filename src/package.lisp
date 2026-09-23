@@ -97,16 +97,22 @@
   (:use #:cl #:psl.common #:psl.ir #:psl.binary #:psl.target)
   (:export #:compile-function #:make-relocation #:relocation-name
            #:relocation-offset #:relocation-kind #:encoded-function-name
-           #:encoded-function-bytes #:encoded-function-relocations))
+           #:encoded-function-bytes #:encoded-function-relocations
+           #:encoded-function-frame-size))
 
 (defpackage #:psl.object.elf64
   (:use #:cl #:psl.common #:psl.ir #:psl.binary #:psl.backend.x86-64
         #:psl.target)
   (:export #:write-elf-object))
 
+(defpackage #:psl.object.coff
+  (:use #:cl #:psl.common #:psl.ir #:psl.binary #:psl.backend.x86-64
+        #:psl.target)
+  (:export #:write-coff-object))
+
 (defpackage #:psl.compiler
   (:use #:cl #:psl.common #:psl.ir #:psl.frontend #:psl.backend.x86-64
-        #:psl.object.elf64 #:psl.target #:psl.ffi.toolchain)
+        #:psl.object.elf64 #:psl.object.coff #:psl.target #:psl.ffi.toolchain)
   (:export #:compile-source #:compile-and-link #:*last-hir*
            #:source-unit #:read-unit #:dispose-unit #:analyze-unit
            #:lower-unit #:optimize-unit #:linearize-unit #:emit-unit

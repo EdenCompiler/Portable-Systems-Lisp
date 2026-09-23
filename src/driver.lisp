@@ -92,7 +92,8 @@
 
 (defun write-target-object (encoded signatures data target contract output)
   (ecase (target-object-format target)
-    (:elf64 (write-elf-object encoded signatures data contract output))))
+    (:elf64 (write-elf-object encoded signatures data contract output))
+    (:coff (write-coff-object encoded signatures data contract output))))
 
 (defun emit-unit (compilation output)
   (unless (compilation-linearized-p compilation)

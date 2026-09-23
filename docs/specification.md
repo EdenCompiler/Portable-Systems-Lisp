@@ -181,9 +181,9 @@ selected C ABI. `ffi:import-function` declares an imported C signature, and
 unit in the resulting relocatable object on a supported hosted target. If no
 source file is included, the C symbol remains an unresolved link dependency.
 `ffi:import-data` and `ffi:export-data` declare C data symbols;
-`ffi:address-of` obtains their typed raw address. On the current native Linux
-target, the driver can invoke `cc` or `ar` for an executable, shared library,
-or static archive with explicit extra link inputs.
+`ffi:address-of` obtains their typed raw address. On the Linux and Windows
+targets, the driver can invoke the selected linker or archiver for an
+executable, shared library, or static archive with explicit extra link inputs.
 The earlier `psl:defun/c` and `psl:extern-function` spellings are also accepted
 by Stage 0.
 A versioned 64-bit tagged-value and root ABI exists for the M4 hosted runtime;

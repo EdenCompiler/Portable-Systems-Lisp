@@ -1,10 +1,11 @@
 (in-package #:psl.backend.x86-64)
 
 (defstruct relocation offset name kind)
-(defstruct encoded-function name bytes relocations)
+(defstruct encoded-function name bytes relocations frame-size)
 (defstruct (emitter (:constructor make-emitter
                       (contract signatures signature abi-layouts)))
   contract signatures signature abi-layouts
+  return-buffer-slot
   (bytes (byte-buffer))
   (relocations nil)
   (labels (make-hash-table))
@@ -25,10 +26,10 @@
 (defun emit-store-slot (buffer register slot &optional (part 0))
   (emit-slot buffer #x89 register slot part))
 
-(defun emit-load-stack-argument (buffer index)
+(defun emit-load-stack-argument (buffer index &optional (base 16))
   ;; The return address and saved RBP precede stack arguments.
   (emit-bytes buffer #x48 #x8b #x85)
-  (emit-integer buffer (+ 16 (* index 8)) 4))
+  (emit-integer buffer (+ base (* index 8)) 4))
 
 (defun emit-push-slot (buffer slot &optional (part 0))
   (emit-bytes buffer #xff #xb5)
@@ -49,9 +50,15 @@
 
 (defun aggregate-qwords (type abi-layouts)
   (let ((classes (aggregate-classes type abi-layouts)))
-    (when classes (length classes))))
+    (when classes
+      (if (member (first classes) '(:win-direct :win-indirect))
+          (ceiling (second classes) 8)
+          (length classes)))))
 
 (defun abi-argument-locations (types contract abi-layouts)
+  (when (eq (backend-contract-abi contract) :win64)
+    (return-from abi-argument-locations
+      (win-argument-locations types contract abi-layouts)))
   (let ((general 0) (floating 0) (stack 0)
         (general-registers (backend-contract-argument-registers contract))
         (float-registers (backend-contract-float-argument-registers contract)))
@@ -168,6 +175,8 @@
     (emit-store-slot buffer 0 (lir-instruction-dst instruction))))
 
 (defun emit-argument (emitter instruction)
+  (when (eq (backend-contract-abi (emitter-contract emitter)) :win64)
+    (return-from emit-argument (win-emit-argument emitter instruction)))
   (let* ((value (lir-instruction-value instruction))
          (index (car value))
          (location (nth index
@@ -265,6 +274,9 @@
                   (emit-load-xmm-slot buffer (second location) slot part))))))
 
 (defun emit-call-result (emitter instruction)
+  (when (eq (backend-contract-abi (emitter-contract emitter)) :win64)
+    (return-from emit-call-result
+      (win-emit-call-result emitter instruction)))
   (let* ((buffer (emitter-bytes emitter))
          (type (cdr (lir-instruction-value instruction)))
          (slot (lir-instruction-dst instruction))
@@ -278,6 +290,8 @@
        (emit-store-slot buffer 0 slot)))))
 
 (defun emit-call (emitter instruction)
+  (when (eq (backend-contract-abi (emitter-contract emitter)) :win64)
+    (return-from emit-call (win-emit-call emitter instruction)))
   (let* ((buffer (emitter-bytes emitter))
          (signature (gethash (car (lir-instruction-value instruction))
                              (emitter-signatures emitter)))
@@ -303,11 +317,15 @@
 
 (defun emit-data-address (emitter instruction)
   (let ((buffer (emitter-bytes emitter)))
-    ;; A GOT load works for imported and interposable data in shared objects.
-    (emit-bytes buffer #x48 #x8b #x05)
+    (emit-bytes buffer #x48
+                (if (eq (backend-contract-abi (emitter-contract emitter)) :win64)
+                    #x8d #x8b)
+                #x05)
     (push (make-relocation :offset (length buffer)
                            :name (car (lir-instruction-value instruction))
-                           :kind :got)
+                           :kind (if (eq (backend-contract-abi
+                                           (emitter-contract emitter)) :win64)
+                                     :data :got))
           (emitter-relocations emitter))
     (emit-integer buffer 0 4)
     (emit-store-slot buffer 0 (lir-instruction-dst instruction))))
@@ -395,6 +413,9 @@
           (length (emitter-bytes emitter)))))
 
 (defun emit-return-value (emitter instruction)
+  (when (eq (backend-contract-abi (emitter-contract emitter)) :win64)
+    (return-from emit-return-value
+      (win-emit-return-value emitter instruction)))
   (let* ((buffer (emitter-bytes emitter))
          (type (lir-instruction-type instruction))
          (slot (first (lir-instruction-args instruction)))
@@ -408,7 +429,9 @@
 (defun emit-return (emitter instruction)
   (let ((buffer (emitter-bytes emitter)))
     (emit-return-value emitter instruction)
-    (emit-bytes buffer #xc9 #xc3)))
+    (if (eq (backend-contract-abi (emitter-contract emitter)) :win64)
+        (emit-bytes buffer #x48 #x8d #x65 0 #x5d #xc3)
+        (emit-bytes buffer #xc9 #xc3))))
 
 (defun emit-instruction (emitter instruction)
   (case (lir-instruction-op instruction)
@@ -444,21 +467,34 @@
 
 (defun compile-function (function contract signatures abi-layouts)
   (unless (and (eq (backend-contract-architecture contract) :x86-64)
-               (eq (backend-contract-abi contract) :sysv-amd64))
-    (fail "x86-64 backend requires the System V AMD64 ABI"))
+               (member (backend-contract-abi contract)
+                       '(:sysv-amd64 :win64)))
+    (fail "x86-64 backend requires a supported AMD64 ABI"))
   (let ((emitter (make-emitter contract signatures
                                (lir-function-signature function)
                                abi-layouts)))
+    (when (win-indirect-return-p
+           (signature-result (lir-function-signature function))
+           contract abi-layouts)
+      (setf (emitter-return-buffer-slot emitter)
+            (lir-function-register-count function)))
     (emit-prologue (emitter-bytes emitter))
+    (when (emitter-return-buffer-slot emitter)
+      (emit-store-slot (emitter-bytes emitter) 1
+                       (emitter-return-buffer-slot emitter)))
     (dolist (instruction (lir-function-instructions function))
       (let ((*source-location* (lir-instruction-source instruction)))
         (emit-instruction emitter instruction)))
     (patch-branches emitter)
-    (patch-i32 (emitter-bytes emitter) 7
-               (* (backend-contract-stack-alignment contract)
-                  (ceiling (* (lir-function-register-count function) 16)
-                           (backend-contract-stack-alignment contract))))
+    (let ((frame-size
+            (* (backend-contract-stack-alignment contract)
+               (ceiling (* (+ (lir-function-register-count function)
+                              (if (emitter-return-buffer-slot emitter) 1 0))
+                           16)
+                        (backend-contract-stack-alignment contract)))))
+      (patch-i32 (emitter-bytes emitter) 7 frame-size)
     (make-encoded-function
      :name (lir-function-name function)
      :bytes (emitter-bytes emitter)
-     :relocations (nreverse (emitter-relocations emitter)))))
+     :relocations (nreverse (emitter-relocations emitter))
+     :frame-size frame-size))))

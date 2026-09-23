@@ -22,7 +22,9 @@
                   "ir/optimize.lisp"
                   "ir/dump.lisp"
                   "backend/x86-64.lisp"
+                  "backend/win64-abi.lisp"
                   "object/elf64.lisp"
+                  "object/coff.lisp"
                   "ffi/toolchain.lisp"
                   "driver.lisp"))
     (load (merge-pathnames file root))))
