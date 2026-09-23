@@ -1,7 +1,7 @@
 (in-package #:psl.ir)
 
 (defun valid-type-p (type)
-  (or (integer-type-p type)
+  (or (integer-type-p type) (float-type-p type) (eq type :void)
       (eq type :boolean)
       (and (consp type) (eq (first type) :struct)
            (= (length type) 2) (stringp (second type)))
@@ -17,6 +17,12 @@
              (<= (- (ash 1 (1- width))) value
                  (1- (ash 1 (1- width))))
              (<= 0 value (1- (ash 1 width)))))))
+
+(defun literal-fits-p (value type pointer-bits)
+  (cond ((eq type :f32) (typep value 'single-float))
+        ((eq type :f64) (typep value 'double-float))
+        ((eq type :boolean) (member value '(0 1)))
+        (t (integer-fits-p value type pointer-bits))))
 
 (defun expect-count (items count description)
   (unless (and (listp items) (= (length items) count))

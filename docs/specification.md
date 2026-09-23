@@ -140,8 +140,11 @@ compile-time queries. A field pointer is computed from the structure pointer
 and its constant field offset. Structure layout does not change byte order;
 portable wire formats must use explicit endian conversion. Packed fields may be
 unaligned, so generated accesses must tolerate the target's rules or lower to
-safe byte operations. **Basic packed structures are implemented for the M1
-x86-64 target. C ABI layout is M3 work.**
+safe byte operations. **Basic packed structures and naturally aligned C
+structures are implemented for x86-64. By-value C calls currently support
+scalar-field structures of at most two eightbytes, including mixed integer
+and SSE register classes; larger and packed aggregate cases remain outside
+the implemented subset.**
 
 ## 6. Storage and allocation effects
 
@@ -162,7 +165,8 @@ effect checking are specified, not implemented.**
 
 ## 7. Compilation stages and target separation
 
-The stages are read, macro expand, semantic analysis, typed HIR, portable LIR,
+The stages are read, macro expand, semantic analysis, typed HIR, portable SSA,
+verified LIR,
 target lowering, object writing, linking, loading, and execution. Compile-time
 code runs on the build host. Target queries such as pointer width and
 endianness are compile-time data; querying them must not execute target code.
@@ -174,6 +178,10 @@ selected C ABI. `ffi:import-function` declares an imported C signature, and
 `ffi:call` marks each invocation. `ffi:source` includes a local C translation
 unit in the resulting relocatable object on a supported hosted target. If no
 source file is included, the C symbol remains an unresolved link dependency.
+`ffi:import-data` and `ffi:export-data` declare C data symbols;
+`ffi:address-of` obtains their typed raw address. On the current native Linux
+target, the driver can invoke `cc` or `ar` for an executable, shared library,
+or static archive with explicit extra link inputs.
 The earlier `psl:defun/c` and `psl:extern-function` spellings are also accepted
 by Stage 0.
 A stable ABI for independently compiled dynamic Lisp components is a later
@@ -205,6 +213,7 @@ object was successfully produced.
 ```
 
 The [smoke test](../tests/smoke.sh) runs corresponding integer, macro,
-pointer, and packed-layout cases through generated ELF objects and C harnesses.
+pointer, C ABI, layout, and linking cases through generated ELF objects and C
+harnesses.
 Allocation forms and other later features must fail clearly until implemented,
 not emit code with guessed semantics.

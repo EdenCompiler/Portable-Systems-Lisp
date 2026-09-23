@@ -4,19 +4,28 @@
 
 (defstruct cli-options
   source output compile-only
+  (kind :executable)
+  (emit-specified-p nil)
+  (link-inputs nil)
   (target "x86_64-linux-gnu")
   (profile "freestanding")
   (optimize t)
   (dump-ir nil))
 
 (defun usage (&optional (stream *standard-output*))
-  (format stream "Usage: pslcc -c SOURCE.lisp -o OUTPUT.o [--target=TRIPLE] [--profile=PROFILE] [-O0|-O1] [--dump-ir=hir|ssa|lir|all]~%")
+  (format stream "Usage: pslcc [-c|--emit=exe|static|shared] SOURCE.lisp -o OUTPUT [--link-input=FILE]... [--target=TRIPLE] [--profile=PROFILE] [-O0|-O1] [--dump-ir=hir|ssa|lir|all]~%")
   (format stream "Targets: x86_64-linux-gnu, x86_64-none-elf~%")
   (format stream "Profiles: hosted, freestanding~%"))
 
 (defun required-value (option remaining)
   (unless remaining (error "~A requires a value" option))
   (values (first remaining) (rest remaining)))
+
+(defun parse-output-kind (value)
+  (cond ((equal value "exe") :executable)
+        ((equal value "static") :static)
+        ((equal value "shared") :shared)
+        (t (error "unknown output kind ~A" value))))
 
 (defun apply-option (argument remaining options)
   (cond
@@ -30,6 +39,18 @@
      (multiple-value-bind (value rest) (required-value argument remaining)
        (setf (cli-options-output options) value
              remaining rest)))
+    ((equal argument "--link-input")
+     (multiple-value-bind (value rest) (required-value argument remaining)
+       (push value (cli-options-link-inputs options))
+       (setf remaining rest)))
+    ((and (<= 13 (length argument))
+          (string= argument "--link-input=" :end1 13))
+     (push (subseq argument 13) (cli-options-link-inputs options)))
+    ((and (<= 7 (length argument))
+          (string= argument "--emit=" :end1 7))
+     (setf (cli-options-kind options)
+           (parse-output-kind (subseq argument 7))
+           (cli-options-emit-specified-p options) t))
     ((equal argument "--target")
      (multiple-value-bind (value rest) (required-value argument remaining)
        (setf (cli-options-target options) value
@@ -71,16 +92,29 @@
 
 (defun main (arguments)
   (let ((options (parse-arguments arguments)))
-    (unless (cli-options-compile-only options)
-      (error "only -c object compilation is implemented"))
     (unless (and (cli-options-source options) (cli-options-output options))
-      (error "-c requires SOURCE and -o OUTPUT"))
-    (psl.compiler:compile-source
-     (cli-options-source options) (cli-options-output options)
-     :target (cli-options-target options)
-     :profile (cli-options-profile options)
-     :optimize (cli-options-optimize options)
-     :dump-ir (cli-options-dump-ir options))
+      (error "SOURCE and -o OUTPUT are required"))
+    (when (and (cli-options-compile-only options)
+               (cli-options-emit-specified-p options))
+      (error "-c cannot be combined with --emit"))
+    (if (cli-options-compile-only options)
+        (progn
+          (when (cli-options-link-inputs options)
+            (error "-c does not accept link inputs"))
+          (psl.compiler:compile-source
+           (cli-options-source options) (cli-options-output options)
+           :target (cli-options-target options)
+           :profile (cli-options-profile options)
+           :optimize (cli-options-optimize options)
+           :dump-ir (cli-options-dump-ir options)))
+        (psl.compiler:compile-and-link
+         (cli-options-source options) (cli-options-output options)
+         :target (cli-options-target options)
+         :profile (cli-options-profile options)
+         :optimize (cli-options-optimize options)
+         :dump-ir (cli-options-dump-ir options)
+         :kind (cli-options-kind options)
+         :inputs (nreverse (cli-options-link-inputs options))))
     0))
 
 (handler-case

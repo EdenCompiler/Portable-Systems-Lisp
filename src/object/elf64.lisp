@@ -39,35 +39,69 @@
         (dolist (relocation (encoded-function-relocations function))
           (push (make-relocation
                  :name (relocation-name relocation)
-                 :offset (+ offset (relocation-offset relocation)))
+                 :offset (+ offset (relocation-offset relocation))
+                 :kind (relocation-kind relocation))
                 relocations))))
     (values text (nreverse definitions) (nreverse relocations))))
 
-(defun external-names (signatures relocations)
-  (sort (remove-duplicates
-         (loop for relocation in relocations
-               for name = (relocation-name relocation)
-               for signature = (gethash name signatures)
-               when (and signature (signature-external-p signature))
-                 collect name)
-         :test #'equal)
-        #'string<))
+(defun collect-data (declarations)
+  (let ((bytes (byte-buffer)) (definitions nil) (alignment 1))
+    (dolist (declaration declarations)
+      (unless (data-declaration-external-p declaration)
+        (let ((size (data-declaration-size declaration))
+              (field-alignment (data-declaration-alignment declaration)))
+          (setf alignment (max alignment field-alignment))
+          (align-buffer bytes field-alignment)
+          (push (list (data-declaration-name declaration)
+                      (length bytes) size)
+                definitions)
+          (cond
+            ((float-type-p (data-declaration-type declaration))
+             (emit-integer bytes
+                           (float-bits (data-declaration-initial declaration)
+                                       (data-declaration-type declaration))
+                           size))
+            ((or (integer-type-p (data-declaration-type declaration))
+                 (pointer-type-p (data-declaration-type declaration)))
+             (emit-integer bytes (data-declaration-initial declaration) size))
+            (t (dotimes (index size) (emit-byte bytes 0)))))))
+    (values bytes (nreverse definitions) alignment)))
 
-(defun build-symbol-tables (definitions external)
+(defun external-symbols (signatures data relocations)
+  (let ((symbols nil))
+    (dolist (relocation relocations)
+      (let* ((name (relocation-name relocation))
+             (signature (gethash name signatures))
+             (declaration (find name data :key #'data-declaration-name
+                                :test #'equal)))
+        (cond
+          ((and signature (signature-external-p signature))
+           (push (cons name #x12) symbols))
+          ((and declaration (data-declaration-external-p declaration))
+           (push (cons name #x11) symbols)))))
+    (sort (remove-duplicates symbols :key #'car :test #'equal)
+          #'string< :key #'car)))
+
+(defun build-symbol-tables (functions data external)
   (let ((table (byte-buffer))
         (names (byte-buffer))
         (indices (make-hash-table :test #'equal)))
     (emit-byte names 0)
     (write-symbol table 0 0 0 0 0)
     (write-symbol table 0 3 1 0 0) ; local .text section symbol
-    (loop for (name offset size) in definitions
-          for index from 2
+    (write-symbol table 0 3 2 0 0) ; local .data section symbol
+    (loop for (name offset size) in functions
+          for index from 3
           do (setf (gethash name indices) index)
              (write-symbol table (append-string names name) #x12 1 offset size))
-    (loop for name in external
-          for index from (+ 2 (length definitions))
+    (loop for (name offset size) in data
+          for index from (+ 3 (length functions))
           do (setf (gethash name indices) index)
-             (write-symbol table (append-string names name) #x12 0 0 0))
+             (write-symbol table (append-string names name) #x11 2 offset size))
+    (loop for (name . info) in external
+          for index from (+ 3 (length functions) (length data))
+          do (setf (gethash name indices) index)
+             (write-symbol table (append-string names name) info 0 0 0))
     (values table names indices)))
 
 (defun build-relocations (relocations symbol-indices contract)
@@ -79,21 +113,25 @@
         (emit-integer table (relocation-offset relocation) 8)
         (emit-integer table
                       (+ (ash index 32)
-                         (backend-contract-call-relocation contract)) 8)
+                         (ecase (relocation-kind relocation)
+                           (:call (backend-contract-call-relocation contract))
+                           (:got 9))) 8)
         (emit-integer table -4 8)))
     table))
 
-(defun make-sections (text rela symbols names)
+(defun make-sections (text data data-alignment rela symbols names)
   (let ((section-names (byte-buffer)))
     (emit-byte section-names 0)
     (let ((sections
             (list (make-section :name ".text" :type 1 :flags 6
                                 :data text :alignment 16)
+                  (make-section :name ".data" :type 1 :flags 3
+                                :data data :alignment data-alignment)
                   (make-section :name ".rela.text" :type 4 :flags 0
-                                :data rela :alignment 8 :link 3 :info 1
+                                :data rela :alignment 8 :link 4 :info 1
                                 :entry-size 24)
                   (make-section :name ".symtab" :type 2 :flags 0
-                                :data symbols :alignment 8 :link 4 :info 2
+                                :data symbols :alignment 8 :link 5 :info 3
                                 :entry-size 24)
                   (make-section :name ".strtab" :type 3 :flags 0 :data names)
                   (make-section :name ".shstrtab" :type 3 :flags 0
@@ -138,7 +176,7 @@
   (patch-integer object 52 64 2)
   (patch-integer object 58 64 2)
   (patch-integer object 60 section-count 2)
-  (patch-integer object 62 5 2)) ; .shstrtab section index
+  (patch-integer object 62 6 2)) ; .shstrtab section index
 
 (defun assemble-object (sections contract)
   (let ((object (byte-buffer)))
@@ -158,14 +196,19 @@
     (write-sequence bytes stream))
   output)
 
-(defun write-elf-object (functions signatures contract output)
+(defun write-elf-object (functions signatures data contract output)
   (unless (and (eq (backend-contract-object-format contract) :elf64)
                (eq (backend-contract-endianness contract) :little))
     (fail "ELF64 writer needs a little-endian ELF64 target"))
-  (multiple-value-bind (text definitions relocations)
+  (multiple-value-bind (text function-definitions relocations)
       (collect-text functions)
-    (multiple-value-bind (symbols names indices)
-        (build-symbol-tables definitions (external-names signatures relocations))
-      (let* ((rela (build-relocations relocations indices contract))
-             (sections (make-sections text rela symbols names)))
-        (write-object-file (assemble-object sections contract) output)))))
+    (multiple-value-bind (data-bytes data-definitions data-alignment)
+        (collect-data data)
+      (multiple-value-bind (symbols names indices)
+          (build-symbol-tables
+           function-definitions data-definitions
+           (external-symbols signatures data relocations))
+        (let* ((rela (build-relocations relocations indices contract))
+               (sections (make-sections text data-bytes data-alignment
+                                        rela symbols names)))
+          (write-object-file (assemble-object sections contract) output))))))

@@ -4,13 +4,18 @@
   (:export #:defun/c #:extern-function #:wrap+ #:wrap- #:wrap* #:u64 #:s64
            #:u8 #:u16 #:u32 #:s8 #:s16 #:s32 #:usize #:isize
            #:ptr #:load #:deref #:store #:pointer+ #:ptr-cast #:ptr-from-address
-           #:defstruct/packed #:field-pointer #:sizeof #:alignof #:offset-of
+           #:defstruct/packed #:defcstruct #:field-pointer #:sizeof #:alignof #:offset-of
+           #:c-char #:c-uchar #:c-short #:c-ushort #:c-int #:c-uint
+           #:c-long #:c-ulong #:c-long-long #:c-ulong-long
+           #:c-size-t #:c-ptrdiff-t
+           #:f32 #:f64 #:c-float #:c-double #:void
            #:returns #:export #:c-export))
 
 (defpackage #:psl.ffi
   (:nicknames #:ffi)
   (:use)
-  (:export #:source #:import-function #:call))
+  (:export #:source #:import-function #:call #:import-data #:export-data
+           #:address-of))
 
 (defpackage #:psl.common
   (:use #:cl)
@@ -26,7 +31,11 @@
            #:function-def-parameters #:function-def-body #:function-def-source
            #:hir #:make-hir #:hir-kind #:hir-type #:hir-value #:hir-children
            #:hir-source
-           #:integer-type-p #:signed-type-p #:type-width #:pointer-type-p
+           #:data-declaration #:make-data-declaration #:data-declaration-name
+           #:data-declaration-type #:data-declaration-size
+           #:data-declaration-alignment #:data-declaration-initial
+           #:data-declaration-external-p
+           #:integer-type-p #:float-type-p #:signed-type-p #:type-width #:pointer-type-p
            #:pointed-type #:pointer-const-p #:pointer-volatile-p
            #:ssa-instruction #:make-ssa-instruction #:ssa-instruction-id
            #:ssa-instruction-op #:ssa-instruction-type #:ssa-instruction-value
@@ -55,7 +64,8 @@
 
 (defpackage #:psl.binary
   (:use #:cl #:psl.common)
-  (:export #:byte-buffer #:emit-byte #:emit-integer #:emit-bytes #:patch-i32))
+  (:export #:byte-buffer #:emit-byte #:emit-integer #:emit-bytes #:patch-i32
+           #:float-bits))
 
 (defpackage #:psl.target
   (:use #:cl #:psl.common)
@@ -66,9 +76,10 @@
            #:backend-contract-abi #:backend-contract-object-format
            #:backend-contract-pointer-bits #:backend-contract-endianness
            #:backend-contract-argument-registers
+           #:backend-contract-float-argument-registers
            #:backend-contract-elf-machine
            #:backend-contract-call-relocation
-           #:backend-contract-stack-alignment))
+           #:backend-contract-stack-alignment #:c-integer-type))
 
 (defpackage #:psl.frontend
   (:use #:cl #:psl.common #:psl.ir #:psl.target)
@@ -76,12 +87,12 @@
 
 (defpackage #:psl.ffi.toolchain
   (:use #:cl #:psl.common #:psl.target)
-  (:export #:emit-with-c-sources))
+  (:export #:emit-with-c-sources #:link-source-artifact))
 
 (defpackage #:psl.backend.x86-64
   (:use #:cl #:psl.common #:psl.ir #:psl.binary #:psl.target)
   (:export #:compile-function #:make-relocation #:relocation-name
-           #:relocation-offset #:encoded-function-name
+           #:relocation-offset #:relocation-kind #:encoded-function-name
            #:encoded-function-bytes #:encoded-function-relocations))
 
 (defpackage #:psl.object.elf64
@@ -92,7 +103,7 @@
 (defpackage #:psl.compiler
   (:use #:cl #:psl.common #:psl.ir #:psl.frontend #:psl.backend.x86-64
         #:psl.object.elf64 #:psl.target #:psl.ffi.toolchain)
-  (:export #:compile-source #:*last-hir*
+  (:export #:compile-source #:compile-and-link #:*last-hir*
            #:source-unit #:read-unit #:dispose-unit #:analyze-unit
            #:lower-unit #:optimize-unit #:linearize-unit #:emit-unit
            #:compilation #:compilation-hir-functions

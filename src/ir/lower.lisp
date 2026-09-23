@@ -102,6 +102,9 @@
       (:call (emit-value state :call type :value (hir-value node)
                          :args (lower-children node state environment)
                          :source source))
+      (:data-address
+       (emit-value state :data-address type :value (hir-value node)
+                   :source source))
       (:field-pointer
        (emit-value state :field-pointer type :value (hir-value node)
                    :args (lower-children node state environment)

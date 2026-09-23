@@ -29,7 +29,7 @@ src/
   object/
     elf64.lisp          ELF sections, symbols, and relocations
   ffi/
-    toolchain.lisp      explicit C source compilation and object merge
+    toolchain.lisp      C source compilation, object merge, and link tools
 ```
 
 `compile-source` coordinates reader → analyzer → verified HIR → CFG/SSA →
@@ -39,7 +39,10 @@ explicit target contract containing ABI registers, pointer width, stack
 alignment, ELF machine ID, and relocation kind. The object writer consumes
 encoded functions and relocations rather than source forms.
 The FFI toolchain runs only when source explicitly declares a C translation
-unit; ordinary typed compilation needs no C compiler until final linking.
+unit or the caller requests a linked artifact. Ordinary typed `-c` compilation
+needs no C compiler. The frontend computes C structure layout and passes the
+supported aggregate ABI classes to the backend. The object writer owns data
+symbols and GOT relocations; `cc` and `ar` produce final Linux artifacts.
 The SSA representation has basic blocks, typed values, terminators, and `phi`
 joins. The current language subset has conditional branches but no loop form.
 LIR uses virtual registers and explicit labels after `phi` edge copies are

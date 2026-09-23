@@ -1,30 +1,107 @@
 (in-package #:psl.backend.x86-64)
 
-(defstruct relocation offset name)
+(defstruct relocation offset name kind)
 (defstruct encoded-function name bytes relocations)
-(defstruct (emitter (:constructor make-emitter (contract)))
-  contract
+(defstruct (emitter (:constructor make-emitter
+                      (contract signatures signature abi-layouts)))
+  contract signatures signature abi-layouts
   (bytes (byte-buffer))
   (relocations nil)
   (labels (make-hash-table))
   (fixups nil))
 
-(defun emit-slot (buffer opcode register slot)
+(defun slot-displacement (slot &optional (part 0))
+  (+ (- (* (1+ slot) 16)) (* part 8)))
+
+(defun emit-slot (buffer opcode register slot &optional (part 0))
   ;; REX.W + MOV with an RBP-relative 32-bit displacement.
   (emit-bytes buffer (if (>= register 8) #x4c #x48)
               opcode (+ #x85 (ash (mod register 8) 3)))
-  (emit-integer buffer (- (* (1+ slot) 8)) 4))
+  (emit-integer buffer (slot-displacement slot part) 4))
 
-(defun emit-load-slot (buffer register slot)
-  (emit-slot buffer #x8b register slot))
+(defun emit-load-slot (buffer register slot &optional (part 0))
+  (emit-slot buffer #x8b register slot part))
 
-(defun emit-store-slot (buffer register slot)
-  (emit-slot buffer #x89 register slot))
+(defun emit-store-slot (buffer register slot &optional (part 0))
+  (emit-slot buffer #x89 register slot part))
+
+(defun emit-load-stack-argument (buffer index)
+  ;; The return address and saved RBP precede stack arguments.
+  (emit-bytes buffer #x48 #x8b #x85)
+  (emit-integer buffer (+ 16 (* index 8)) 4))
+
+(defun emit-push-slot (buffer slot &optional (part 0))
+  (emit-bytes buffer #xff #xb5)
+  (emit-integer buffer (slot-displacement slot part) 4))
+
+(defun emit-load-xmm-slot (buffer register slot &optional (part 0))
+  (emit-bytes buffer #xf3 #x0f #x7e (+ #x85 (ash register 3)))
+  (emit-integer buffer (slot-displacement slot part) 4))
+
+(defun emit-store-xmm-slot (buffer register slot &optional (part 0))
+  (emit-bytes buffer #x66 #x0f #xd6 (+ #x85 (ash register 3)))
+  (emit-integer buffer (slot-displacement slot part) 4))
+
+(defun aggregate-classes (type abi-layouts)
+  (when (and (consp type) (eq (first type) :struct))
+    (or (gethash (second type) abi-layouts)
+        (fail "unsupported C aggregate ABI type ~S" type))))
+
+(defun aggregate-qwords (type abi-layouts)
+  (let ((classes (aggregate-classes type abi-layouts)))
+    (when classes (length classes))))
+
+(defun abi-argument-locations (types contract abi-layouts)
+  (let ((general 0) (floating 0) (stack 0)
+        (general-registers (backend-contract-argument-registers contract))
+        (float-registers (backend-contract-float-argument-registers contract)))
+    (loop for type in types
+          for classes = (aggregate-classes type abi-layouts)
+          collect
+          (cond
+            ((float-type-p type)
+             (if (< floating (length float-registers))
+                 (let ((register (nth floating float-registers)))
+                   (incf floating)
+                   (list :sse register))
+                 (let ((index stack))
+                   (incf stack)
+                   (list :stack index))))
+            ((or (integer-type-p type) (pointer-type-p type))
+             (if (< general (length general-registers))
+                 (let ((register (nth general general-registers)))
+                   (incf general)
+                   (list :gp register))
+                 (let ((index stack))
+                   (incf stack)
+                   (list :stack index))))
+            (classes
+             (if (and (<= (+ general (count :integer classes))
+                          (length general-registers))
+                      (<= (+ floating (count :sse classes))
+                          (length float-registers)))
+                 (cons :aggregate-registers
+                       (loop for class in classes
+                             collect
+                             (if (eq class :integer)
+                                 (let ((register
+                                         (nth general general-registers)))
+                                   (incf general)
+                                   (list :gp register))
+                                 (let ((register
+                                         (nth floating float-registers)))
+                                   (incf floating)
+                                   (list :sse register)))))
+                 (let ((index stack))
+                   (incf stack (length classes))
+                   (list :aggregate-stack index (length classes)))))
+            (t (fail "unsupported System V argument type ~S" type))))))
 
 (defun x86-type-width (type contract)
-  (if (or (pointer-type-p type) (eq type :boolean))
-      (backend-contract-pointer-bits contract)
-      (type-width type (backend-contract-pointer-bits contract))))
+  (cond ((float-type-p type) (if (eq type :f32) 32 64))
+        ((or (pointer-type-p type) (eq type :boolean))
+         (backend-contract-pointer-bits contract))
+        (t (type-width type (backend-contract-pointer-bits contract)))))
 
 (defun normalize-rax (buffer type contract)
   (let ((width (x86-type-width type contract)))
@@ -45,14 +122,21 @@
   (let ((buffer (emitter-bytes emitter))
         (value (lir-instruction-value instruction)))
     (emit-bytes buffer #x48 #xb8)
-    (emit-integer buffer (car value) 8)
-    (normalize-rax buffer (cdr value) (emitter-contract emitter))
+    (emit-integer buffer (if (float-type-p (cdr value))
+                             (float-bits (car value) (cdr value))
+                             (car value)) 8)
+    (unless (float-type-p (cdr value))
+      (normalize-rax buffer (cdr value) (emitter-contract emitter)))
     (emit-store-slot buffer 0 (lir-instruction-dst instruction))))
 
 (defun emit-copy (emitter instruction)
-  (let ((buffer (emitter-bytes emitter)))
-    (emit-load-slot buffer 0 (first (lir-instruction-args instruction)))
-    (emit-store-slot buffer 0 (lir-instruction-dst instruction))))
+  (unless (eq (lir-instruction-type instruction) :void)
+    (let ((buffer (emitter-bytes emitter))
+          (words (or (aggregate-qwords (lir-instruction-type instruction)
+                                      (emitter-abi-layouts emitter)) 1)))
+      (dotimes (part words)
+        (emit-load-slot buffer 0 (first (lir-instruction-args instruction)) part)
+        (emit-store-slot buffer 0 (lir-instruction-dst instruction) part)))))
 
 (defun emit-comparison (buffer operator type)
   (emit-bytes buffer #x48 #x39 #xc1 #x0f
@@ -84,31 +168,147 @@
 
 (defun emit-argument (emitter instruction)
   (let* ((value (lir-instruction-value instruction))
-         (register (nth (car value)
-                        (backend-contract-argument-registers
-                         (emitter-contract emitter))))
+         (index (car value))
+         (location (nth index
+                        (abi-argument-locations
+                         (signature-arguments (emitter-signature emitter))
+                         (emitter-contract emitter)
+                         (emitter-abi-layouts emitter))))
          (slot (lir-instruction-dst instruction))
          (buffer (emitter-bytes emitter)))
-    (emit-store-slot buffer register slot)
-    (when (< (x86-type-width (cdr value) (emitter-contract emitter))
-             (backend-contract-pointer-bits (emitter-contract emitter)))
+    (ecase (first location)
+      (:gp (emit-store-slot buffer (second location) slot))
+      (:sse (emit-store-xmm-slot buffer (second location) slot))
+      (:stack
+       (emit-load-stack-argument buffer (second location))
+       (emit-store-slot buffer 0 slot))
+      (:aggregate-registers
+       (loop for part-location in (rest location)
+             for part from 0
+             do (ecase (first part-location)
+                  (:gp (emit-store-slot buffer (second part-location)
+                                        slot part))
+                  (:sse (emit-store-xmm-slot
+                         buffer (second part-location) slot part)))))
+      (:aggregate-stack
+       (dotimes (part (third location))
+         (emit-load-stack-argument buffer (+ (second location) part))
+         (emit-store-slot buffer 0 slot part))))
+    (when (and (not (float-type-p (cdr value)))
+               (not (aggregate-qwords (cdr value)
+                                      (emitter-abi-layouts emitter)))
+               (< (x86-type-width (cdr value) (emitter-contract emitter))
+                  (backend-contract-pointer-bits (emitter-contract emitter))))
       (emit-load-slot buffer 0 slot)
       (normalize-rax buffer (cdr value) (emitter-contract emitter))
       (emit-store-slot buffer 0 slot))))
 
+(defun stack-call-parts (slots locations)
+  (loop for slot in slots
+        for location in locations
+        append (case (first location)
+                 (:stack (list (cons slot 0)))
+                 (:aggregate-stack
+                  (loop for part below (third location)
+                        collect (cons slot part)))
+                 (otherwise nil))))
+
+(defun emit-stack-call-arguments (buffer slots locations)
+  (let* ((parts (stack-call-parts slots locations))
+         (padding (if (oddp (length parts)) 8 0)))
+    (when (plusp padding)
+      (emit-bytes buffer #x48 #x83 #xec 8))
+    (dolist (part (reverse parts))
+      (emit-push-slot buffer (car part) (cdr part)))
+    (+ (* 8 (length parts)) padding)))
+
+(defun emit-register-call-arguments (buffer slots locations)
+  (loop for slot in slots
+        for location in locations
+        do (ecase (first location)
+             (:gp (emit-load-slot buffer (second location) slot))
+             (:sse (emit-load-xmm-slot buffer (second location) slot))
+             (:aggregate-registers
+              (loop for part-location in (rest location)
+                    for part from 0
+                    do (ecase (first part-location)
+                         (:gp (emit-load-slot buffer (second part-location)
+                                              slot part))
+                         (:sse (emit-load-xmm-slot
+                                buffer (second part-location) slot part)))))
+             (:aggregate-stack nil)
+             (:stack nil))))
+
+(defun aggregate-return-locations (classes)
+  (let ((general 0) (floating 0))
+    (loop for class in classes
+          collect (ecase class
+                    (:integer
+                     (prog1 (list :gp (nth general '(0 2)))
+                       (incf general)))
+                    (:sse
+                     (prog1 (list :sse floating)
+                       (incf floating)))))))
+
+(defun emit-aggregate-return-parts (buffer slot classes direction)
+  (loop for location in (aggregate-return-locations classes)
+        for part from 0
+        do (ecase (first location)
+             (:gp
+              (if (eq direction :store)
+                  (emit-store-slot buffer (second location) slot part)
+                  (emit-load-slot buffer (second location) slot part)))
+             (:sse
+              (if (eq direction :store)
+                  (emit-store-xmm-slot buffer (second location) slot part)
+                  (emit-load-xmm-slot buffer (second location) slot part))))))
+
+(defun emit-call-result (emitter instruction)
+  (let* ((buffer (emitter-bytes emitter))
+         (type (cdr (lir-instruction-value instruction)))
+         (slot (lir-instruction-dst instruction))
+         (classes (aggregate-classes type (emitter-abi-layouts emitter))))
+    (cond
+      ((eq type :void) nil)
+      ((float-type-p type) (emit-store-xmm-slot buffer 0 slot))
+      (classes (emit-aggregate-return-parts buffer slot classes :store))
+      (t
+       (normalize-rax buffer type (emitter-contract emitter))
+       (emit-store-slot buffer 0 slot)))))
+
 (defun emit-call (emitter instruction)
-  (let ((buffer (emitter-bytes emitter)))
-    (loop for slot in (lir-instruction-args instruction)
-          for register in (backend-contract-argument-registers
-                           (emitter-contract emitter))
-          do (emit-load-slot buffer register slot))
+  (let* ((buffer (emitter-bytes emitter))
+         (signature (gethash (car (lir-instruction-value instruction))
+                             (emitter-signatures emitter)))
+         (locations (abi-argument-locations
+                     (signature-arguments signature)
+                     (emitter-contract emitter)
+                     (emitter-abi-layouts emitter)))
+         (stack-bytes (emit-stack-call-arguments
+                       buffer (lir-instruction-args instruction)
+                       locations)))
+    (emit-register-call-arguments buffer (lir-instruction-args instruction)
+                                  locations)
     (emit-byte buffer #xe8)
     (push (make-relocation :offset (length buffer)
-                           :name (car (lir-instruction-value instruction)))
+                           :name (car (lir-instruction-value instruction))
+                           :kind :call)
           (emitter-relocations emitter))
     (emit-integer buffer 0 4)
-    (normalize-rax buffer (cdr (lir-instruction-value instruction))
-                   (emitter-contract emitter))
+    (when (plusp stack-bytes)
+      (emit-bytes buffer #x48 #x81 #xc4)
+      (emit-integer buffer stack-bytes 4))
+    (emit-call-result emitter instruction)))
+
+(defun emit-data-address (emitter instruction)
+  (let ((buffer (emitter-bytes emitter)))
+    ;; A GOT load works for imported and interposable data in shared objects.
+    (emit-bytes buffer #x48 #x8b #x05)
+    (push (make-relocation :offset (length buffer)
+                           :name (car (lir-instruction-value instruction))
+                           :kind :got)
+          (emitter-relocations emitter))
+    (emit-integer buffer 0 4)
     (emit-store-slot buffer 0 (lir-instruction-dst instruction))))
 
 (defun emit-field-pointer (emitter instruction)
@@ -193,9 +393,20 @@
     (setf (gethash label (emitter-labels emitter))
           (length (emitter-bytes emitter)))))
 
+(defun emit-return-value (emitter instruction)
+  (let* ((buffer (emitter-bytes emitter))
+         (type (lir-instruction-type instruction))
+         (slot (first (lir-instruction-args instruction)))
+         (classes (aggregate-classes type (emitter-abi-layouts emitter))))
+    (cond
+      ((eq type :void) nil)
+      ((float-type-p type) (emit-load-xmm-slot buffer 0 slot))
+      (classes (emit-aggregate-return-parts buffer slot classes :load))
+      (t (emit-load-slot buffer 0 slot)))))
+
 (defun emit-return (emitter instruction)
   (let ((buffer (emitter-bytes emitter)))
-    (emit-load-slot buffer 0 (first (lir-instruction-args instruction)))
+    (emit-return-value emitter instruction)
     (emit-bytes buffer #xc9 #xc3)))
 
 (defun emit-instruction (emitter instruction)
@@ -205,6 +416,7 @@
     (:copy (emit-copy emitter instruction))
     (:binary (emit-binary emitter instruction))
     (:call (emit-call emitter instruction))
+    (:data-address (emit-data-address emitter instruction))
     (:field-pointer (emit-field-pointer emitter instruction))
     (:pointer-add (emit-pointer-add emitter instruction))
     (:load (emit-load emitter instruction))
@@ -229,21 +441,13 @@
   ;; The frame-size field is patched after all LIR registers are known.
   (emit-bytes buffer #x55 #x48 #x89 #xe5 #x48 #x81 #xec 0 0 0 0))
 
-(defun compile-function (function contract)
+(defun compile-function (function contract signatures abi-layouts)
   (unless (and (eq (backend-contract-architecture contract) :x86-64)
                (eq (backend-contract-abi contract) :sysv-amd64))
     (fail "x86-64 backend requires the System V AMD64 ABI"))
-  (let ((limit (length (backend-contract-argument-registers contract))))
-    (when (> (length (signature-arguments (lir-function-signature function)))
-             limit)
-      (fail "System V AMD64 register ABI supports at most ~D arguments" limit))
-    (dolist (instruction (lir-function-instructions function))
-      (when (and (eq (lir-instruction-op instruction) :call)
-                 (> (length (lir-instruction-args instruction)) limit))
-        (let ((*source-location* (lir-instruction-source instruction)))
-          (fail "System V AMD64 register ABI supports at most ~D arguments"
-                limit)))))
-  (let ((emitter (make-emitter contract)))
+  (let ((emitter (make-emitter contract signatures
+                               (lir-function-signature function)
+                               abi-layouts)))
     (emit-prologue (emitter-bytes emitter))
     (dolist (instruction (lir-function-instructions function))
       (let ((*source-location* (lir-instruction-source instruction)))
@@ -251,7 +455,7 @@
     (patch-branches emitter)
     (patch-i32 (emitter-bytes emitter) 7
                (* (backend-contract-stack-alignment contract)
-                  (ceiling (* (lir-function-register-count function) 8)
+                  (ceiling (* (lir-function-register-count function) 16)
                            (backend-contract-stack-alignment contract))))
     (make-encoded-function
      :name (lir-function-name function)

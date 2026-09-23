@@ -14,12 +14,12 @@
       (fail "FFI:SOURCE file does not exist: ~A" name))
     (namestring (truename path))))
 
-(defun run-tool (arguments)
-  (let ((process (sb-ext:run-program "cc" arguments :search t
+(defun run-tool (program arguments)
+  (let ((process (sb-ext:run-program program arguments :search t
                                      :output *error-output*
                                      :error *error-output*)))
     (unless (zerop (sb-ext:process-exit-code process))
-      (fail "C toolchain failed: cc ~{~A ~}" arguments))))
+      (fail "toolchain failed: ~A ~{~A ~}" program arguments))))
 
 (defun temporary-directory ()
   (let ((base (string-right-trim "/"
@@ -36,8 +36,8 @@
   (sb-posix:rmdir directory))
 
 (defun compile-c-source (source object)
-  (run-tool (list "-std=c11" "-fno-pie" "-fno-stack-protector"
-                  "-c" source "-o" (namestring object)))
+  (run-tool "cc" (list "-std=c11" "-fPIC" "-fno-stack-protector"
+                       "-c" source "-o" (namestring object)))
   (with-open-file (stream object :element-type '(unsigned-byte 8))
     (let ((header (make-array 20 :element-type '(unsigned-byte 8))))
       (unless (and (= (read-sequence header stream) 20)
@@ -48,8 +48,8 @@
               source)))))
 
 (defun merge-objects (objects output)
-  (run-tool (append (list "-r" "-o" (namestring output))
-                    (mapcar #'namestring objects))))
+  (run-tool "cc" (append (list "-r" "-o" (namestring output))
+                         (mapcar #'namestring objects))))
 
 (defun emit-with-c-sources (source output target c-sources emit-psl)
   (let ((*source-location* (cdar c-sources)))
@@ -75,3 +75,50 @@
            (sb-posix:rename (namestring merged) (namestring (pathname output)))
            output)
       (remove-temporary-directory directory names))))
+
+(defun validate-link-inputs (kind inputs)
+  (dolist (input inputs)
+    (unless (probe-file input)
+      (fail "link input does not exist: ~A" input))
+    (when (and (eq kind :static)
+               (not (equalp (pathname-type input) "o")))
+      (fail "static library inputs must be object files: ~A" input))))
+
+(defun link-artifact (object output kind inputs)
+  (validate-link-inputs kind inputs)
+  (let ((paths (cons (namestring object) (mapcar #'namestring inputs))))
+    (ecase kind
+      (:executable
+       (run-tool "cc" (append (list "-o" (namestring output)) paths)))
+      (:shared
+       (run-tool "cc" (append (list "-shared" "-o" (namestring output))
+                               paths)))
+      (:static
+       (run-tool "ar" (append (list "rcsD" (namestring output)) paths)))))
+  output)
+
+(defun link-source-artifact (output kind target inputs compile-object)
+  (unless (and (eq (target-architecture target) :x86-64)
+               (eq (target-system target) :linux))
+    (fail "linking currently requires x86_64-linux-gnu"))
+  (let* ((directory (temporary-directory))
+         (object (temporary-path directory "psl.o"))
+         (destination (merge-pathnames output (truename ".")))
+         (destination-directory
+           (make-pathname :name nil :type nil :defaults destination))
+         (staging-directory
+           (sb-posix:mkdtemp
+            (format nil "~A/.psl-link-XXXXXX"
+                    (string-right-trim "/"
+                                       (namestring destination-directory)))))
+         (staged-output (temporary-path staging-directory "artifact")))
+    (unwind-protect
+         (progn
+           (funcall compile-object object)
+           (link-artifact object staged-output kind
+                          (mapcar #'pathname inputs))
+           (sb-posix:rename (namestring staged-output)
+                            (namestring destination))
+           output)
+      (remove-temporary-directory directory '("psl.o"))
+      (remove-temporary-directory staging-directory '("artifact")))))

@@ -19,6 +19,9 @@ checks SSA, `optimize-unit` checks SSA after its passes, and `linearize-unit`
 checks LIR. `emit-unit` rechecks LIR before encoding so later library edits
 cannot bypass verification. `compile-source`
 coordinates these calls and always disposes the source package.
+`psl.compiler:compile-and-link` runs that pipeline and uses the selected
+native linker or archiver for an executable, static archive, or shared
+library. Its `:inputs` list names additional C objects or libraries.
 
 ## IR contracts
 
@@ -36,8 +39,9 @@ coordinates these calls and always disposes the source package.
   verifier checks register types, branch targets, definite assignment, and
   returning paths before the backend encodes instructions.
 - Target selection is separate from IR. The x86 backend takes LIR plus a
-  contract for the System V AMD64 argument registers, 64-bit pointer model,
-  stack alignment, ELF machine, and call relocation. The frontend and generic
+  contract for the System V AMD64 general and SSE argument registers, 64-bit
+  pointer model, stack alignment, ELF machine, and call relocation. The
+  frontend also supplies target-specific C aggregate layout metadata. Generic
   optimization passes do not encode target instructions or object sections.
 
 `--dump-ir=hir|ssa|lir|all` prints the selected stage to standard output.

@@ -2,8 +2,19 @@
 
 (defstruct target architecture abi system object-format pointer-bits endianness)
 (defstruct backend-contract architecture abi object-format pointer-bits
-           endianness argument-registers elf-machine call-relocation
+           endianness argument-registers float-argument-registers
+           elf-machine call-relocation
            stack-alignment)
+
+(defun c-integer-type (target name)
+  (unless (eq (target-abi target) :sysv-amd64)
+    (fail "C integer aliases are not defined for ABI ~A" (target-abi target)))
+  (cdr (assoc name '((psl:c-char . :s8) (psl:c-uchar . :u8)
+                     (psl:c-short . :s16) (psl:c-ushort . :u16)
+                     (psl:c-int . :s32) (psl:c-uint . :u32)
+                     (psl:c-long . :s64) (psl:c-ulong . :u64)
+                     (psl:c-long-long . :s64) (psl:c-ulong-long . :u64)
+                     (psl:c-size-t . :usize) (psl:c-ptrdiff-t . :isize)))))
 
 (defun resolve-target (name)
   (cond
@@ -30,4 +41,5 @@
    :architecture :x86-64 :abi :sysv-amd64 :object-format :elf64
    :pointer-bits 64 :endianness :little
    :argument-registers '(7 6 2 1 8 9)
+   :float-argument-registers '(0 1 2 3 4 5 6 7)
    :elf-machine 62 :call-relocation 4 :stack-alignment 16))

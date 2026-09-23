@@ -9,9 +9,10 @@ including facilities still awaiting implementation.
 The Stage 0 compiler runs under SBCL. `pslcc -c source.lisp -o output.o`
 produces an x86-64 ELF64 relocatable object. Accepted targets are
 `x86_64-linux-gnu` and `x86_64-none-elf`; both currently use the System V AMD64
-integer calling convention and ELF64 writer. `--profile=hosted|freestanding`
+calling convention and ELF64 writer. `--profile=hosted|freestanding`
 is accepted, but both flags currently compile the same typed subset. The
-compiler does not yet link executables or provide a hosted Lisp runtime.
+compiler can link native Linux executables, static archives, and shared
+libraries by invoking `cc` or `ar`; it does not provide a hosted Lisp runtime.
 `-O0` skips optimization; the default `-O1` performs small-function inlining,
 machine-width constant folding, and dead pure-value removal. Use
 `--dump-ir=hir|ssa|lir|all` to inspect the verified pipeline.
@@ -41,13 +42,22 @@ Ordinary `defun` is the preferred function syntax:
 
 Stage 0 requires simple parameter names, a leading `declare`, one machine type
 for every parameter, one `returns` declaration, and `(c-export :c)`. It
-also accepts the older `psl:defun/c` spelling. `defstruct/packed` declares a layout-known packed
-structure. Only C-compatible integer and raw-pointer arguments and returns
-are implemented; at most six arguments can be passed in registers. Imported
-and exported symbols use lower-case names for ordinary unescaped Lisp names.
+also accepts the older `psl:defun/c` spelling. `defstruct/packed` declares a
+layout-known packed structure. `defcstruct` declares a naturally aligned C
+structure. C-compatible
+integer, raw-pointer, `f32`, and `f64` scalar arguments and returns are
+implemented, along with `void` results and `(ptr void)` for C `void*`.
+Integer and pointer arguments use up to six general registers;
+floating arguments use up to eight SSE registers. Further arguments use the
+stack. Naturally aligned C structs of one or two eightbytes containing integer,
+pointer, `float`, or `double` fields can be passed and returned by value,
+including mixed integer/SSE register classes and stack fallback. Larger
+aggregates, packed structures by value, variadic calls, and `long double` are
+not implemented. Imported and exported symbols use lower-case names for
+ordinary unescaped Lisp names.
 
-Supported expressions are machine integer literals, `t`, `nil`, lexical
-variables, `let`, `progn`, three-operand `if`, direct calls, `psl:wrap+`,
+Supported expressions are machine integer and floating literals, `t`, `nil`,
+lexical variables, `let`, `progn`, three-operand `if`, direct calls, `psl:wrap+`,
 `psl:wrap-`, `psl:wrap*`, `=`, `<`, `psl:pointer+`, `deref`, `psl:store`,
 `psl:ptr-cast`, `psl:ptr-from-address`, and `psl:field-pointer`. The compile-time
 queries `psl:sizeof`, `psl:alignof`, and `psl:offset-of` accept quoted type or
@@ -65,6 +75,13 @@ complement. Comparisons produce internal Boolean values. Unqualified `cl:+`
 retains its Common Lisp meaning and is not supported in Stage 0 compiled
 expressions.
 
+`f32` and `f64` correspond to C `float` and `double` in the current ABI.
+Floating literals, parameters, calls, and returns work; floating arithmetic
+and comparisons are not implemented. C integer aliases follow the selected
+System V AMD64 LP64 ABI: `c-char`/`c-uchar`, `c-short`/`c-ushort`,
+`c-int`/`c-uint`, `c-long`/`c-ulong`, `c-long-long`/`c-ulong-long`,
+`c-size-t`, and `c-ptrdiff-t`.
+
 `(psl:ptr T)` is a raw pointer type, with optional `:const` and `:volatile`
 qualifiers. `psl:pointer+` advances by elements; field access uses the
 compile-time byte offset. Loads sign-extend signed narrow values and
@@ -75,9 +92,12 @@ live address. Stage 0 does not check bounds or lifetime at runtime.
 `psl:defstruct/packed` lays fields out in source order with no padding and
 alignment 1. Nested previously declared packed structures have known size.
 The x86-64 backend supports unaligned packed-field accesses. C ABI structures
-with natural alignment are not yet implemented.
+use each field's natural alignment and include trailing padding. Nested
+structures are supported when declared first. `sizeof`, `alignof`, and
+`offset-of` use the selected target's layout. The C layout tests compare
+integer, floating, pointer, and nested fields with a C compiler.
 
-## C source and function imports
+## C source, function, and data imports
 
 C integration is marked at the source boundary:
 
@@ -96,21 +116,36 @@ PSL object into one relocatable object. The C output must be x86-64 ELF64.
 An `ffi:import-function` may also refer
 to a C symbol supplied by a later link step, with no `ffi:source`. Imported
 functions must be invoked with `ffi:call`; ordinary Lisp functions use normal
-calls. The imported signature currently supports the same register-passed
-integer and pointer types as exported functions. Source-file integration is
+calls. Data symbols use `(ffi:import-data "name" type)` or
+`(ffi:export-data "name" type initial-value)`. Use
+`(ffi:address-of name)` to obtain a typed raw pointer, then `deref` or `store`
+for integer, floating, or pointer data. Exported scalar data accepts a typed
+literal initializer; pointer and structure data currently accept only zero
+initialization. The compiler
+does not parse C headers to check declarations. Source-file integration is
 not yet available for the `none` target or other toolchains. FFI signatures
-are trusted declarations; Stage 0 does not parse C headers to verify them.
+are trusted declarations.
+
+On x86-64 Linux, `pslcc source.lisp -o program` links an executable,
+`--emit=static` writes a deterministic `.a`, and `--emit=shared` writes a
+position-independent `.so`. Repeat `--link-input=FILE` for C objects or
+libraries needed by the link. Static archive inputs must be object files.
+The `-c` path emits an object without invoking `cc` or `ar`, unless the source
+explicitly contains `ffi:source`. Link outputs currently require the native
+`x86_64-linux-gnu` target.
 
 ## Object and runtime contract
 
-The compiler emits ELF64 `ET_REL` for `EM_X86_64`, with `.text`, `.rela.text`,
+The compiler emits ELF64 `ET_REL` for `EM_X86_64`, with `.text`, `.data`, `.rela.text`,
 `.symtab`, `.strtab`, `.shstrtab`, and a non-executable-stack note. Calls use
-`R_X86_64_PLT32` relocations. Identical inputs, options, and compiler version
-produce identical bytes when macros are deterministic. No libc, GC, tagged
+`R_X86_64_PLT32` relocations. Data addresses use `R_X86_64_GOTPCREL` so they
+work in shared objects and across preemptible symbols. Identical inputs,
+options, and compiler version produce identical bytes when macros are
+deterministic. No libc, GC, tagged
 object model, or PSL startup symbol is inserted into a typed object.
 
 The `x86_64-none-elf` target produces an object, not a bootable image. The
 hosted profile is not yet an ANSI Common Lisp implementation. Checked and
-saturating arithmetic, native/C structure layout, static and arena storage,
+saturating arithmetic, general static and arena storage,
 certified allocation-free regions, dynamic objects, and other targets remain
 on the [roadmap](roadmap.md).

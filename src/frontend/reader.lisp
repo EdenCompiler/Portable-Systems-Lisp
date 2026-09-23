@@ -33,11 +33,15 @@
     ((and (symbolp form)
           (gethash (source-name form) (analysis-context-layouts context)))
      (list :struct (source-name form)))
-    (t (case form
-         (psl:u8 :u8) (psl:u16 :u16) (psl:u32 :u32) (psl:u64 :u64)
-         (psl:s8 :s8) (psl:s16 :s16) (psl:s32 :s32) (psl:s64 :s64)
-         (psl:usize :usize) (psl:isize :isize)
-         (otherwise (fail "machine type ~S is not implemented yet" form))))))
+    (t (or (c-integer-type (analysis-context-target context) form)
+           (case form
+             (psl:u8 :u8) (psl:u16 :u16) (psl:u32 :u32) (psl:u64 :u64)
+             (psl:s8 :s8) (psl:s16 :s16) (psl:s32 :s32) (psl:s64 :s64)
+             (psl:usize :usize) (psl:isize :isize)
+             ((psl:f32 psl:c-float) :f32)
+             ((psl:f64 psl:c-double) :f64)
+             (psl:void :void)
+             (otherwise (fail "machine type ~S is not implemented yet" form)))))))
 
 (defun source-name (thing)
   (etypecase thing

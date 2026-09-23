@@ -50,15 +50,19 @@
     (:load
      (expect-count types 1 "load")
      (unless (and (pointer-type-p (first types))
-                  (integer-type-p (pointed-type (first types))))
-       (fail "load needs a pointer to a machine integer"))
+                  (let ((type (pointed-type (first types))))
+                    (or (integer-type-p type) (float-type-p type)
+                        (pointer-type-p type))))
+       (fail "load needs a pointer to a scalar machine value"))
      (expect-same-type (hir-type node) (pointed-type (first types))
                        "load result"))
     (:store
      (expect-count types 2 "store")
      (unless (and (pointer-type-p (first types))
-                  (integer-type-p (pointed-type (first types))))
-       (fail "store needs a pointer to a machine integer"))
+                  (let ((type (pointed-type (first types))))
+                    (or (integer-type-p type) (float-type-p type)
+                        (pointer-type-p type))))
+       (fail "store needs a pointer to a scalar machine value"))
      (when (pointer-const-p (first types))
        (fail "store through a const pointer"))
      (expect-same-type (second types) (pointed-type (first types))
@@ -98,10 +102,8 @@
       (fail "invalid HIR type ~S" (hir-type node)))
     (case (hir-kind node)
       (:literal
-       (unless (if (eq (hir-type node) :boolean)
-                   (member (hir-value node) '(0 1))
-                   (integer-fits-p (hir-value node) (hir-type node)
-                                   pointer-bits))
+       (unless (literal-fits-p (hir-value node) (hir-type node)
+                               pointer-bits)
          (fail "HIR literal does not fit ~S" (hir-type node))))
       (:variable
        (let ((entry (assoc (hir-value node) environment :test #'equal)))
@@ -124,6 +126,13 @@
        (verify-hir-call
         node (verify-hir-children node environment signatures pointer-bits)
         signatures))
+      (:data-address
+       (unless (and (consp (hir-value node))
+                    (stringp (car (hir-value node)))
+                    (pointer-type-p (hir-type node))
+                    (equal (pointed-type (hir-type node))
+                           (cdr (hir-value node))))
+         (fail "invalid HIR data address")))
       ((:load :store :pointer-add :field-pointer :pointer-cast)
        (verify-hir-memory
         node (verify-hir-children node environment signatures pointer-bits)))

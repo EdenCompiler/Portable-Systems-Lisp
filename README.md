@@ -2,7 +2,8 @@
 
 Portable Systems Lisp (PSL) is an experimental native compiler for Lisp code
 that works with machine integers, raw pointers, and C functions. It uses SBCL
-to compile source files into relocatable object files. The language is being
+to compile source files into ELF object files and, on x86-64 Linux, link
+executables and libraries. The language is being
 built toward a hosted Common Lisp implementation and a freestanding systems
 profile; today, the compiler implements a small, typed subset of that design.
 
@@ -52,7 +53,9 @@ package prefix. C boundaries have explicit `ffi:` forms:
 
 `ffi:source` includes a local C file in the generated object. Imported C
 functions use `ffi:call`; calls between PSL functions use ordinary Lisp call
-syntax. See [the complete C import example](examples/ffi_source.lisp).
+syntax. Data symbols use `ffi:import-data`, `ffi:export-data`, and
+`ffi:address-of`. See the [C import example](examples/ffi_source.lisp) and
+[shared data example](examples/ffi_data_shared.lisp).
 
 ## Compiler interface
 
@@ -60,25 +63,30 @@ syntax. See [the complete C import example](examples/ffi_source.lisp).
 ./pslcc -c source.lisp -o output.o [--target=TARGET]
         [--profile=hosted|freestanding] [-O0|-O1]
         [--dump-ir=hir|ssa|lir|all]
+./pslcc [--emit=exe|static|shared] source.lisp -o OUTPUT
+        [--link-input=FILE]...
 ```
 
 The default target is `x86_64-linux-gnu`; `x86_64-none-elf` can also produce
 an ELF64 object. Both profiles currently compile the same typed subset.
-`-O1` is the default optimization level. The compiler emits `.o` files;
-linking an executable is currently done with a system linker such as `cc`.
+`-O1` is the default optimization level. `-c` writes a relocatable `.o` without
+linking. On native x86-64 Linux, the second form invokes `cc` or `ar` for an
+executable, `.a`, or `.so`. Extra C objects and libraries are explicit link
+inputs. The library API exposes both compilation and linking.
 
 ## Project status
 
-The core specification, first native object, and compiler foundation
-milestones are complete. The compiler has typed HIR, SSA, and low-level IR,
-with a shared frontend and an x86-64 ELF object writer. C function imports
-and exports work for supported integer and pointer signatures. The larger C
-integration milestone remains in progress.
+The core specification, first native object, compiler foundation, and first C
+ABI path are implemented. The compiler has typed HIR, SSA, and low-level IR,
+with a shared frontend and an x86-64 ELF object writer. C calls support
+integer and pointer values, `float`/`double`, stack arguments, and small
+scalar-field C structs by value. Naturally aligned C struct layouts and data
+symbols are supported. See the [implemented core](docs/core.md) for exact
+limits.
 
 The hosted profile is **not yet an ANSI Common Lisp implementation**. There
 is no hosted runtime, GC, or dynamic Lisp object model yet. The freestanding
 target currently emits a relocatable object, not a bootable image. See the
-[implemented core](docs/core.md) for exact accepted forms and limits, and the
 [roadmap](docs/roadmap.md) for milestone status.
 
 ## Documentation and tests
@@ -89,5 +97,5 @@ target currently emits a relocatable object, not a bootable image. See the
 - [Engineering roadmap](docs/roadmap.md) and [contributor instructions](AGENTS.md).
 
 Run `sh tests/smoke.sh` to check object generation, C interoperability, and
-deterministic output. The test suite needs SBCL, `cc`, `readelf`, `nm`, and
-`cmp`.
+deterministic output. The test suite needs SBCL, `cc`, `ar`, `readelf`, `nm`,
+and `cmp`.

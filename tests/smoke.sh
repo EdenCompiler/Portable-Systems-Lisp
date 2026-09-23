@@ -11,8 +11,137 @@ cmp "$work_dir/first.o" "$work_dir/second.o"
 
 readelf -h "$work_dir/first.o" | grep -q 'REL (Relocatable file)'
 readelf -r "$work_dir/first.o" | grep -q 'R_X86_64_PLT32'
+nm -g "$work_dir/first.o" | grep -q ' T add'
 cc "$project_root/examples/harness.c" "$work_dir/first.o" -o "$work_dir/harness"
 "$work_dir/harness"
+
+for level in 0 1; do
+  "$project_root/pslcc" "-O$level" -c \
+    "$project_root/examples/abi_void.lisp" \
+    -o "$work_dir/abi-void-O$level.o"
+  cc "$project_root/examples/harness_abi_void.c" \
+    "$work_dir/abi-void-O$level.o" -o "$work_dir/abi-void-O$level"
+  "$work_dir/abi-void-O$level"
+done
+
+for level in 0 1; do
+  "$project_root/pslcc" "-O$level" -c \
+    "$project_root/examples/abi_aggregate.lisp" \
+    -o "$work_dir/abi-aggregate-O$level.o"
+  cc "$project_root/examples/harness_abi_aggregate.c" \
+    "$work_dir/abi-aggregate-O$level.o" -o "$work_dir/abi-aggregate-O$level"
+  "$work_dir/abi-aggregate-O$level"
+done
+
+aggregate_imports=$(nm -u "$work_dir/abi-aggregate-O1.o" |
+  awk '{print $2}' | sort)
+expected_aggregate_imports=$(printf '%s\n' \
+  bump_combined_c bump_mixed_c bump_mixed_reverse_c bump_pair_c \
+  bump_tiny_c bump_two_floats_c exhausted_mixed_c exhausted_pair_c | sort)
+test "$aggregate_imports" = "$expected_aggregate_imports"
+
+for level in 0 1; do
+  "$project_root/pslcc" "-O$level" -c \
+    "$project_root/examples/abi_float.lisp" \
+    -o "$work_dir/abi-float-O$level.o"
+  cc "$project_root/examples/harness_abi_float.c" \
+    "$work_dir/abi-float-O$level.o" -o "$work_dir/abi-float-O$level"
+  "$work_dir/abi-float-O$level"
+done
+
+test "$(nm -u "$work_dir/abi-float-O1.o" | awk '{print $2}' | sort)" = \
+  "$(printf 'mix_c\nsum9_c\n' | sort)"
+
+"$project_root/pslcc" "$project_root/examples/program.lisp" \
+  -o "$work_dir/psl-program"
+"$work_dir/psl-program"
+
+"$project_root/pslcc" --emit=static \
+  "$project_root/examples/standalone.lisp" -o "$work_dir/libpsl.a"
+ar t "$work_dir/libpsl.a" | grep -q 'psl.o'
+cc "$project_root/examples/harness_library.c" "$work_dir/libpsl.a" \
+  -o "$work_dir/static-harness"
+"$work_dir/static-harness"
+cp "$work_dir/libpsl.a" "$work_dir/libpsl-first.a"
+"$project_root/pslcc" --emit=static \
+  "$project_root/examples/standalone.lisp" -o "$work_dir/libpsl.a"
+cmp "$work_dir/libpsl-first.a" "$work_dir/libpsl.a"
+
+"$project_root/pslcc" --emit=shared \
+  "$project_root/examples/standalone.lisp" -o "$work_dir/libpsl.so"
+readelf -h "$work_dir/libpsl.so" | grep -q 'DYN (Shared object file)'
+cc "$project_root/examples/harness_library.c" "$work_dir/libpsl.so" \
+  -Wl,-rpath,"$work_dir" -o "$work_dir/shared-harness"
+"$work_dir/shared-harness"
+
+"$project_root/pslcc" --emit=shared \
+  "$project_root/examples/ffi_data_shared.lisp" \
+  -o "$work_dir/libpsl-data.so"
+"$project_root/pslcc" --emit=shared \
+  "$project_root/examples/ffi_data_shared.lisp" \
+  -o "$work_dir/libpsl-data-again.so"
+cmp "$work_dir/libpsl-data.so" "$work_dir/libpsl-data-again.so"
+readelf -r "$work_dir/libpsl-data.so" | grep -q 'GLOB_DAT'
+cc "$project_root/examples/harness_shared_data.c" \
+  "$work_dir/libpsl-data.so" -Wl,-rpath,"$work_dir" \
+  -o "$work_dir/shared-data-harness"
+"$work_dir/shared-data-harness"
+
+"$project_root/pslcc" --emit=shared \
+  "$project_root/examples/ffi_source.lisp" \
+  -o "$work_dir/libpsl-ffi.so"
+cc "$project_root/examples/harness_ffi_source.c" \
+  "$work_dir/libpsl-ffi.so" -Wl,-rpath,"$work_dir" \
+  -o "$work_dir/shared-ffi-harness"
+"$work_dir/shared-ffi-harness"
+
+cc -c "$project_root/examples/harness_abi_stack.c" \
+  -o "$work_dir/abi-stack-c.o"
+"$project_root/pslcc" --link-input="$work_dir/abi-stack-c.o" \
+  "$project_root/examples/abi_stack.lisp" -o "$work_dir/linked-abi-stack"
+"$work_dir/linked-abi-stack"
+
+for level in 0 1; do
+  "$project_root/pslcc" "-O$level" -c \
+    "$project_root/examples/ffi_data.lisp" \
+    -o "$work_dir/ffi-data-O$level.o"
+  readelf -r "$work_dir/ffi-data-O$level.o" | grep -q 'R_X86_64_GOTPCREL'
+  cc "$project_root/examples/harness_ffi_data.c" \
+    "$work_dir/ffi-data-O$level.o" -o "$work_dir/ffi-data-O$level"
+  "$work_dir/ffi-data-O$level"
+done
+
+test "$(nm -u "$work_dir/ffi-data-O1.o" | awk '{print $2}')" = c_counter
+nm -g "$work_dir/ffi-data-O1.o" | grep -q ' D psl_counter'
+"$project_root/pslcc" -c "$project_root/examples/ffi_data.lisp" \
+  -o "$work_dir/ffi-data-repeat.o"
+cmp "$work_dir/ffi-data-O1.o" "$work_dir/ffi-data-repeat.o"
+
+"$project_root/pslcc" -c "$project_root/examples/data_only.lisp" \
+  -o "$work_dir/data-only.o"
+nm -g "$work_dir/data-only.o" | grep -q ' D psl_only'
+test -z "$(nm -u "$work_dir/data-only.o")"
+cc "$project_root/examples/harness_data_only.c" \
+  "$work_dir/data-only.o" -o "$work_dir/data-only-harness"
+"$work_dir/data-only-harness"
+
+for level in 0 1; do
+  "$project_root/pslcc" "-O$level" -c \
+    "$project_root/examples/abi_stack.lisp" \
+    -o "$work_dir/abi-stack-O$level.o"
+  cc "$project_root/examples/harness_abi_stack.c" \
+    "$work_dir/abi-stack-O$level.o" -o "$work_dir/abi-stack-O$level"
+  "$work_dir/abi-stack-O$level"
+done
+
+for level in 0 1; do
+  "$project_root/pslcc" "-O$level" -c \
+    "$project_root/examples/c_layout.lisp" \
+    -o "$work_dir/c-layout-O$level.o"
+  cc "$project_root/examples/harness_c_layout.c" \
+    "$work_dir/c-layout-O$level.o" -o "$work_dir/c-layout-O$level"
+  "$work_dir/c-layout-O$level"
+done
 
 "$project_root/pslcc" -O0 -c "$project_root/examples/add.lisp" \
   -o "$work_dir/add-O0.o"

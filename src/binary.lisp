@@ -12,6 +12,12 @@
 (defun emit-bytes (buffer &rest bytes)
   (dolist (byte bytes) (emit-byte buffer byte)))
 
+(defun float-bits (value type)
+  (if (eq type :f32)
+      (ldb (byte 32 0) (sb-kernel:single-float-bits value))
+      (+ (ash (ldb (byte 32 0) (sb-kernel:double-float-high-bits value)) 32)
+         (ldb (byte 32 0) (sb-kernel:double-float-low-bits value)))))
+
 (defun patch-i32 (buffer offset value)
   (unless (<= (- (expt 2 31)) value (1- (expt 2 31)))
     (fail "32-bit displacement is out of range"))

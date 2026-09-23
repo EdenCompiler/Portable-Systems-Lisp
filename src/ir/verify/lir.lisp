@@ -57,9 +57,7 @@
       (:constant
        (expect-count types 0 "LIR constant")
        (unless (and (consp value) (equal (cdr value) type)
-                    (if (eq type :boolean)
-                        (member (car value) '(0 1))
-                        (integer-fits-p (car value) type pointer-bits)))
+                    (literal-fits-p (car value) type pointer-bits))
          (fail "invalid LIR constant")))
       (:copy
        (expect-count types 1 "LIR copy")
@@ -76,6 +74,12 @@
        (verify-ssa-call
         (make-ssa-instruction :op :call :type type :value (car value))
         types signatures))
+      (:data-address
+       (expect-count types 0 "LIR data address")
+       (unless (and (consp value) (stringp (car value))
+                    (pointer-type-p type)
+                    (equal (pointed-type type) (cdr value)))
+         (fail "invalid LIR data address")))
       ((:field-pointer :pointer-add :load :store)
        (verify-ssa-memory
         (make-ssa-instruction :op op :type type

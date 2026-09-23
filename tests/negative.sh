@@ -66,6 +66,24 @@ cat >"$work_dir/duplicate-field.lisp" <<'SOURCE'
 SOURCE
 expect_error 'duplicate field' "$work_dir/duplicate-field.lisp"
 
+cat >"$work_dir/oversized-aggregate.lisp" <<'SOURCE'
+(defcstruct big (a u64) (b u64) (c u64))
+(defun invalid (value)
+  (declare (type big value) (returns big) (c-export :c))
+  value)
+SOURCE
+expect_error 'scalar C layout of at most 16 bytes' \
+  "$work_dir/oversized-aggregate.lisp"
+
+cat >"$work_dir/packed-aggregate.lisp" <<'SOURCE'
+(defstruct/packed mixed (a u8) (b u64))
+(defun invalid (value)
+  (declare (type mixed value) (returns mixed) (c-export :c))
+  value)
+SOURCE
+expect_error 'scalar C layout of at most 16 bytes' \
+  "$work_dir/packed-aggregate.lisp"
+
 cat >"$work_dir/direct-c-call.lisp" <<'SOURCE'
 (ffi:import-function "multiply_c" ((x u64)) -> u64)
 (defun invalid (x)
@@ -105,5 +123,23 @@ if "$project_root/pslcc" --target=unknown -c \
   exit 1
 fi
 grep -q 'unsupported target' "$work_dir/stderr"
+
+if "$project_root/pslcc" --target=x86_64-none-elf \
+    "$project_root/examples/program.lisp" -o "$work_dir/invalid-program" \
+    >"$work_dir/stdout" 2>"$work_dir/stderr"; then
+  printf 'Expected non-native linking failure\n' >&2
+  exit 1
+fi
+grep -q 'linking currently requires x86_64-linux-gnu' "$work_dir/stderr"
+test ! -e "$work_dir/invalid-program"
+
+if "$project_root/pslcc" -c --emit=exe \
+    "$project_root/examples/program.lisp" -o "$work_dir/invalid.o" \
+    >"$work_dir/stdout" 2>"$work_dir/stderr"; then
+  printf 'Expected conflicting output options to fail\n' >&2
+  exit 1
+fi
+grep -q -- '-c cannot be combined with --emit' "$work_dir/stderr"
+test ! -e "$work_dir/invalid.o"
 
 printf 'PSL negative tests passed\n'

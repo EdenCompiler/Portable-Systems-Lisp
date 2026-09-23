@@ -11,17 +11,19 @@ is updated. Dates and staffing are deliberately unspecified.
 | Capability | State | Evidence or limit |
 | --- | --- | --- |
 | Stage 0 host | Working | Compiler runs under SBCL. |
-| Typed source and macros | Partial | Ordinary `defun` with type/C-export declarations, `ffi:import-function`, host-side `defmacro`, integer expressions, lexical `let`, calls, and control flow. |
+| Typed source and macros | Partial | Ordinary `defun` with type/C-export declarations, host-side `defmacro`, typed scalar and small C-struct values, lexical `let`, calls, and control flow. Dynamic Lisp remains pending. |
 | IR pipeline | M2 complete | Verified typed HIR → CFG/SSA with `phi` joins → verified LIR; `-O1` inlines small pure leaves, folds constants, and removes dead pure values. |
-| x86-64 Linux / SysV / ELF64 | Working object slice | `-c` emits a relocatable object that links with the C harness. |
+| x86-64 Linux / SysV / ELF64 | M3 complete for documented subset | Integer, pointer, `float`, and `double` values use register and stack locations; `void` results and naturally aligned scalar-field C structs of at most 16 bytes work, including mixed register classes. Larger and packed aggregates, varargs, and `long double` are rejected. |
+| C layout and data symbols | Working x86-64 Linux slice | `defcstruct` matches C size, alignment, and offsets for supported fields. C data imports/exports use ELF data symbols and PIC GOT relocations. |
 | Local C source inclusion | Working x86-64 Linux slice | `ffi:source` compiles a `.c` file with `cc` and merges it into the relocatable object; cross toolchains are pending. |
 | x86-64 none / ELF64 | Object only | Emits a runtime-free object; startup, linker layout, and boot execution are pending. |
 | Hosted Common Lisp | Pending | `--profile=hosted` currently accepts the same typed subset as freestanding. |
-| Executables and libraries | Pending | `pslcc` currently supports only `-c`; an external C compiler can link its objects. |
+| Executables and libraries | Working x86-64 Linux slice | `pslcc` invokes `cc` for executables and `.so`, `ar` for deterministic `.a`; additional link inputs are explicit. Other target linkers are pending. |
 | Windows, AArch64, RISC-V, macOS, Wasm | Pending | No code generation or object writing for these targets yet. |
 
 The existing `sh tests/smoke.sh` verifies ELF structure and relocations,
-byte-for-byte repeatability, C calls in both directions, macros, branches,
+byte-for-byte repeatability, C calls in both directions across GP, SSE, and
+stack locations, C layout and data symbols, linked outputs, macros, branches,
 lexical bindings, signed comparison, wrapping arithmetic, and absence of hidden
 runtime symbols in a standalone object. This is the baseline regression gate
 for every subsequent milestone.
@@ -90,7 +92,7 @@ invariants. `sh tests/smoke.sh` runs C harnesses at both optimization levels,
 checks object repeatability, rejects malformed HIR/SSA/LIR, and inspects the
 expected optimization and effect behavior.
 
-## M3 — Complete the first C ABI path · Partial
+## M3 — Complete the first C ABI path · Complete for documented subset
 
 **Dependencies:** M1; use the M2 verifier as it becomes available.
 
@@ -110,6 +112,19 @@ expected optimization and effect behavior.
 generated C layouts match a C compiler's `sizeof`, `_Alignof`, and `offsetof`;
 an executable, `.a`, and `.so` are consumed by an ordinary C build. The test
 suite inspects exported symbols and rejects hidden PSL runtime dependencies.
+
+`sh tests/smoke.sh` passes this gate on x86-64 Linux at `-O0` and `-O1`.
+It runs C↔PSL integer and floating calls, small C-struct returns and stack
+fallback (including mixed register classes), C layout comparisons, data
+import/export through PIC relocations, and executable/archive/shared-library
+builds. `readelf` and `nm` check the
+objects and exported/undefined symbols; repeated object, archive, and shared
+library builds are byte-identical. The supported aggregate cases are naturally
+aligned C structs of one or two eightbytes composed of integer, pointer, `float`, and
+`double` fields. Larger aggregates, packed aggregates by value, variadic
+calls, and `long double` remain unsupported and are documented in
+[the implemented core](core.md); they are not silently lowered
+with an incompatible convention.
 
 ## M4 — Modular dynamic Lisp runtime · Pending
 

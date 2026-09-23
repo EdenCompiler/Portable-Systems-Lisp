@@ -4,6 +4,9 @@
   (member type '(:u8 :u16 :u32 :u64 :s8 :s16 :s32 :s64
                  :usize :isize)))
 
+(defun float-type-p (type)
+  (member type '(:f32 :f64)))
+
 (defun signed-type-p (type)
   (member type '(:s8 :s16 :s32 :s64 :isize)))
 
