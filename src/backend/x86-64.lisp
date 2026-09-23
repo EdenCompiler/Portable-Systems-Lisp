@@ -2,7 +2,8 @@
 
 (defstruct relocation offset name)
 (defstruct encoded-function name bytes relocations)
-(defstruct (emitter (:constructor make-emitter ()))
+(defstruct (emitter (:constructor make-emitter (contract)))
+  contract
   (bytes (byte-buffer))
   (relocations nil)
   (labels (make-hash-table))
@@ -20,12 +21,13 @@
 (defun emit-store-slot (buffer register slot)
   (emit-slot buffer #x89 register slot))
 
-(defun x86-type-width (type)
-  (if (or (pointer-type-p type) (eq type :boolean)) 64
-      (type-width type 64)))
+(defun x86-type-width (type contract)
+  (if (or (pointer-type-p type) (eq type :boolean))
+      (backend-contract-pointer-bits contract)
+      (type-width type (backend-contract-pointer-bits contract))))
 
-(defun normalize-rax (buffer type)
-  (let ((width (x86-type-width type)))
+(defun normalize-rax (buffer type contract)
+  (let ((width (x86-type-width type contract)))
     (case width
       (8 (if (signed-type-p type)
              (emit-bytes buffer #x48 #x0f #xbe #xc0)
@@ -37,14 +39,14 @@
               (emit-bytes buffer #x48 #x63 #xc0)
               (emit-bytes buffer #x89 #xc0)))
       (64 nil)
-      (otherwise (error "PSL internal error: unsupported type width ~A" width)))))
+      (otherwise (fail "internal error: unsupported type width ~A" width)))))
 
 (defun emit-constant (emitter instruction)
   (let ((buffer (emitter-bytes emitter))
         (value (lir-instruction-value instruction)))
     (emit-bytes buffer #x48 #xb8)
     (emit-integer buffer (car value) 8)
-    (normalize-rax buffer (cdr value))
+    (normalize-rax buffer (cdr value) (emitter-contract emitter))
     (emit-store-slot buffer 0 (lir-instruction-dst instruction))))
 
 (defun emit-copy (emitter instruction)
@@ -55,7 +57,7 @@
 (defun emit-comparison (buffer operator type)
   (emit-bytes buffer #x48 #x39 #xc1 #x0f
               (cond ((equal operator "=") #x94)
-                    ((eq type :s64) #x9c)
+                    ((signed-type-p type) #x9c)
                     (t #x92))
               #xc0 #x48 #x0f #xb6 #xc0))
 
@@ -67,7 +69,7 @@
     ((equal operator "wrap*") (emit-bytes buffer #x48 #x0f #xaf #xc1))
     ((member operator '("=" "<") :test #'equal)
      (emit-comparison buffer operator type))
-    (t (error "PSL internal error: unknown operation ~A" operator))))
+    (t (fail "internal error: unknown operation ~A" operator))))
 
 (defun emit-binary (emitter instruction)
   (let ((buffer (emitter-bytes emitter))
@@ -77,38 +79,43 @@
     (emit-load-slot buffer 0 (second operands))
     (emit-binary-operation buffer (car operation) (cdr operation))
     (unless (member (car operation) '("=" "<") :test #'equal)
-      (normalize-rax buffer (cdr operation)))
+      (normalize-rax buffer (cdr operation) (emitter-contract emitter)))
     (emit-store-slot buffer 0 (lir-instruction-dst instruction))))
 
 (defun emit-argument (emitter instruction)
   (let* ((value (lir-instruction-value instruction))
-         (register (nth (car value) '(7 6 2 1 8 9)))
+         (register (nth (car value)
+                        (backend-contract-argument-registers
+                         (emitter-contract emitter))))
          (slot (lir-instruction-dst instruction))
          (buffer (emitter-bytes emitter)))
     (emit-store-slot buffer register slot)
-    (when (< (x86-type-width (cdr value)) 64)
+    (when (< (x86-type-width (cdr value) (emitter-contract emitter))
+             (backend-contract-pointer-bits (emitter-contract emitter)))
       (emit-load-slot buffer 0 slot)
-      (normalize-rax buffer (cdr value))
+      (normalize-rax buffer (cdr value) (emitter-contract emitter))
       (emit-store-slot buffer 0 slot))))
 
 (defun emit-call (emitter instruction)
   (let ((buffer (emitter-bytes emitter)))
     (loop for slot in (lir-instruction-args instruction)
-          for register in '(7 6 2 1 8 9)
+          for register in (backend-contract-argument-registers
+                           (emitter-contract emitter))
           do (emit-load-slot buffer register slot))
     (emit-byte buffer #xe8)
     (push (make-relocation :offset (length buffer)
                            :name (car (lir-instruction-value instruction)))
           (emitter-relocations emitter))
     (emit-integer buffer 0 4)
-    (normalize-rax buffer (cdr (lir-instruction-value instruction)))
+    (normalize-rax buffer (cdr (lir-instruction-value instruction))
+                   (emitter-contract emitter))
     (emit-store-slot buffer 0 (lir-instruction-dst instruction))))
 
 (defun emit-field-pointer (emitter instruction)
   (let ((buffer (emitter-bytes emitter))
         (offset (lir-instruction-value instruction)))
     (unless (<= 0 offset #x7fffffff)
-      (error "PSL structure field offset exceeds x86-64 immediate range"))
+      (fail "structure field offset exceeds x86-64 immediate range"))
     (emit-load-slot buffer 0 (first (lir-instruction-args instruction)))
     (emit-bytes buffer #x48 #x05)
     (emit-integer buffer offset 4)
@@ -119,7 +126,7 @@
         (scale (lir-instruction-value instruction))
         (operands (lir-instruction-args instruction)))
     (unless (<= 1 scale #x7fffffff)
-      (error "PSL pointer element size exceeds x86-64 immediate range"))
+      (fail "pointer element size exceeds x86-64 immediate range"))
     (emit-load-slot buffer 1 (first operands))
     (emit-load-slot buffer 0 (second operands))
     (unless (= scale 1)
@@ -128,8 +135,8 @@
     (emit-bytes buffer #x48 #x01 #xc8)
     (emit-store-slot buffer 0 (lir-instruction-dst instruction))))
 
-(defun emit-memory-load (buffer type)
-  (let ((width (x86-type-width type)))
+(defun emit-memory-load (buffer type contract)
+  (let ((width (x86-type-width type contract)))
     (case width
       (8 (if (signed-type-p type)
              (emit-bytes buffer #x48 #x0f #xbe #x00)
@@ -141,28 +148,30 @@
               (emit-bytes buffer #x48 #x63 #x00)
               (emit-bytes buffer #x8b #x00)))
       (64 (emit-bytes buffer #x48 #x8b #x00))
-      (otherwise (error "PSL unsupported load width ~A" width)))))
+      (otherwise (fail "unsupported load width ~A" width)))))
 
 (defun emit-load (emitter instruction)
   (let ((buffer (emitter-bytes emitter)))
     (emit-load-slot buffer 0 (first (lir-instruction-args instruction)))
-    (emit-memory-load buffer (lir-instruction-value instruction))
+    (emit-memory-load buffer (lir-instruction-value instruction)
+                      (emitter-contract emitter))
     (emit-store-slot buffer 0 (lir-instruction-dst instruction))))
 
-(defun emit-memory-store (buffer type)
-  (case (x86-type-width type)
+(defun emit-memory-store (buffer type contract)
+  (case (x86-type-width type contract)
     (8 (emit-bytes buffer #x88 #x01))
     (16 (emit-bytes buffer #x66 #x89 #x01))
     (32 (emit-bytes buffer #x89 #x01))
     (64 (emit-bytes buffer #x48 #x89 #x01))
-    (otherwise (error "PSL unsupported store type ~S" type))))
+    (otherwise (fail "unsupported store type ~S" type))))
 
 (defun emit-store (emitter instruction)
   (let ((buffer (emitter-bytes emitter))
         (operands (lir-instruction-args instruction)))
     (emit-load-slot buffer 1 (first operands))
     (emit-load-slot buffer 0 (second operands))
-    (emit-memory-store buffer (lir-instruction-value instruction))
+    (emit-memory-store buffer (lir-instruction-value instruction)
+                       (emitter-contract emitter))
     (emit-store-slot buffer 0 (lir-instruction-dst instruction))))
 
 (defun reserve-branch (emitter label &rest opcodes)
@@ -180,7 +189,7 @@
 (defun emit-label (emitter instruction)
   (let ((label (lir-instruction-value instruction)))
     (when (gethash label (emitter-labels emitter))
-      (error "PSL internal error: duplicate label ~A" label))
+      (fail "internal error: duplicate label ~A" label))
     (setf (gethash label (emitter-labels emitter))
           (length (emitter-bytes emitter)))))
 
@@ -205,14 +214,14 @@
     (:label (emit-label emitter instruction))
     (:return (emit-return emitter instruction))
     (otherwise
-     (error "PSL internal error: unsupported LIR operation ~A"
-            (lir-instruction-op instruction)))))
+     (fail "internal error: unsupported LIR operation ~A"
+           (lir-instruction-op instruction)))))
 
 (defun patch-branches (emitter)
   (dolist (fixup (emitter-fixups emitter))
     (let ((destination (gethash (cdr fixup) (emitter-labels emitter))))
       (unless destination
-        (error "PSL internal error: missing label ~A" (cdr fixup)))
+        (fail "internal error: missing label ~A" (cdr fixup)))
       (patch-i32 (emitter-bytes emitter) (car fixup)
                  (- destination (+ (car fixup) 4))))))
 
@@ -220,14 +229,30 @@
   ;; The frame-size field is patched after all LIR registers are known.
   (emit-bytes buffer #x55 #x48 #x89 #xe5 #x48 #x81 #xec 0 0 0 0))
 
-(defun compile-function (function)
-  (let ((emitter (make-emitter)))
+(defun compile-function (function contract)
+  (unless (and (eq (backend-contract-architecture contract) :x86-64)
+               (eq (backend-contract-abi contract) :sysv-amd64))
+    (fail "x86-64 backend requires the System V AMD64 ABI"))
+  (let ((limit (length (backend-contract-argument-registers contract))))
+    (when (> (length (signature-arguments (lir-function-signature function)))
+             limit)
+      (fail "System V AMD64 register ABI supports at most ~D arguments" limit))
+    (dolist (instruction (lir-function-instructions function))
+      (when (and (eq (lir-instruction-op instruction) :call)
+                 (> (length (lir-instruction-args instruction)) limit))
+        (let ((*source-location* (lir-instruction-source instruction)))
+          (fail "System V AMD64 register ABI supports at most ~D arguments"
+                limit)))))
+  (let ((emitter (make-emitter contract)))
     (emit-prologue (emitter-bytes emitter))
     (dolist (instruction (lir-function-instructions function))
-      (emit-instruction emitter instruction))
+      (let ((*source-location* (lir-instruction-source instruction)))
+        (emit-instruction emitter instruction)))
     (patch-branches emitter)
     (patch-i32 (emitter-bytes emitter) 7
-               (* 16 (ceiling (* (lir-function-register-count function) 8) 16)))
+               (* (backend-contract-stack-alignment contract)
+                  (ceiling (* (lir-function-register-count function) 8)
+                           (backend-contract-stack-alignment contract))))
     (make-encoded-function
      :name (lir-function-name function)
      :bytes (emitter-bytes emitter)

@@ -43,13 +43,15 @@
                 relocations))))
     (values text (nreverse definitions) (nreverse relocations))))
 
-(defun external-names (signatures)
-  (let ((names nil))
-    (maphash (lambda (name signature)
-               (when (signature-external-p signature)
-                 (push name names)))
-             signatures)
-    (sort names #'string<)))
+(defun external-names (signatures relocations)
+  (sort (remove-duplicates
+         (loop for relocation in relocations
+               for name = (relocation-name relocation)
+               for signature = (gethash name signatures)
+               when (and signature (signature-external-p signature))
+                 collect name)
+         :test #'equal)
+        #'string<))
 
 (defun build-symbol-tables (definitions external)
   (let ((table (byte-buffer))
@@ -68,14 +70,16 @@
              (write-symbol table (append-string names name) #x12 0 0 0))
     (values table names indices)))
 
-(defun build-relocations (relocations symbol-indices)
+(defun build-relocations (relocations symbol-indices contract)
   (let ((table (byte-buffer)))
     (dolist (relocation relocations)
       (let ((index (gethash (relocation-name relocation) symbol-indices)))
         (unless index
           (fail "internal error: missing symbol ~A" (relocation-name relocation)))
         (emit-integer table (relocation-offset relocation) 8)
-        (emit-integer table (+ (ash index 32) 4) 8) ; R_X86_64_PLT32
+        (emit-integer table
+                      (+ (ash index 32)
+                         (backend-contract-call-relocation contract)) 8)
         (emit-integer table -4 8)))
     table))
 
@@ -123,12 +127,12 @@
   (dotimes (i count)
     (setf (aref buffer (+ offset i)) (ldb (byte 8 (* i 8)) value))))
 
-(defun write-elf-header (object section-offset section-count)
+(defun write-elf-header (object section-offset section-count contract)
   (setf (aref object 0) #x7f (aref object 1) #x45
         (aref object 2) #x4c (aref object 3) #x46
         (aref object 4) 2 (aref object 5) 1 (aref object 6) 1)
   (patch-integer object 16 1 2)  ; ET_REL
-  (patch-integer object 18 62 2) ; EM_X86_64
+  (patch-integer object 18 (backend-contract-elf-machine contract) 2)
   (patch-integer object 20 1 4)
   (patch-integer object 40 section-offset 8)
   (patch-integer object 52 64 2)
@@ -136,7 +140,7 @@
   (patch-integer object 60 section-count 2)
   (patch-integer object 62 5 2)) ; .shstrtab section index
 
-(defun assemble-object (sections)
+(defun assemble-object (sections contract)
   (let ((object (byte-buffer)))
     (dotimes (i 64) (emit-byte object 0))
     (append-section-data object sections)
@@ -144,7 +148,8 @@
     (let ((section-offset (length object)))
       (dotimes (i 64) (emit-byte object 0)) ; null section header
       (dolist (section sections) (write-section-header object section))
-      (write-elf-header object section-offset (1+ (length sections))))
+      (write-elf-header object section-offset (1+ (length sections))
+                        contract))
     object))
 
 (defun write-object-file (bytes output)
@@ -153,11 +158,14 @@
     (write-sequence bytes stream))
   output)
 
-(defun write-elf-object (functions signatures output)
+(defun write-elf-object (functions signatures contract output)
+  (unless (and (eq (backend-contract-object-format contract) :elf64)
+               (eq (backend-contract-endianness contract) :little))
+    (fail "ELF64 writer needs a little-endian ELF64 target"))
   (multiple-value-bind (text definitions relocations)
       (collect-text functions)
     (multiple-value-bind (symbols names indices)
-        (build-symbol-tables definitions (external-names signatures))
-      (let* ((rela (build-relocations relocations indices))
+        (build-symbol-tables definitions (external-names signatures relocations))
+      (let* ((rela (build-relocations relocations indices contract))
              (sections (make-sections text rela symbols names)))
-        (write-object-file (assemble-object sections) output)))))
+        (write-object-file (assemble-object sections contract) output)))))

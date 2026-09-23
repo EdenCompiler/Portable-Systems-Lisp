@@ -14,6 +14,7 @@ Explicit C integration uses `ffi:source`, `ffi:import-function`, and
 `ffi:call`; see [the C source example](examples/ffi_source.lisp).
 See [the implemented core](docs/core.md) for exact language and target support.
 See [the source organization](docs/architecture.md) for module responsibilities.
+See [the compiler pipeline](docs/compiler.md) for IR stages and library calls.
 See [milestone status](docs/roadmap.md) for the remaining work.
 See [repository instructions](AGENTS.md) for implementation rules.
 

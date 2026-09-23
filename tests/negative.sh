@@ -18,6 +18,11 @@ expect_error() {
     printf 'Missing expected diagnostic: %s\n' "$expected" >&2
     exit 1
   fi
+  if ! grep -Eq "${source}:[0-9]+:[0-9]+" "$work_dir/stderr"; then
+    cat "$work_dir/stderr" >&2
+    printf 'Missing source location: %s\n' "$source" >&2
+    exit 1
+  fi
   if test -e "$work_dir/invalid.o"; then
     printf 'Compiler created an object after failure: %s\n' "$source" >&2
     exit 1

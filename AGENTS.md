@@ -56,6 +56,9 @@ folder name proves a feature is complete.
 - Run `sh tests/smoke.sh` after compiler changes. Add focused tests when a new
   behavior or regression risk cannot be checked by the existing C harness,
   object inspection, or deterministic-output check.
+- Keep the HIR, SSA, and LIR verifiers in the compilation path. Verify SSA after
+  optimization and LIR before backend encoding. Compare observable behavior
+  under `-O0` and `-O1` when changing an optimizer pass.
 - Verify ABI and data layout against compiled C programs; verify object formats
   with standard inspection tools; verify freestanding and cross-target claims
   with an emulator or runner for that target.

@@ -41,7 +41,7 @@
                        (list (analyze-expression (car (last forms))
                                                  environment context expected)))))
     (make-hir :kind :progn :type (hir-type (car (last parts)))
-              :children parts)))
+              :children parts :source *source-location*)))
 
 (defun analyze-binding (binding environment context)
   (unless (and (listp binding) (= (length binding) 2)
@@ -207,9 +207,8 @@
       (fail "invalid source type for pointer conversion"))
     (make-hir :kind :pointer-cast :type type :children (list value))))
 
-(defun analyze-expression (source environment context &optional expected)
-  (let ((form (macroexpand source)))
-    (cond
+(defun analyze-expanded-expression (form environment context expected)
+  (cond
       ((eq form nil) (make-hir :kind :literal :type :boolean :value 0))
       ((eq form t) (make-hir :kind :literal :type :boolean :value 1))
       ((integerp form) (analyze-literal form context expected))
@@ -245,7 +244,20 @@
            (fail "call imported function ~A with FFI:CALL"
                  (signature-name signature)))
          (analyze-call form signature environment context)))
-      (t (fail "unsupported form ~S" form)))))
+      (t (fail "unsupported form ~S" form))))
+
+(defun analyze-expression (source environment context &optional expected)
+  (let* ((*source-location*
+           (or (and (consp source) *source-locations*
+                    (gethash source *source-locations*))
+               *source-location*))
+         (form (handler-case (macroexpand source)
+                 (error (condition)
+                   (fail "macro expansion failed: ~A" condition))))
+         (node (analyze-expanded-expression form environment context expected)))
+    (unless (hir-source node)
+      (setf (hir-source node) *source-location*))
+    node))
 
 (defun register-function (form context)
   (let ((external-p (or (psl-form-p form "extern-function")
@@ -280,9 +292,10 @@
                       "c"))
     (fail "FFI:SOURCE requires a C source filename ending in .c"))
   (when (member (second form) (analysis-context-c-sources context)
-                :test #'equal)
+                :key #'car :test #'equal)
     (fail "duplicate FFI:SOURCE ~A" (second form)))
-  (push (second form) (analysis-context-c-sources context)))
+  (push (cons (second form) *source-location*)
+        (analysis-context-c-sources context)))
 
 (defun analyze-definition (definition context)
   (destructuring-bind (signature parameters body) definition
@@ -290,33 +303,40 @@
                               (signature-result signature))))
       (unless (equal (hir-type hir) (signature-result signature))
         (fail "return type mismatch in ~A" (signature-name signature)))
-      (make-function-def :signature signature :parameters parameters :body hir))))
+      (make-function-def :signature signature :parameters parameters :body hir
+                         :source *source-location*))))
 
-(defun analyze-source (forms target)
+(defun analyze-source (forms target &optional locations)
   "Return typed HIR functions and all known function signatures."
-  (let ((context (make-context target))
+  (let ((*source-locations* locations)
+        (context (make-context target))
         (definitions (make-hash-table :test #'eq)))
     (dolist (form forms)
-      (cond
-        ((form-p form "defmacro")
-         (ensure-user-name (second form) "macro"))
-        ((ffi-form-p form "source") (register-c-source form context))
-        ((psl-form-p form "defstruct/packed")
-         (register-packed-structure form context))
-        ((or (psl-form-p form "defun/c")
-             (psl-form-p form "extern-function")
-             (ffi-form-p form "import-function")
-             (form-p form "defun"))
-         (let ((definition (register-function form context)))
-           (when definition (setf (gethash form definitions) definition))))
-        (t (fail "unsupported top-level form ~S" form))))
+      (let ((*source-location* (and locations (gethash form locations))))
+        (cond
+          ((form-p form "defmacro")
+           (ensure-user-name (second form) "macro"))
+          ((ffi-form-p form "source") (register-c-source form context))
+          ((psl-form-p form "defstruct/packed")
+           (register-packed-structure form context))
+          ((or (psl-form-p form "defun/c")
+               (psl-form-p form "extern-function")
+               (ffi-form-p form "import-function")
+               (form-p form "defun"))
+           (let ((definition (register-function form context)))
+             (when definition (setf (gethash form definitions) definition))))
+          (t (fail "unsupported top-level form ~S" form)))))
     (let ((functions nil))
       (dolist (form forms)
-        (cond
-          ((form-p form "defmacro") (eval form))
-          ((or (psl-form-p form "defun/c") (form-p form "defun"))
-           (push (analyze-definition (gethash form definitions) context)
-                 functions))))
+        (let ((*source-location* (and locations (gethash form locations))))
+          (cond
+            ((form-p form "defmacro")
+             (handler-case (eval form)
+               (error (condition)
+                 (fail "macro definition failed: ~A" condition))))
+            ((or (psl-form-p form "defun/c") (form-p form "defun"))
+             (push (analyze-definition (gethash form definitions) context)
+                   functions)))))
       (values (nreverse functions)
               (analysis-context-signatures context)
               (nreverse (analysis-context-c-sources context))))))

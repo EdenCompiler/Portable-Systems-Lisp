@@ -12,7 +12,7 @@ is updated. Dates and staffing are deliberately unspecified.
 | --- | --- | --- |
 | Stage 0 host | Working | Compiler runs under SBCL. |
 | Typed source and macros | Partial | Ordinary `defun` with type/C-export declarations, `ffi:import-function`, host-side `defmacro`, integer expressions, lexical `let`, calls, and control flow. |
-| IR pipeline | Partial | Typed HIR lowers to portable, non-SSA LIR with virtual registers and explicit branches. |
+| IR pipeline | M2 complete | Verified typed HIR → CFG/SSA with `phi` joins → verified LIR; `-O1` inlines small pure leaves, folds constants, and removes dead pure values. |
 | x86-64 Linux / SysV / ELF64 | Working object slice | `-c` emits a relocatable object that links with the C harness. |
 | Local C source inclusion | Working x86-64 Linux slice | `ffi:source` compiles a `.c` file with `cc` and merges it into the relocatable object; cross toolchains are pending. |
 | x86-64 none / ELF64 | Object only | Emits a runtime-free object; startup, linker layout, and boot execution are pending. |
@@ -64,7 +64,7 @@ the object and relocations, two identical builds match byte for byte, and a
 source file with no imports has no undefined runtime symbols. `sh tests/smoke.sh`
 passes this gate on x86-64 Linux; later milestones broaden the language.
 
-## M2 — Compiler foundation and optimization · Partial
+## M2 — Compiler foundation and optimization · Complete
 
 **Dependencies:** M1 and the applicable M0 semantics.
 
@@ -84,6 +84,11 @@ passes this gate on x86-64 Linux; later milestones broaden the language.
 optimized and unoptimized programs agree on behavior; object output remains
 deterministic; the x86 backend consumes only target-independent LIR plus target
 metadata, never raw source forms.
+
+The [pipeline contract](compiler.md) records the library stages and IR
+invariants. `sh tests/smoke.sh` runs C harnesses at both optimization levels,
+checks object repeatability, rejects malformed HIR/SSA/LIR, and inspects the
+expected optimization and effect behavior.
 
 ## M3 — Complete the first C ABI path · Partial
 

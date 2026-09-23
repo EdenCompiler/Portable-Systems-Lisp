@@ -19,7 +19,11 @@ src/
   ir/
     hir.lisp            typed HIR data structures
     types.lisp          machine type queries and pointer qualifiers
-    lower.lisp          typed HIR to portable LIR
+    ssa.lisp            portable CFG, SSA values, and explicit joins
+    lower.lisp          typed HIR to SSA and SSA to portable LIR
+    verify/             HIR, SSA, and LIR invariant checks
+    optimize.lisp       inlining, constant folding, and dead-code removal
+    dump.lisp           stable, readable IR inspection
   backend/
     x86-64.lisp         LIR to x86-64 machine code and ABI argument mapping
   object/
@@ -28,13 +32,18 @@ src/
     toolchain.lisp      explicit C source compilation and object merge
 ```
 
-`compile-source` coordinates reader → analyzer → LIR lowering → backend →
-object writer. The frontend does not encode machine instructions. The object
-writer consumes encoded functions and relocations rather than source forms.
+`compile-source` coordinates reader → analyzer → verified HIR → CFG/SSA →
+optional optimization → verified LIR → backend → object writer. The frontend
+does not encode machine instructions. The x86 backend receives LIR and an
+explicit target contract containing ABI registers, pointer width, stack
+alignment, ELF machine ID, and relocation kind. The object writer consumes
+encoded functions and relocations rather than source forms.
 The FFI toolchain runs only when source explicitly declares a C translation
 unit; ordinary typed compilation needs no C compiler until final linking.
-The current LIR uses virtual registers and explicit branches; SSA and
-optimization passes are future work.
+The SSA representation has basic blocks, typed values, terminators, and `phi`
+joins. The current language subset has conditional branches but no loop form.
+LIR uses virtual registers and explicit labels after `phi` edge copies are
+placed. See [the compiler pipeline](compiler.md) for stage APIs and invariants.
 
 This separation follows the broad division used by the [LLVM source tree](https://llvm.org/docs/GettingStarted.html),
 which has distinct IR, code generation, target, and object-related areas, and

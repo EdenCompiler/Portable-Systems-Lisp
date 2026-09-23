@@ -1,5 +1,7 @@
 (in-package #:psl.frontend)
 
+(defvar *source-locations* nil)
+
 (defun named-p (symbol name)
   (and (symbolp symbol) (string-equal (symbol-name symbol) name)))
 
@@ -96,21 +98,25 @@
         (result nil)
         (exported nil))
     (dolist (spec specs)
-      (cond
-        ((form-p spec "type")
-         (collect-parameter-types spec names types context))
-        ((psl-form-p spec "returns")
-         (unless (= (length spec) 2)
-           (fail "PSL:RETURNS requires one type"))
-         (when result (fail "duplicate PSL:RETURNS declaration"))
-         (setf result (type-name (second spec) context)))
-        ((or (psl-form-p spec "export")
-             (psl-form-p spec "c-export"))
-         (unless (equal (rest spec) '(:c))
-           (fail "only (C-EXPORT :C) is supported"))
-         (when exported (fail "duplicate C-EXPORT declaration"))
-         (setf exported t))
-        (t (fail "unsupported DEFUN declaration ~S" spec))))
+      (let ((*source-location*
+              (or (and *source-locations*
+                       (gethash spec *source-locations*))
+                  *source-location*)))
+        (cond
+          ((form-p spec "type")
+           (collect-parameter-types spec names types context))
+          ((psl-form-p spec "returns")
+           (unless (= (length spec) 2)
+             (fail "PSL:RETURNS requires one type"))
+           (when result (fail "duplicate PSL:RETURNS declaration"))
+           (setf result (type-name (second spec) context)))
+          ((or (psl-form-p spec "export")
+               (psl-form-p spec "c-export"))
+           (unless (equal (rest spec) '(:c))
+             (fail "only (C-EXPORT :C) is supported"))
+           (when exported (fail "duplicate C-EXPORT declaration"))
+           (setf exported t))
+          (t (fail "unsupported DEFUN declaration ~S" spec)))))
     (unless result (fail "DEFUN needs a PSL:RETURNS declaration"))
     (unless exported (fail "DEFUN needs (C-EXPORT :C) in Stage 0"))
     (values (mapcar (lambda (name)
@@ -134,23 +140,71 @@
                               :result result :external-p nil)
               parameters (nthcdr 4 form)))))
 
+(defun source-line-starts (path)
+  (let ((starts (make-array 1 :adjustable t :fill-pointer 1
+                          :initial-element 0))
+        (offset 0))
+    (with-open-file (stream path :element-type '(unsigned-byte 8))
+      (loop for octet = (read-byte stream nil nil)
+            while octet
+            do (incf offset)
+               (when (= octet 10) (vector-push-extend offset starts))))
+    starts))
+
+(defun source-location-at (path starts offset)
+  (let ((line 1) (line-start 0))
+    (loop for start across starts
+          for number from 1
+          while (<= start offset)
+          do (setf line number line-start start))
+    (make-source-location :path (namestring (pathname path))
+                          :line line :column (1+ (- offset line-start)))))
+
+(defun tracking-readtable (path starts locations)
+  (let* ((table (copy-readtable nil))
+         (open-parenthesis (get-macro-character #\( table)))
+    (set-macro-character
+     #\(
+     (lambda (stream character)
+       (let* ((offset (max 0 (1- (or (file-position stream) 1))))
+              (form (funcall open-parenthesis stream character)))
+         (when (consp form)
+           (setf (gethash form locations)
+                 (source-location-at path starts offset)))
+         form))
+     nil table)
+    table))
+
+(defun read-source-forms (path starts locations)
+  (let ((*readtable* (tracking-readtable path starts locations))
+        (forms nil))
+    (with-open-file (stream path :direction :input :external-format :utf-8)
+      (loop for offset = (file-position stream)
+            for form = (handler-case (read stream nil :eof)
+                         (error (condition)
+                           (let ((*source-location*
+                                   (source-location-at path starts offset)))
+                             (fail "reader error: ~A" condition))))
+            until (eq form :eof)
+            do (when (consp form)
+                 (unless (gethash form locations)
+                   (setf (gethash form locations)
+                         (source-location-at path starts offset))))
+               (push form forms)))
+    (nreverse forms)))
+
 (defun read-source (path)
-  "Read trusted Stage 0 source. DEFMACRO forms execute on the build host."
+  "Read trusted Stage 0 source and return forms, package, and locations."
   (let* ((unit (make-package (symbol-name (gensym "PSL.SOURCE."))
                              :use '(:cl)))
          (*package* unit)
-         (forms nil))
+         (locations (make-hash-table :test #'eq)))
     (do-external-symbols (symbol (find-package :psl))
       (unless (find-symbol (symbol-name symbol) :cl)
         (shadowing-import symbol unit)))
     (handler-case
-        (progn
-          (with-open-file (stream path :direction :input
-                                       :external-format :utf-8)
-            (loop for form = (read stream nil :eof)
-                  until (eq form :eof)
-                  do (push form forms)))
-          (values (nreverse forms) unit))
+        (values (read-source-forms path (source-line-starts path) locations)
+                unit locations)
       (error (condition)
         (delete-package unit)
         (error condition)))))

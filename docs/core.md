@@ -12,6 +12,9 @@ produces an x86-64 ELF64 relocatable object. Accepted targets are
 integer calling convention and ELF64 writer. `--profile=hosted|freestanding`
 is accepted, but both flags currently compile the same typed subset. The
 compiler does not yet link executables or provide a hosted Lisp runtime.
+`-O0` skips optimization; the default `-O1` performs small-function inlining,
+machine-width constant folding, and dead pure-value removal. Use
+`--dump-ir=hir|ssa|lir|all` to inspect the verified pipeline.
 
 A source file is read as UTF-8 into its own temporary Common Lisp package.
 The compiler imports PSL names that do not conflict with Common Lisp into that

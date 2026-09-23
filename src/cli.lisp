@@ -5,10 +5,12 @@
 (defstruct cli-options
   source output compile-only
   (target "x86_64-linux-gnu")
-  (profile "freestanding"))
+  (profile "freestanding")
+  (optimize t)
+  (dump-ir nil))
 
 (defun usage (&optional (stream *standard-output*))
-  (format stream "Usage: pslcc -c SOURCE.lisp -o OUTPUT.o [--target=TRIPLE] [--profile=PROFILE]~%")
+  (format stream "Usage: pslcc -c SOURCE.lisp -o OUTPUT.o [--target=TRIPLE] [--profile=PROFILE] [-O0|-O1] [--dump-ir=hir|ssa|lir|all]~%")
   (format stream "Targets: x86_64-linux-gnu, x86_64-none-elf~%")
   (format stream "Profiles: hosted, freestanding~%"))
 
@@ -20,6 +22,10 @@
   (cond
     ((equal argument "-c")
      (setf (cli-options-compile-only options) t))
+    ((equal argument "-O0")
+     (setf (cli-options-optimize options) nil))
+    ((equal argument "-O1")
+     (setf (cli-options-optimize options) t))
     ((equal argument "-o")
      (multiple-value-bind (value rest) (required-value argument remaining)
        (setf (cli-options-output options) value
@@ -38,6 +44,15 @@
     ((and (<= 10 (length argument))
           (string= argument "--profile=" :end1 10))
      (setf (cli-options-profile options) (subseq argument 10)))
+    ((and (<= 10 (length argument))
+          (string= argument "--dump-ir=" :end1 10))
+     (let ((stage (subseq argument 10)))
+       (setf (cli-options-dump-ir options)
+             (cond ((equal stage "hir") '(:hir))
+                   ((equal stage "ssa") '(:ssa))
+                   ((equal stage "lir") '(:lir))
+                   ((equal stage "all") '(:hir :ssa :lir))
+                   (t (error "unknown IR dump mode ~A" stage))))))
     ((member argument '("-h" "--help") :test #'equal)
      (usage)
      (sb-ext:exit :code 0))
@@ -63,7 +78,9 @@
     (psl.compiler:compile-source
      (cli-options-source options) (cli-options-output options)
      :target (cli-options-target options)
-     :profile (cli-options-profile options))
+     :profile (cli-options-profile options)
+     :optimize (cli-options-optimize options)
+     :dump-ir (cli-options-dump-ir options))
     0))
 
 (handler-case
