@@ -23,6 +23,7 @@ is updated. Dates and staffing are deliberately unspecified.
 | x86-64 none / ELF64 | M7 executable subset | Runtime-free static image with an explicit entry or generated `linux-exit` startup, linker script, and map. QEMU user-mode executes the explicit Linux-syscall startup without libc. |
 | RISC-V64 Linux / LP64D / ELF64 | M7 complete for documented subset | Self-encoded machine code, GP/FP and stack calls, small C structs, ELF call/GOT relocations, GNU cross linking, and QEMU execution. Larger aggregates, variadics, and `long double` remain unsupported. |
 | RISC-V64 none / ELF64 | M7 executable subset | QEMU `virt` image with explicit startup, stack setup, UART access from Lisp, and SiFive Test exit status; no firmware, OS, libc, or hosted runtime is linked. Other boards require their own startup and memory map. |
+| Self hosting | M8 in progress | Native PSL modules cover scanning, parsing, integer atoms, C structure layout, typed function signatures, arenas, byte emission, verified typed HIR/SSA/LIR, x86-64 encoding, and ELF writing for several functions. A restricted compiler handles integer/pointer signatures, memory, loops, casts, conditionals, and recursion and directly compiles integer rules, byte-emitter, arena, integer reader, and scanner modules. Stage 1–3 and the full corpus gate remain open. |
 | Hosted ANSI Common Lisp | Pending M9 | `--profile=hosted` has an M4 managed-value subset; numeric tower, conditions, CLOS, streams, `eval`, and conformance remain pending. |
 | Executables and libraries | Working on supported hosted targets | `pslcc` invokes the selected GCC linker for executables and shared libraries, and `ar` for deterministic `.a`; dynamic source selects only required runtime objects. |
 | macOS and Wasm | Pending M10 | No object writer or code generation for these targets yet. |
@@ -245,7 +246,7 @@ The RISC-V image uses QEMU `virt` with 128 MiB RAM and `-bios none`. The x86-64
 proof intentionally uses Linux user-mode emulation and an explicit exit syscall;
 an x86-64 kernel or board startup is outside this slice.
 
-## M8 — Self hosting · Pending
+## M8 — Self hosting · In progress
 
 **Dependencies:** enough M4 language/runtime support to express the compiler,
 plus stable M2 compiler-library interfaces.
@@ -257,6 +258,142 @@ Retain a documented bootstrap path from a fresh checkout.
 **Gate:** successive stages pass the same source/object/interop corpus and
 produce equivalent compiler behavior; deterministic outputs are compared where
 the bootstrap representation permits bit-for-bit matching.
+
+**Bootstrap subgates**
+
+1. Port source spelling, packages, includes, and compile-time macro execution
+   so the native reader accepts every compiler module. Keep macro execution on
+   the build host during cross compilation.
+2. Port typed analysis, HIR/SSA/LIR construction and verification, effects,
+   and the generic optimization passes. Compare each stage's IR and diagnostics
+   on the same accepted and rejected source corpus.
+3. Port instruction encoders and ELF/COFF writers with local/global symbols,
+   data, relocations, and ABI calls. Lisp object output must not invoke LLVM or
+   an external assembler; C input and final links use the selected toolchain.
+4. Port the compiler driver and enough runtime services for source loading,
+   memory, strings, collections, and diagnostics. Build a native Stage 1 that
+   compiles its own complete source, including the driver.
+5. Use Stage 1 to build Stage 2 and Stage 2 to build Stage 3. Run the same
+   object inspection, C interop, cross-target, and negative-source corpus with
+   all three stages. Compare diagnostics and linked behavior, then compare
+   generated object bytes wherever the bootstrap format is deterministic.
+
+The first ported components are the byte emitter, arena, scanner, parser,
+integer-atom reader, and first ELF64 writer slice in `bootstrap/`. Compiled
+PSL emits and patches little-endian bytes, manages caller-owned storage, scans
+source bytes, and builds a caller-owned syntax tree. The `tests/bootstrap_binary.sh`,
+`tests/bootstrap_reader.sh`, `tests/bootstrap_parser.sh`, and
+`tests/bootstrap_component.sh` scripts run at `-O0` and `-O1` on each hosted
+target, check repeatable objects, and accept a target triple as an argument.
+The binary test compares bytes against the Stage 0 module; the reader and
+parser tests check token/tree structure and traverse the example corpus on
+Linux targets.
+The source subset now has local helper functions, typed bit extraction,
+wrapping integer casts, a Boolean `while` loop, and source inclusion.
+`sh tests/bootstrap_modules.sh` builds the combined native unit and checks
+relative source and C-file paths from included modules.
+`sh tests/bootstrap_elf64.sh [TARGET]` compares a native PSL-written object
+byte for byte with Stage 0's object for a single exported function, then links
+and runs it with C. This passes for x86-64, AArch64, and RISC-V64 ELF64 without
+executing target code during object generation. A separate native writer now
+emits multiple x86-64 function symbols. Relocations, data, and COFF remain to
+be ported.
+`sh tests/bootstrap_native_compiler.sh [HOST_TARGET]` builds a native executable from PSL
+compiler components plus a temporary C file-I/O wrapper. It parses a source
+file, accepts machine-integer functions with independently typed parameters,
+range-checked literals, raw pointer signatures, nested binary wrapping arithmetic, `bits-and`,
+U64 `shr64`, explicit integer casts, typed `let` and `progn`, comparisons,
+Boolean literals, `if`, test-and-body `cond` clauses, and calls across
+the source file, including recursion. It writes an x86-64 ELF object through
+verified native HIR → typed CFG/SSA → flat LIR, and links that output to a C caller. It rejects source
+outside that slice.
+x86-64 System V calls use all six integer argument registers and place later
+integer/pointer arguments in aligned outgoing stack areas. A C harness checks
+seven-, eight-, and nine-argument calls, narrow signed stack values, pointer
+stack values, nested and recursive calls, and source-order argument effects.
+Stage 0 and native outputs pass the same C harness; repeat builds, different
+host builds, and `-O0`/`-O1` bootstrap builds yield identical native objects.
+The native scalar path now covers unsigned and signed 8-, 16-, 32-, and 64-bit
+integers, `usize`, `isize`, and the `c-int` alias. Each HIR node retains its source
+type; a source-type verifier checks parameter and call signatures, operator
+types, casts, and literal representations. It checks literal ranges, narrow
+wrapping, input extension, signed comparison, heterogeneous locals, and the
+Common Lisp truth rule that integer zero is true.
+The native compiler directly compiles the real `bootstrap/ir/integer_types.lisp`
+module, which provides width and representation rules used by its analyzer and
+verifier. Object inspection finds no unresolved symbols; C checks match Stage 0
+behavior, and repeat builds and `-O0`/`-O1` bootstrap builds produce identical
+objects for that module.
+The native memory slice also directly compiles `bootstrap/binary.lisp`,
+`bootstrap/arena.lisp`, `bootstrap/frontend/atoms.lisp`, and `bootstrap/frontend/reader.lisp`. It implements raw pointer
+parameters and returns, nested pointer and field types, element-scaled
+`pointer+`, signed/unsigned integer and pointer loads and stores, explicit
+pointer casts and address construction, and Boolean `while`. Source-type
+verification checks pointees, field ownership and offsets, memory widths, and
+call signatures. C harnesses compare behavior with Stage 0, scan the example
+corpus, and inspect object symbols. Negative fixtures check mismatched types
+and malformed memory and loop forms; HIR mutation tests check widths, pointee
+references, and pointer arithmetic metadata. Repeat builds, different host
+builds, and `-O0`/`-O1` compiler builds produce identical native module objects.
+C programs also compare Stage 0 and native behavior for mixed integer signatures
+and casts; repeat builds and
+`-O0`/`-O1` bootstrap builds produce identical native objects. Packages,
+test-only `cond` clauses, and general macro expansion still need a broader
+frontend.
+The updated native slice runs on x86-64 Linux and Windows/Wine hosts and
+produces byte-identical x86-64 objects. Stage 0 also cross-compiles the combined
+native unit to AArch64 and RISC-V64 objects. The test script supports execution
+on those hosts when their cross compilers and runners are available.
+
+The native default pipeline now lowers the entire documented integer/pointer
+subset through typed SSA and flat LIR. It represents conditional PHIs, loop
+backedges, source-order effects, and lexical aliases explicitly. SSA checks
+references, instruction ownership, terminators, type relationships, PHI
+predecessor coverage, and dominance. LIR lowering resolves PHIs with edge
+copies, including explicit branch-edge labels. Its verifier checks the flat
+CFG and definitions on every incoming path before machine encoding. The
+x86-64 backend consumes only LIR, its type catalog, and encoded symbol/fixup
+metadata; the old HIR-to-machine encoders have been removed. C mutation tests
+reject wrong PHI edges, non-dominating uses, malformed targets, omitted copies,
+and undefined registers. Native modules now follow `frontend/`, `ir/`,
+`backend/`, and `object/` ownership. Generic optimization and effects, the full
+source corpus, remaining ABI/backend/object features, and Stage 1–3 remain
+open; this is progress on subgate 2, not completion of M8.
+
+Native source loading now accepts top-level includes. The PSL frontend
+recognizes include syntax and decodes Lisp string filenames; a temporary C
+host module reads files, resolves canonical paths, preserves include order,
+deduplicates repeats, and rejects cycles. Tests compare nested/repeated include
+objects with a flattened unit and reject missing files, malformed includes,
+and reader errors. File traversal still needs to move into PSL.
+
+The native compiler now compiles every module included by its own
+`bootstrap/native-core.lisp`. `sh tests/bootstrap_self_core.sh` builds three
+successive native core generations on x86-64 Linux, compiles the full core
+without external tool lookup, runs the complete native subset suite on each
+generation, and compares their native-generated core and fixture objects byte
+for byte. Core objects have no unresolved symbols; rejected-source diagnostics
+match exactly across generations. Signature/layout tables no longer have
+the old 256-entry ceiling, and the ELF writer permits the complete core.
+The same temporary C driver and source loader are linked to each generation.
+This is a core reproduction gate; the broader Stage 0 corpus, native optimizer
+and effects, remaining target/ABI/object features, and PSL driver/source loader
+are still open. Full Stage 1, Stage 2, and Stage 3 compiler builds remain open,
+as does the M8 gate.
+The scalar source path accepts lowercase hyphenated internal function and local
+names; C exports still require C-compatible names. Its deterministic object
+test checks both the local ELF symbol and a C caller.
+The native source pass now registers simple `defcstruct` declarations. The
+bootstrap test compares their size, alignment, and field offsets with C on
+each hosted test target. Native function bodies support integer and pointer
+access through these layouts; floating accesses, pointer qualifiers, `void`
+pointers, and structure values still need a broader native implementation.
+It also records typed `defun` signatures in source order. The signature test
+parses the byte emitter, arena, integer reader, and scanner modules and checks
+their resolved parameter and return shapes. Scalar body compilation consumes
+the same signature records and accepts declarations in different clause orders
+and multiple body forms. The native body compiler still accepts only the documented integer/pointer
+subset; the signature pass does not make Stage 1 viable.
 
 ## M9 — Hosted ANSI Common Lisp completion · Pending
 

@@ -86,6 +86,26 @@
                                   (cons (ssa-block-id else-end) else-value))
                       :source (hir-source node)))))))
 
+(defun lower-while (node state environment)
+  (let ((header (new-block state))
+        (body (new-block state))
+        (exit (new-block state)))
+    (terminate-block state :jump :targets (list (ssa-block-id header))
+                     :source (hir-source node))
+    (switch-block state header)
+    (let ((test (lower-hir (first (hir-children node)) state environment)))
+      (terminate-block state :branch :args (list test)
+                       :targets (list (ssa-block-id body)
+                                      (ssa-block-id exit))
+                       :source (hir-source node)))
+    (switch-block state body)
+    (lower-hir (second (hir-children node)) state environment)
+    (terminate-block state :jump :targets (list (ssa-block-id header))
+                     :source (hir-source node))
+    (switch-block state exit)
+    (emit-value state :constant :boolean :value 0
+                :source (hir-source node))))
+
 (defun lower-hir (node state environment)
   (let ((type (hir-type node))
         (source (hir-source node)))
@@ -96,6 +116,7 @@
       (:progn (lower-progn node state environment))
       (:let (lower-let node state environment))
       (:if (lower-if node state environment))
+      (:while (lower-while node state environment))
       (:binary (emit-value state :binary type :value (hir-value node)
                            :args (lower-children node state environment)
                            :source source))
@@ -115,6 +136,10 @@
                    :source source))
       (:pointer-cast
        (emit-value state :cast type
+                   :args (lower-children node state environment)
+                   :source source))
+      (:integer-cast
+       (emit-value state :integer-cast type
                    :args (lower-children node state environment)
                    :source source))
       (:load
@@ -162,7 +187,7 @@
          (type (ssa-instruction-type instruction))
          (value (ssa-instruction-value instruction)))
     (make-lir-instruction
-     :op (case op (:cast :copy) (otherwise op))
+     :op (case op ((:cast :integer-cast) :convert) (otherwise op))
      :dst (ssa-instruction-id instruction)
      :type type
      :value (case op

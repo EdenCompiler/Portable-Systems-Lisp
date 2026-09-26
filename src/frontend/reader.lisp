@@ -132,13 +132,12 @@
            (setf exported t))
           (t (fail "unsupported DEFUN declaration ~S" spec)))))
     (unless result (fail "DEFUN needs a PSL:RETURNS declaration"))
-    (unless exported (fail "DEFUN needs (C-EXPORT :C) in Stage 0"))
     (values (mapcar (lambda (name)
                       (let ((type (gethash name types)))
                         (unless type (fail "missing TYPE declaration for ~A" name))
                         (cons name type)))
                     names)
-            result)))
+            result exported)))
 
 (defun parse-ordinary-defun (form context)
   (unless (and (>= (length form) 5) (symbolp (second form)))
@@ -147,11 +146,12 @@
          (declaration (fourth form)))
     (unless (form-p declaration "declare")
       (fail "typed DEFUN needs a leading DECLARE form"))
-    (multiple-value-bind (parameters result)
+    (multiple-value-bind (parameters result exported)
         (parse-defun-declarations (rest declaration) names context)
       (values (make-signature :name (source-name (second form))
                               :arguments (mapcar #'cdr parameters)
-                              :result result :external-p nil)
+                              :result result :external-p nil
+                              :local-p (not exported))
               parameters (nthcdr 4 form)))))
 
 (defun source-line-starts (path)
@@ -207,6 +207,34 @@
                (push form forms)))
     (nreverse forms)))
 
+(defun included-source-path (form parent)
+  (unless (and (= (length form) 2) (stringp (second form)))
+    (fail "INCLUDE requires one source filename"))
+  (let ((path (merge-pathnames
+               (second form)
+               (make-pathname :name nil :type nil :defaults parent))))
+    (unless (probe-file path)
+      (fail "included source file does not exist: ~A" (second form)))
+    (truename path)))
+
+(defun read-source-file (path locations included active)
+  (let* ((canonical (truename path))
+         (key (namestring canonical)))
+    (when (member key active :test #'equal)
+      (fail "circular source include: ~A" key))
+    (when (gethash key included)
+      (return-from read-source-file nil))
+    (setf (gethash key included) t)
+    (loop for form in (read-source-forms
+                       canonical (source-line-starts canonical) locations)
+          append
+          (if (psl-form-p form "include")
+              (let ((*source-location* (gethash form locations)))
+                (read-source-file
+                 (included-source-path form canonical)
+                 locations included (cons key active)))
+              (list form)))))
+
 (defun read-source (path)
   "Read trusted Stage 0 source and return forms, package, and locations."
   (let* ((unit (make-package (symbol-name (gensym "PSL.SOURCE."))
@@ -217,7 +245,8 @@
       (unless (find-symbol (symbol-name symbol) :cl)
         (shadowing-import symbol unit)))
     (handler-case
-        (values (read-source-forms path (source-line-starts path) locations)
+        (values (read-source-file path locations
+                                  (make-hash-table :test #'equal) nil)
                 unit locations)
       (error (condition)
         (delete-package unit)

@@ -40,8 +40,9 @@ folder name proves a feature is complete.
   target-independent IR.
 - Encode machine instructions and write object files in PSL's own backend and
   object modules. Do not depend on LLVM or an external assembler for compiler
-  output. Conventional C compilers, linkers, inspection tools, and emulators
-  remain appropriate at interop and verification boundaries.
+  output. Do not add third-party code-generation or object-writing libraries
+  as backend dependencies. Conventional C compilers, linkers, inspection tools,
+  and emulators remain appropriate at interop and verification boundaries.
 - Keep freestanding output free of implicit libc, GC, hosted startup, and OS
   dependencies. A feature requiring runtime support must declare and link that
   support explicitly.

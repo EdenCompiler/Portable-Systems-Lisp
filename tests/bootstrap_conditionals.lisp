@@ -1,0 +1,5 @@
+(defun answer ()
+  (declare (returns u64) (c-export :c))
+  (if (< 4 5)
+      (if (= 1 2) 0 42)
+      0))

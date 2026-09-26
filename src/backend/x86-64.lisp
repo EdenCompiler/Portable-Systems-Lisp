@@ -144,6 +144,13 @@
         (emit-load-slot buffer 0 (first (lir-instruction-args instruction)) part)
         (emit-store-slot buffer 0 (lir-instruction-dst instruction) part)))))
 
+(defun emit-convert (emitter instruction)
+  (let ((buffer (emitter-bytes emitter)))
+    (emit-load-slot buffer 0 (first (lir-instruction-args instruction)))
+    (normalize-rax buffer (lir-instruction-type instruction)
+                   (emitter-contract emitter))
+    (emit-store-slot buffer 0 (lir-instruction-dst instruction))))
+
 (defun emit-comparison (buffer operator type)
   (emit-bytes buffer #x48 #x39 #xc1 #x0f
               (cond ((equal operator "=") #x94)
@@ -157,6 +164,9 @@
     ((equal operator "wrap-")
      (emit-bytes buffer #x48 #x29 #xc1 #x48 #x89 #xc8))
     ((equal operator "wrap*") (emit-bytes buffer #x48 #x0f #xaf #xc1))
+    ((equal operator "bits-and") (emit-bytes buffer #x48 #x21 #xc8))
+    ((equal operator "shr64")
+     (emit-bytes buffer #x48 #x91 #x48 #xd3 #xe8))
     ((member operator '("=" "<") :test #'equal)
      (emit-comparison buffer operator type))
     (t (fail "internal error: unknown operation ~A" operator))))
@@ -436,6 +446,7 @@
     (:argument (emit-argument emitter instruction))
     (:constant (emit-constant emitter instruction))
     (:copy (emit-copy emitter instruction))
+    (:convert (emit-convert emitter instruction))
     (:binary (emit-binary emitter instruction))
     (:call (emit-call emitter instruction))
     (:data-address (emit-data-address emitter instruction))

@@ -1,0 +1,72 @@
+;; Flat portable LIR. SSA IDs become virtual registers; PHI definitions become
+;; edge copies. Control operations: 100 label, 101 jump, 102 branch, 103 return,
+;; 104 copy. Types and call argument links have a separate immutable catalog.
+(defcstruct native_lir_instruction
+  (kind u32)
+  (scalar_code u32)
+  (pointee usize)
+  (value u64)
+  (left usize)
+  (right usize)
+  (target usize)
+  (source usize)
+  (destination usize))
+
+(defcstruct native_lir_block
+  (first usize)
+  (last usize)
+  (visit u8))
+
+(defcstruct native_lir_arena
+  (instructions (ptr native_lir_instruction))
+  (count usize)
+  (capacity usize)
+  (types (ptr native_ir_type))
+  (value_count usize)
+  (value_capacity usize)
+  (blocks (ptr native_lir_block))
+  (label_count usize)
+  (label_capacity usize)
+  (error u32))
+
+(defun lir_instruction_at (arena index)
+  (declare (type (ptr native_lir_arena) arena)
+           (type usize index) (returns (ptr native_lir_instruction)))
+  (pointer+ (deref (field-pointer arena 'instructions)) (wrap-cast isize (wrap- index 1))))
+
+(defun lir_block_at (arena index)
+  (declare (type (ptr native_lir_arena) arena)
+           (type usize index) (returns (ptr native_lir_block)))
+  (pointer+ (deref (field-pointer arena 'blocks)) (wrap-cast isize (wrap- index 1))))
+
+(defun lir_allocate (arena kind destination left right target)
+  (declare (type (ptr native_lir_arena) arena)
+           (type u32 kind)
+           (type usize destination left right target) (returns usize))
+  (let ((count (deref (field-pointer arena 'count))))
+    (if (< count (deref (field-pointer arena 'capacity)))
+        (let ((reference (wrap+ count 1)))
+          (let ((op (lir_instruction_at arena reference)))
+            (store (field-pointer op 'kind) kind)
+            (store (field-pointer op 'scalar_code) 0)
+            (store (field-pointer op 'pointee) 0)
+            (store (field-pointer op 'value) 0)
+            (store (field-pointer op 'left) left)
+            (store (field-pointer op 'right) right)
+            (store (field-pointer op 'target) target)
+            (store (field-pointer op 'source) 0)
+            (store (field-pointer op 'destination) destination)
+            (store (field-pointer arena 'count) reference)
+            reference))
+        (progn (store (field-pointer arena 'error) 1) 0))))
+
+(defun lir_record_type (arena reference code pointee source)
+  (declare (type (ptr native_lir_arena) arena)
+           (type usize reference pointee source)
+           (type u32 code) (returns c-int))
+  (if (= reference 0) 0
+      (let ((op (lir_instruction_at arena reference)))
+        (store (field-pointer op 'scalar_code) code)
+        (store (field-pointer op 'pointee) pointee)
+        (store (field-pointer op 'source) source)
+        1)))

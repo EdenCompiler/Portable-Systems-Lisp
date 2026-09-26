@@ -86,9 +86,24 @@
     (make-hir :kind :let :type (hir-type body)
               :value bindings :children (list body))))
 
+(defun analyze-while (form environment context)
+  (unless (cddr form)
+    (fail "WHILE requires a condition and a body"))
+  (let ((condition (analyze-expression (second form) environment context))
+        (body (analyze-progn (cddr form) environment context)))
+    (unless (eq (hir-type condition) :boolean)
+      (fail "WHILE condition must be a Boolean expression"))
+    (make-hir :kind :while :type :boolean
+              :children (list condition body))))
+
+(defun analyze-trivial-the (form environment context expected)
+  (unless (and (= (length form) 3) (eq (second form) t))
+    (fail "only (THE T expression) is supported in compiled source"))
+  (analyze-expression (third form) environment context expected))
+
 (defun binary-form-p (form)
   (or (some (lambda (name) (psl-form-p form name))
-            '("wrap+" "wrap-" "wrap*"))
+            '("wrap+" "wrap-" "wrap*" "bits-and" "shr64"))
       (form-p form "=")
       (form-p form "<")))
 
@@ -113,6 +128,9 @@
       (fail "operands of ~A have different machine types" operator))
     (unless (integer-type-p (hir-type left))
       (fail "~A requires machine integer operands" operator))
+    (when (and (equal operator "shr64")
+               (not (eq (hir-type left) :u64)))
+      (fail "SHR64 requires U64 operands"))
     (make-hir :kind :binary
               :type (if (member operator '("=" "<") :test #'equal)
                         :boolean (hir-type left))
@@ -248,6 +266,15 @@
       (fail "invalid source type for pointer conversion"))
     (make-hir :kind :pointer-cast :type type :children (list value))))
 
+(defun analyze-integer-cast (form environment context)
+  (unless (= (length form) 3)
+    (fail "WRAP-CAST requires an integer type and value"))
+  (let* ((type (type-name (second form) context))
+         (value (analyze-expression (third form) environment context)))
+    (unless (and (integer-type-p type) (integer-type-p (hir-type value)))
+      (fail "WRAP-CAST requires machine integer types"))
+    (make-hir :kind :integer-cast :type type :children (list value))))
+
 (defun analyze-expanded-expression (form environment context expected)
   (cond
       ((eq form nil) (make-hir :kind :literal
@@ -267,6 +294,10 @@
       ((psl-form-p form "without-allocation")
        (analyze-without-allocation form environment context expected))
       ((form-p form "let") (analyze-let form environment context expected))
+      ((form-p form "the")
+       (analyze-trivial-the form environment context expected))
+      ((psl-form-p form "while")
+       (analyze-while form environment context))
       ((form-p form "multiple-value-bind")
        (analyze-multiple-value-bind form environment context expected))
       ((form-p form "values")
@@ -290,6 +321,8 @@
        (analyze-pointer-cast form environment context nil))
       ((psl-form-p form "ptr-from-address")
        (analyze-pointer-cast form environment context t))
+      ((psl-form-p form "wrap-cast")
+       (analyze-integer-cast form environment context))
       ((ffi-form-p form "call")
        (analyze-ffi-call form environment context))
       ((ffi-form-p form "address-of")

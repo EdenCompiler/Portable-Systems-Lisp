@@ -8,6 +8,7 @@ trap 'rm -rf "$work_dir"' EXIT HUP INT TERM
 expect_error() {
   expected=$1
   source=$2
+  location_source=${3:-$source}
   if "$project_root/pslcc" -c "$source" -o "$work_dir/invalid.o" \
       >"$work_dir/stdout" 2>"$work_dir/stderr"; then
     printf 'Expected compilation failure: %s\n' "$source" >&2
@@ -18,7 +19,7 @@ expect_error() {
     printf 'Missing expected diagnostic: %s\n' "$expected" >&2
     exit 1
   fi
-  if ! grep -Eq "${source}:[0-9]+:[0-9]+" "$work_dir/stderr"; then
+  if ! grep -Eq "${location_source}:[0-9]+:[0-9]+" "$work_dir/stderr"; then
     cat "$work_dir/stderr" >&2
     printf 'Missing source location: %s\n' "$source" >&2
     exit 1
@@ -35,6 +36,45 @@ cat >"$work_dir/overflow.lisp" <<'SOURCE'
   256)
 SOURCE
 expect_error 'does not fit' "$work_dir/overflow.lisp"
+
+cat >"$work_dir/nonboolean-while.lisp" <<'SOURCE'
+(defun invalid (count)
+  (declare (type u64 count) (returns u64))
+  (while count (wrap+ count 1))
+  count)
+SOURCE
+expect_error 'WHILE condition must be a Boolean' \
+  "$work_dir/nonboolean-while.lisp"
+
+cat >"$work_dir/invalid-wrap-cast.lisp" <<'SOURCE'
+(defun invalid (address)
+  (declare (type (ptr u8) address) (returns u8))
+  (wrap-cast u8 address))
+SOURCE
+expect_error 'WRAP-CAST requires machine integer types' \
+  "$work_dir/invalid-wrap-cast.lisp"
+
+cat >"$work_dir/invalid-shr64.lisp" <<'SOURCE'
+(defun invalid (value)
+  (declare (type u8 value) (returns u8))
+  (shr64 value 1))
+SOURCE
+expect_error 'SHR64 requires U64' "$work_dir/invalid-shr64.lisp"
+
+cat >"$work_dir/include-a.lisp" <<'SOURCE'
+(include "include-b.lisp")
+SOURCE
+cat >"$work_dir/include-b.lisp" <<'SOURCE'
+(include "include-a.lisp")
+SOURCE
+expect_error 'circular source include' "$work_dir/include-a.lisp" \
+  "$work_dir/include-b.lisp"
+
+cat >"$work_dir/missing-include.lisp" <<'SOURCE'
+(include "missing-header.lisp")
+SOURCE
+expect_error 'included source file does not exist' \
+  "$work_dir/missing-include.lisp"
 
 cat >"$work_dir/unqualified-plus.lisp" <<'SOURCE'
 (defun invalid (x)

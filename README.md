@@ -83,6 +83,10 @@ AArch64 instructions and writes ELF objects itself; linking uses
 `--target=riscv64-linux-gnu` uses LP64D and ELF64 with the RISC-V GNU cross
 toolchain. `riscv64-none-elf` produces an ELF64 bare-metal object or a linked
 QEMU `virt` image. The compiler encodes all three machine backends itself.
+PSL's backends encode Lisp instructions and write ELF/COFF objects directly,
+without LLVM, external assemblers, or third-party code-generation libraries.
+Declared C sources use the selected C
+toolchain; system linkers produce executables and libraries.
 
 Freestanding links accept `--startup=linux-exit|qemu-virt`,
 `--entry=SYMBOL`, `--linker-script=FILE`, and `--map=FILE`. The `linux-exit`
@@ -121,6 +125,11 @@ The hosted profile is **not yet an ANSI Common Lisp implementation**. There
 is no numeric tower, conditions, CLOS, streams, or general `eval` yet. The
 RISC-V freestanding output boots on QEMU `virt` with the selected startup and
 linker script. Other bare-metal boards need their own startup and memory map.
+The [native bootstrap core](bootstrap/README.md) now compiles its own PSL
+modules and reproduces identical objects across successive native generations.
+Its driver and source traversal still use a temporary C host wrapper; the
+broader language and target corpus remains to be ported, so full self hosting
+is still in progress.
 See the [roadmap](docs/roadmap.md) for milestone status.
 
 ## Documentation and tests
@@ -129,6 +138,7 @@ See the [roadmap](docs/roadmap.md) for milestone status.
 - [Implemented core](docs/core.md) — what the current compiler accepts.
 - [Compiler pipeline](docs/compiler.md) and [source layout](docs/architecture.md).
 - [Hosted runtime](docs/runtime.md) and [examples](examples/README.md).
+- [Native bootstrap components](bootstrap/README.md).
 - [Engineering roadmap](docs/roadmap.md) and [contributor instructions](AGENTS.md).
 
 Run `sh tests/smoke.sh` for x86-64 Linux, `sh tests/windows.sh` for Windows,

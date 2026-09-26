@@ -1,7 +1,8 @@
 (defpackage #:psl
   (:use #:cl)
   (:shadow #:load #:export)
-  (:export #:defun/c #:extern-function #:wrap+ #:wrap- #:wrap* #:u64 #:s64
+  (:export #:defun/c #:extern-function #:wrap+ #:wrap- #:wrap* #:bits-and
+           #:shr64 #:wrap-cast #:while #:include #:u64 #:s64
            #:u8 #:u16 #:u32 #:s8 #:s16 #:s32 #:usize #:isize
            #:ptr #:load #:deref #:store #:pointer+ #:ptr-cast #:ptr-from-address
            #:defstruct/packed #:defcstruct #:field-pointer #:sizeof #:alignof #:offset-of

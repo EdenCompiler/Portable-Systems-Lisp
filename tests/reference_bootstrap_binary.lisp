@@ -1,0 +1,10 @@
+(load (merge-pathnames "../src/load.lisp" *load-truename*))
+
+(let ((buffer (psl.binary:byte-buffer)))
+  (psl.binary:emit-byte buffer #x7f)
+  (psl.binary:emit-integer buffer #x0102030405060708 8)
+  (psl.binary:patch-i32 buffer 1 -2)
+  (with-open-file (output (sb-ext:posix-getenv "PSL_BOOTSTRAP_REFERENCE")
+                          :direction :output :element-type '(unsigned-byte 8)
+                          :if-exists :supersede)
+    (write-sequence buffer output)))

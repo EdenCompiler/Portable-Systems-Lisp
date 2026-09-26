@@ -234,6 +234,12 @@
         (store-slot buffer 9 (lir-instruction-dst instruction)
                     (* part 8))))))
 
+(defun emit-convert (emitter instruction)
+  (let ((buffer (emitter-bytes emitter)))
+    (load-slot buffer 9 (first (lir-instruction-args instruction)))
+    (normalize buffer 9 (lir-instruction-type instruction))
+    (store-slot buffer 9 (lir-instruction-dst instruction))))
+
 (defun emit-binary (emitter instruction)
   (let* ((buffer (emitter-bytes emitter))
          (arguments (lir-instruction-args instruction))
@@ -248,6 +254,10 @@
        (register-op buffer #xcb000000 9 9 10))
       ((equal operation "wrap*")
        (register-op buffer #x9b007c00 9 9 10))
+      ((equal operation "bits-and")
+       (register-op buffer #x8a000000 9 9 10))
+      ((equal operation "shr64")
+       (register-op buffer #x9ac02400 9 9 10))
       ((member operation '("=" "<") :test #'equal)
        (register-op buffer #xeb00001f 31 9 10)
        (word buffer (logior #x9a9f07e0 9
@@ -385,6 +395,7 @@
     (:argument (emit-argument emitter instruction))
     (:constant (emit-constant emitter instruction))
     (:copy (emit-copy emitter instruction))
+    (:convert (emit-convert emitter instruction))
     (:binary (emit-binary emitter instruction))
     (:call (emit-call emitter instruction))
     (:data-address (emit-data-address emitter instruction))

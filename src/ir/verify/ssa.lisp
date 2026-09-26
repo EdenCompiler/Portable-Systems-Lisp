@@ -157,11 +157,14 @@
   (let* ((operation (ssa-instruction-value instruction))
          (operator (car operation))
          (operand-type (cdr operation)))
-    (unless (member operator '("wrap+" "wrap-" "wrap*" "=" "<")
+    (unless (member operator '("wrap+" "wrap-" "wrap*" "bits-and"
+                              "shr64" "=" "<")
                     :test #'equal)
       (fail "unknown SSA binary operator ~S" operator))
     (unless (integer-type-p operand-type)
       (fail "SSA binary operand type is not an integer"))
+    (when (and (equal operator "shr64") (not (eq operand-type :u64)))
+      (fail "SSA SHR64 requires U64"))
     (dolist (type types)
       (expect-same-type type operand-type "SSA binary operand"))
     (expect-same-type
@@ -265,6 +268,10 @@
        (expect-count types 1 "SSA copy")
        (expect-same-type type (first types) "SSA copy"))
       (:binary (verify-ssa-binary instruction types))
+      (:integer-cast
+       (expect-count types 1 "SSA integer cast")
+       (unless (and (integer-type-p type) (integer-type-p (first types)))
+         (fail "invalid SSA integer cast")))
       (:call (verify-ssa-call instruction types signatures))
       (:data-address
        (expect-count types 0 "SSA data address")

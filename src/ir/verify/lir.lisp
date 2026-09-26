@@ -61,11 +61,16 @@
          (fail "invalid LIR constant")))
       (:copy
        (expect-count types 1 "LIR copy")
-       (unless (or (equal type (first types))
+       (unless (equal type (first types))
+         (fail "LIR copy type mismatch")))
+      (:convert
+       (expect-count types 1 "LIR conversion")
+       (unless (or (and (integer-type-p type)
+                        (integer-type-p (first types)))
                    (and (pointer-type-p type)
                         (or (pointer-type-p (first types))
                             (eq (first types) :usize))))
-         (fail "LIR copy type mismatch")))
+         (fail "invalid LIR conversion")))
       (:binary
        (verify-ssa-binary
         (make-ssa-instruction :op :binary :type type :value value)

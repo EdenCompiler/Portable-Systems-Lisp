@@ -9,11 +9,14 @@
   (expect-count types 2 "binary operation")
   (let ((operation (car (hir-value node)))
         (operand-type (cdr (hir-value node))))
-    (unless (member operation '("wrap+" "wrap-" "wrap*" "=" "<")
+    (unless (member operation '("wrap+" "wrap-" "wrap*" "bits-and"
+                               "shr64" "=" "<")
                     :test #'equal)
       (fail "unknown HIR binary operation ~S" operation))
     (unless (integer-type-p operand-type)
       (fail "HIR binary operand must be a machine integer"))
+    (when (and (equal operation "shr64") (not (eq operand-type :u64)))
+      (fail "HIR SHR64 requires U64"))
     (dolist (type types)
       (expect-same-type type operand-type "binary operand"))
     (expect-same-type
@@ -119,9 +122,20 @@
          (expect-count types 3 "IF")
          (expect-same-type (second types) (third types) "IF branches")
          (expect-same-type (hir-type node) (second types) "IF result")))
+      (:while
+       (let ((types (verify-hir-children node environment signatures pointer-bits)))
+         (expect-count types 2 "WHILE")
+         (expect-same-type (first types) :boolean "WHILE condition")
+         (expect-same-type (hir-type node) :boolean "WHILE result")))
       (:binary
        (verify-hir-binary
         node (verify-hir-children node environment signatures pointer-bits)))
+      (:integer-cast
+       (let ((types (verify-hir-children node environment signatures pointer-bits)))
+         (expect-count types 1 "integer cast")
+         (unless (and (integer-type-p (hir-type node))
+                      (integer-type-p (first types)))
+           (fail "invalid HIR integer cast"))))
       (:call
        (verify-hir-call
         node (verify-hir-children node environment signatures pointer-bits)

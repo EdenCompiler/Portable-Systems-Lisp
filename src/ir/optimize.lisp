@@ -8,7 +8,8 @@
                (<= (length (ssa-block-instructions (first blocks))) 12)
                (every (lambda (instruction)
                         (member (ssa-instruction-op instruction)
-                                '(:argument :constant :binary :copy :cast)))
+                                '(:argument :constant :binary :copy :cast
+                                  :integer-cast)))
                       (ssa-block-instructions (first blocks))))
       (first blocks))))
 
@@ -83,6 +84,8 @@
        (wrap-integer (- left right) type pointer-bits))
       ((equal operator "wrap*")
        (wrap-integer (* left right) type pointer-bits))
+      ((equal operator "bits-and") (logand left right))
+      ((equal operator "shr64") (ash left (- (mod right 64))))
       ((equal operator "=") (if (= left right) 1 0))
       ((equal operator "<") (if (< left right) 1 0))
       (t (fail "unknown constant-fold operation ~A" operator)))))

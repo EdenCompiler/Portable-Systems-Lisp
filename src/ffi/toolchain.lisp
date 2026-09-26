@@ -91,7 +91,11 @@
 (defun resolve-c-source (declaration source)
   (let* ((name (car declaration))
          (*source-location* (cdr declaration))
-         (path (merge-pathnames name (source-directory source))))
+         (declaring-source
+           (or (and *source-location*
+                    (source-location-path *source-location*))
+               source))
+         (path (merge-pathnames name (source-directory declaring-source))))
     (unless (probe-file path)
       (fail "FFI:SOURCE file does not exist: ~A" name))
     (namestring (truename path))))

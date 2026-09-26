@@ -1,0 +1,11 @@
+(defun add (a b)
+  (declare (returns u64)
+           (type u64 a)
+           (c-export :c)
+           (type u64 b))
+  (wrap+ a b))
+
+(defun answer ()
+  (declare (c-export :c) (returns u64))
+  (add 1 1)
+  (add 20 22))

@@ -31,6 +31,12 @@ package, so source can use `u64`, `returns`, `wrap+`, and other extensions
 without a `psl:` prefix. The qualified spellings remain valid. Common Lisp
 `load` and `export` keep their meanings; pointer reads use `deref`, and C
 exports use `c-export`.
+Top-level `(include "relative-file.lisp")` splices another PSL source file into
+the same compilation unit, resolving the path relative to the file that names
+it. Repeated includes are read once; circular and missing includes are errors.
+This lets native compiler components stay in separate source files while
+sharing ordinary, unqualified PSL function calls. A nested `ffi:source` path
+is resolved relative to its declaring file.
 Top-level `defmacro` forms execute on the build host and become available to
 later forms in the same source file. Source input is trusted build code; reader
 macros and macro bodies may execute host Lisp. Target code is never executed
@@ -49,8 +55,10 @@ Ordinary `defun` is the preferred function syntax:
 ```
 
 Stage 0 requires simple parameter names, a leading `declare`, one machine type
-for every parameter, one `returns` declaration, and `(c-export :c)`. It
-also accepts the older `psl:defun/c` spelling. `defstruct/packed` declares a
+for every parameter, and one `returns` declaration. `(c-export :c)` makes the
+function visible to C; without it, the function is local to its object and
+can still be called by other PSL functions in the same source file. The older
+`psl:defun/c` spelling is also accepted. `defstruct/packed` declares a
 layout-known packed structure. `defcstruct` declares a naturally aligned C
 structure. C-compatible
 integer, raw-pointer, `f32`, and `f64` scalar arguments and returns are
@@ -78,7 +86,8 @@ ordinary unescaped Lisp names.
 
 Supported expressions are machine integer and floating literals, `t`, `nil`,
 lexical variables, `let`, `progn`, three-operand `if`, direct calls, `psl:wrap+`,
-`psl:wrap-`, `psl:wrap*`, `=`, `<`, `psl:pointer+`, `deref`, `psl:store`,
+`psl:wrap-`, `psl:wrap*`, `psl:bits-and`, `psl:shr64`, `psl:wrap-cast`,
+`psl:while`, `=`, `<`, `psl:pointer+`, `deref`, `psl:store`,
 `psl:ptr-cast`, `psl:ptr-from-address`, and `psl:field-pointer`. The compile-time
 queries `psl:sizeof`, `psl:alignof`, and `psl:offset-of` accept quoted type or
 field designators. `let` initializers see the outer lexical environment;
@@ -94,6 +103,13 @@ Wrapping operators compute modulo the type's width; signed results use two's
 complement. Comparisons produce internal Boolean values. Unqualified `cl:+`
 retains its Common Lisp meaning and is not supported in Stage 0 compiled
 expressions.
+`bits-and` performs a bitwise AND on equal machine integer types. `shr64`
+logically shifts a `u64` right by a `u64` count modulo 64. `wrap-cast` converts
+between machine integer types by retaining the destination-width low bits,
+then interpreting signed destinations as two's complement. `while` takes a
+Boolean condition and one or more body forms; it checks the condition before
+each iteration and returns false when the loop ends. These are PSL extensions,
+not redefinitions of Common Lisp arithmetic or `loop`.
 
 `f32` and `f64` correspond to C `float` and `double` in the implemented ABIs.
 Floating literals, parameters, calls, and returns work; floating arithmetic
@@ -211,8 +227,45 @@ Windows emits AMD64 COFF with `.text`, `.data`, `.pdata`, and `.xdata`, plus
 unwinding. Windows linked outputs use a zero linker timestamp, and DLLs use a
 stable image base for reproducible builds.
 
-The `x86_64-none-elf` target produces an object, not a bootable image. The
+The `none` targets emit runtime-free objects and can link static images with
+an explicit startup and linker script. The x86-64 `linux-exit` startup uses a
+Linux syscall; the RISC-V `qemu-virt` startup runs on QEMU without an OS. The
 hosted profile is not yet an ANSI Common Lisp implementation. Checked and
-saturating arithmetic, general static and arena storage,
-other targets remain
-on the [roadmap](roadmap.md).
+saturating arithmetic, general static and arena storage, and later targets
+remain on the [roadmap](roadmap.md).
+
+## Native bootstrap subset
+
+The native executable built by `tests/bootstrap_native_compiler.sh` has a
+separate, narrower source contract than Stage 0. It emits x86-64 SysV ELF
+objects for integer and raw pointer functions. The first six arguments use
+System V integer registers; later arguments use eight-byte stack slots, with
+padding after the final argument to preserve call alignment. Narrow values
+are normalized on entry. Arguments are evaluated in source order before their
+saved values are placed in ABI locations; nested and recursive calls work.
+Pointers use unqualified `(ptr TYPE)` forms, with earlier C structures and
+nested pointers as pointees. It supports `pointer+`, `deref`, `store`,
+`field-pointer`, `ptr-cast`, `ptr-from-address`, and Boolean `while` in addition
+to its integer, lexical, call, and conditional forms. Memory operations
+preserve Stage 0's width, signed extension, evaluation order, and result rules.
+Field designators may use `'field` or `(quote field)`. Pointee types remain
+part of call, local, and result checking; integer zero cannot implicitly
+become a pointer. Raw pointers, including address zero, are true in `if`.
+
+Top-level lowercase `(include "relative-file.lisp")` now splices source into
+the same unit. A native PSL parser identifies include forms and decodes their
+filenames; the temporary C host loader resolves canonical paths, reads files,
+deduplicates repeated includes, and rejects active include cycles. Nested paths
+are relative to the file naming them. Reader and include failures produce no
+object. This host traversal still needs to move into PSL.
+
+It does not yet support packages, general host macro execution, qualifiers, `void` pointers, floating accesses, or structure values. Its
+implemented subset now passes verified HIR, typed CFG/SSA, and flat LIR; the
+backend consumes virtual registers and explicit labels. Generic optimization
+and allocation-effect analysis still need native ports. It directly compiles
+its full native core, including frontend, IR verification, x86-64 encoding,
+and ELF writing. Successive native core generations reproduce identical
+objects and pass the native subset suite. The broader Stage 0 corpus, remaining
+targets and ABI/object features, and C driver/source traversal ports remain
+open, so it is still an M8 development slice. See [the bootstrap contract](../bootstrap/README.md)
+for its tests and remaining gate.

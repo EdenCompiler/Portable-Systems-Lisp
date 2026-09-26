@@ -1,0 +1,15 @@
+(defun add (a b)
+  (declare (type u64 a b)
+           (returns u64)
+           (c-export :c))
+  (wrap+ a b))
+
+(defun double_value (value)
+  (declare (type u64 value)
+           (returns u64)
+           (c-export :c))
+  (wrap* value 2))
+
+(defun answer ()
+  (declare (returns u64) (c-export :c))
+  (add 2 (double_value 20)))
