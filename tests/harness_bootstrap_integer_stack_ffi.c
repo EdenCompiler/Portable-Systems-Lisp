@@ -7,7 +7,11 @@ extern int64_t call_eleven(uint64_t *, int32_t *);
 int64_t foreign_eleven(uint64_t a, uint64_t b, uint64_t c, uint64_t d,
     uint64_t e, uint64_t f, uint64_t g, uint64_t h, int8_t i, uint16_t j, int32_t *p) {
     uintptr_t stack;
+    #if defined(__riscv)
+    __asm__ volatile("mv %0, sp" : "=r"(stack));
+#else
     __asm__ volatile("mov %0, sp" : "=r"(stack));
+#endif
     if ((stack & 15) || a != 1 || b != 2 || c != 3 || d != 4 ||
         e != 5 || f != 6 || g != 7 || h != 8 || i != -128 || j != 65535)
         return INT64_MIN;

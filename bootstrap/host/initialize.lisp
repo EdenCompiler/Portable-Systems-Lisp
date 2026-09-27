@@ -150,7 +150,7 @@
   (let ((record (field-pointer driver 'code)))
     (store (field-pointer record 'data) (deref (field-pointer (field-pointer driver 'storage) 'code)))
     (store (field-pointer record 'length) 0)
-    (store (field-pointer record 'capacity) 1048576)
+    (store (field-pointer record 'capacity) (native_code_capacity capacity))
     1))
 
 (defun native_initialize_object (driver capacity)
@@ -159,7 +159,7 @@
   (let ((record (field-pointer driver 'object)))
     (store (field-pointer record 'data) (deref (field-pointer (field-pointer driver 'storage) 'object)))
     (store (field-pointer record 'length) 0)
-    (store (field-pointer record 'capacity) 1200000)
+    (store (field-pointer record 'capacity) (native_object_capacity capacity))
     1))
 
 (defun native_initialize_context (driver capacity)

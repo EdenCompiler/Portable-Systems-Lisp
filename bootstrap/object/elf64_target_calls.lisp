@@ -6,7 +6,7 @@
 ;; writer validates encoded calls but does not emit CPU instructions.
 (defun elf_call_width (target)
   (declare (type u32 target) (returns usize))
-  (if (= (native_target_architecture target) 1) 5 (wrap-cast usize 4)))
+  (if (= target 2) 8 (if (= target 0) (wrap-cast usize 5) (wrap-cast usize 4))))
 
 (defun elf_call_field_offset (target)
   (declare (type u32 target) (returns usize))
@@ -14,7 +14,7 @@
 
 (defun elf_call_relocation_type (target)
   (declare (type u32 target) (returns u64))
-  (if (= (native_target_architecture target) 1) 4 (wrap-cast u64 283)))
+  (if (= target 2) 19 (if (= target 0) (wrap-cast u64 4) (wrap-cast u64 283))))
 
 (defun elf_call_addend (target)
   (declare (type u32 target) (returns u64))
@@ -24,16 +24,28 @@
   (declare (type u32 target) (returns usize))
   (if (= (native_target_architecture target) 2) 1 (wrap-cast usize 0)))
 
+(defun elf_rv_encoded_call_p (data imported)
+  (declare (type (ptr u8) data) (type usize imported) (returns c-int))
+  (let ((high (read_u32_le data)) (low (read_u32_le (pointer+ data 4))))
+    (if (= (bits-and high #xfff) #x97)
+        (if (= (bits-and low #xfffff) #x80e7)
+            (if (= imported 1) (if (= high #x97) (if (= low #x80e7) 1 0) 0) 1) 0) 0)))
+
+(defun elf_a64_encoded_call_p (data imported)
+  (declare (type (ptr u8) data) (type usize imported) (returns c-int))
+  (let ((word (read_u32_le data)))
+    (if (= (bits-and word #xfc000000) #x94000000)
+        (if (= imported 1) (if (= word #x94000000) 1 0) 1) 0)))
+
 (defun elf_encoded_call_p (code position target imported)
   (declare (type (ptr u8) code) (type usize position imported) (type u32 target) (returns c-int))
   (let ((data (pointer+ code (wrap-cast isize position))))
-    (if (= (native_target_architecture target) 1)
+    (if (= target 0)
         (if (= (deref data) #xe8)
             (if (= imported 1) (if (= (read_u32_le (pointer+ data 1)) 0) 1 0) 1) 0)
         (if (= (bits-and position 3) 0)
-            (let ((word (read_u32_le data)))
-              (if (= (bits-and word #xfc000000) #x94000000)
-                  (if (= imported 1) (if (= word #x94000000) 1 0) 1) 0)) 0))))
+            (if (= target 1) (elf_a64_encoded_call_p data imported)
+                (elf_rv_encoded_call_p data imported)) 0))))
 
 (defun elf_target_function_spans_p (functions count index target)
   (declare (type (ptr native_function) functions) (type usize count index) (type u32 target)

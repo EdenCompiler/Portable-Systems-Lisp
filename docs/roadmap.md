@@ -23,7 +23,7 @@ is updated. Dates and staffing are deliberately unspecified.
 | x86-64 none / ELF64 | M7 executable subset | Runtime-free static image with an explicit entry or generated `linux-exit` startup, linker script, and map. QEMU user-mode executes the explicit Linux-syscall startup without libc. |
 | RISC-V64 Linux / LP64D / ELF64 | M7 complete for documented subset | Self-encoded machine code, GP/FP and stack calls, small C structs, ELF call/GOT relocations, GNU cross linking, and QEMU execution. Larger aggregates, variadics, and `long double` remain unsupported. |
 | RISC-V64 none / ELF64 | M7 executable subset | QEMU `virt` image with explicit startup, stack setup, UART access from Lisp, and SiFive Test exit status; no firmware, OS, libc, or hosted runtime is linked. Other boards require their own startup and memory map. |
-| Self hosting | M8 in progress | Native PSL modules cover scanning, parsing, integer atoms, C structure layout, typed function signatures, arenas, byte emission, verified typed HIR/SSA/LIR, x86-64 encoding, and ELF writing for several functions. A restricted compiler handles integer/pointer signatures, memory, loops, casts, conditionals, and recursion and directly compiles integer rules, byte-emitter, arena, integer reader, and scanner modules. Stage 1–3 and the full corpus gate remain open. |
+| Self hosting | M8 in progress | Native PSL modules cover scanning, parsing, integer atoms, C structure layout, typed function signatures, arenas, byte emission, verified typed HIR/SSA/LIR, x86-64/AArch64/RISC-V64 encoding, and ELF writing for several functions. A restricted compiler handles integer/pointer signatures, memory, loops, casts, conditionals, and recursion and directly compiles integer rules, byte-emitter, arena, integer reader, and scanner modules. Stage 1–3 and the full corpus gate remain open. |
 | Hosted ANSI Common Lisp | Pending M9 | `--profile=hosted` has an M4 managed-value subset; numeric tower, conditions, CLOS, streams, `eval`, and conformance remain pending. |
 | Executables and libraries | Working on supported hosted targets | `pslcc` invokes the selected GCC linker for executables and shared libraries, and `ar` for deterministic `.a`; dynamic source selects only required runtime objects. |
 | macOS and Wasm | Pending M10 | No object writer or code generation for these targets yet. |
@@ -628,3 +628,30 @@ This advances subgates 3 and 5 for the documented native subset. M8 remains
 in progress: the complete compiler language/runtime, macros/packages, remaining
 ABI/data/object/target ports, OS adapter port, full corpus, and complete Stage
 1–3 comparisons remain required.
+
+### M8 native RISC-V64 output slice
+
+Native target ID 2 adds RISC-V64 Linux / LP64D / ELF64 for the existing typed
+integer/pointer/Boolean/void source subset. The shared frontend, effect check,
+optimizers, and verified HIR/SSA/LIR feed modular PSL instruction, frame,
+byte-wise memory, and branch encoders. Raw memory handles unaligned pointers;
+ABI conversion sign-extends unsigned 32-bit register/stack arguments and results
+without changing internal unsigned values. s0/ra are preserved, gp/tp stay
+untouched, and the stack remains sixteen-byte aligned.
+
+The ELF writer handles fixed AUIPC/JALR CALL_PLT pairs with zero import
+immediates/addends, validates both words and spans, emits LP64D flags, and omits
+RELAX to preserve internal patched distances. The native core exceeded the old
+1 MiB development buffer on this backend. Hosted storage now derives checked
+code/object capacities from source size; the call writer's text bound follows
+signed paired PC-relative reach. Allocation fault/overflow/cleanup checks cover
+these changes.
+
+`make test-native-riscv64` runs the shared native ELF gate at O0/O1 against
+Stage 0 behavior, C-built register/stack/pointer tests, raw unsigned-32 ABI and
+unaligned-memory checks, ELF/relocation inspection, static/shared libraries,
+three QEMU native subset generations of all four compiler units, and artifact
+comparisons on RISC-V and x86-64 output. `make test-native-aarch64` uses the same
+runner; each target has a small wrapper. Native COFF, broader ABI/data/runtime
+features, general source packages/macros, remaining host services, and complete
+Stage 1–3 corpus gates remain open. This advances M8; it does not complete it.

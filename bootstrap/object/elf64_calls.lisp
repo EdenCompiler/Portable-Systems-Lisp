@@ -113,7 +113,7 @@
                              names) relocation_bytes)))
       (if (= (room_for buffer (wrap+ sections 512)) 0) 0
           (progn
-            (emit_elf_header buffer sections (native_target_elf_machine output_target) 0)
+            (emit_elf_header buffer sections (native_target_elf_machine output_target) (native_target_elf_flags output_target))
             (emit_source_bytes buffer code code_size)
             (emit_zero_until buffer (align8 (deref (field-pointer buffer 'length))))
             (emit_elf_call_relocations buffer functions count fixups 0 output_target)
@@ -129,7 +129,7 @@
            (type usize code_size count) (returns c-int))
   (if (= count 0) 0
       (if (< 16777215 count) 0
-          (if (< 1048576 code_size) 0
+          (if (< 2147481592 code_size) 0
               (if (= (deref (field-pointer buffer 'length)) 0)
                   (if (= (valid_function_names_p functions count) 0) 0
                       (valid_function_spans_p functions count code_size)) 0)))))

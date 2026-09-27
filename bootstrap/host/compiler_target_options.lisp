@@ -8,18 +8,24 @@
               (if (= (deref text) (wrap-cast u8 bits))
                   (compiler_text_matches (pointer+ text 1) (shr64 bits 8) (wrap- remaining 1)) 0)))))
 
-;; Chunk constants spell "=x86_64-", "linux-gn", "u", or
-;; "=aarch64", "-linux-g", "nu" in little-endian byte order.
+;; Target suffixes use two eight-byte chunks and a one/two-byte tail.
+(defun compiler_target_suffix_p (text first second tail size)
+  (declare (type (ptr u8) text) (type u64 first second tail) (type usize size) (returns c-int))
+  (if (= (compiler_text_matches text first 8) 1)
+      (if (= (compiler_text_matches (pointer+ text 8) second 8) 1)
+          (if (= (compiler_text_matches (pointer+ text 16) tail size) 1)
+              (if (= (deref (pointer+ text (wrap-cast isize (wrap+ 16 size)))) 0) 1 0) 0) 0) 0))
+
 (defun compiler_parse_target_tail (text)
   (declare (type (ptr u8) text) (returns c-int))
-  (if (= (compiler_text_matches text #x2d34365f3638783d 8) 1)
-      (if (= (compiler_text_matches (pointer+ text 8) #x6e672d78756e696c 8) 1)
-          (if (= (compiler_text_matches (pointer+ text 16) #x75 1) 1)
-              (if (= (deref (pointer+ text 17)) 0) 0 -1) -1) -1)
-      (if (= (compiler_text_matches text #x343668637261613d 8) 1)
-          (if (= (compiler_text_matches (pointer+ text 8) #x672d78756e696c2d 8) 1)
-              (if (= (compiler_text_matches (pointer+ text 16) #x756e 2) 1)
-                  (if (= (deref (pointer+ text 18)) 0) 1 -1) -1) -1) -1)))
+  (cond
+    ;; "=x86_64-", "linux-gn", "u"
+    ((= (compiler_target_suffix_p text #x2d34365f3638783d #x6e672d78756e696c #x75 1) 1) 0)
+    ;; "=aarch64", "-linux-g", "nu"
+    ((= (compiler_target_suffix_p text #x343668637261613d #x672d78756e696c2d #x756e 2) 1) 1)
+    ;; "=riscv64", "-linux-g", "nu"
+    ((= (compiler_target_suffix_p text #x343676637369723d #x672d78756e696c2d #x756e 2) 1) 2)
+    (t -1)))
 
 ;; The prefix chunk spells "--target".
 (defun compiler_parse_target (text)

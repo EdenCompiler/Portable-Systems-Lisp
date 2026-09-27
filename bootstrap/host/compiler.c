@@ -24,7 +24,7 @@ void native_host_report_error(uint32_t kind, const uint8_t *text,
     case NATIVE_HOST_WRITE:
         fprintf(stderr, "cannot write object: %s\n", (const char *)text); break;
     case NATIVE_HOST_USAGE:
-        fputs("usage: pslcc-native-slice [-O0|-O1] [--target=x86_64-linux-gnu|--target=aarch64-linux-gnu] SOURCE.lisp OUTPUT.o\n", stderr); break;
+        fputs("usage: pslcc-native-slice [-O0|-O1] [--target=x86_64-linux-gnu|--target=aarch64-linux-gnu|--target=riscv64-linux-gnu] SOURCE.lisp OUTPUT.o\n", stderr); break;
     case NATIVE_HOST_LAYOUT:
         fprintf(stderr, "cannot register layout at byte %" PRIuPTR "\n", position); break;
     case NATIVE_HOST_IMPORT:

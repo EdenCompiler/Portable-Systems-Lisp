@@ -12,6 +12,8 @@
       (if (< (wrap* count factor) (wrap* count (wrap- factor 1)))
           0 (native_count_product_fits count (wrap- factor 1)))))
 
+(include "output_capacity.lisp")
+
 (defun native_allocate_frontend (storage capacity)
   (declare (type (ptr native_storage) storage) (type usize capacity)
            (returns c-int))
@@ -112,9 +114,9 @@
   (store (field-pointer storage 'labels)
          (ptr-cast (ptr usize) (ffi:call calloc (wrap* capacity 3) (sizeof 'usize))))
   (store (field-pointer storage 'code)
-         (ptr-cast (ptr u8) (ffi:call calloc 1048576 (sizeof 'u8))))
+         (ptr-cast (ptr u8) (ffi:call calloc (native_code_capacity capacity) (sizeof 'u8))))
   (store (field-pointer storage 'object)
-         (ptr-cast (ptr u8) (ffi:call calloc 1200000 (sizeof 'u8))))
+         (ptr-cast (ptr u8) (ffi:call calloc (native_object_capacity capacity) (sizeof 'u8))))
   (cond
     ((= (ptr-address (deref (field-pointer storage 'calls))) 0) 0)
     ((= (ptr-address (deref (field-pointer storage 'jumps))) 0) 0)

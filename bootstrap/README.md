@@ -4,7 +4,7 @@
 includes separate source modules in one translation unit so their functions
 use ordinary Lisp calls. Stage 0 builds the initial core. The resulting native
 compiler can now compile every module included by `native-core.lisp`, including
-its frontend, IR verifiers, x86-64 and AArch64 encoders, and ELF writer. A temporary C
+its frontend, IR verifiers, x86-64, AArch64, and RISC-V64 encoders, and ELF writer. A temporary C
 adapter still supplies file I/O, canonical paths, and diagnostic rendering.
 Allocation, initialization, cleanup, source traversal, argument validation,
 compilation flow, and diagnostic selection live in PSL, with
@@ -89,7 +89,7 @@ The native modules currently implement:
   parallel `let` scope, and local values occupy stack slots. Recursive calls
   work. Calls pass the first six integer or pointer arguments through the
   System V registers on x86-64, or the first eight through AAPCS64 registers
-  on AArch64; further arguments use eight-byte stack slots.
+  on AArch64/RISC-V64; further arguments use eight-byte stack slots.
   SSA evaluates arguments in source order and the LIR backend loads their
   saved values for calls, preserving stack alignment. C tests cover seven,
   eight, and nine parameters, signed narrow values and pointers on the stack,
@@ -114,7 +114,7 @@ The native modules currently implement:
   their value and evaluate the address before the value. A Boolean `while`
   reevaluates its condition before each iteration and returns `nil`. Raw
   pointer zero remains true in `if`, as in the Stage 0 machine subset.
-  Its x86-64/AArch64 instruction encoders and ELF writers are in PSL;
+  Its x86-64/AArch64/RISC-V64 instruction encoders and ELF writers are in PSL;
   they invoke neither LLVM nor an assembler. The updated native slice runs
   on x86-64 Linux and Windows/Wine hosts and produces byte-identical objects.
   Stage 0 also cross-compiles the combined native unit to AArch64 and RISC-V64
@@ -210,7 +210,7 @@ confirming that the native source-to-object path needs no external tools.
 The integer reader checks radices, signs, token bounds, and overflow.
 
 Calls within the native object are resolved to relative x86-64 displacements
-or AArch64 BL immediates after all function offsets are known;
+or AArch64 BL / RISC-V AUIPC+JALR immediates after all function offsets are known;
 the object has no unresolved symbols or linker relocations for these calls.
 
 The component tests run `-O0` and `-O1`, compare byte emission with Stage 0,
@@ -361,8 +361,8 @@ the M8 gate.
 
 ## Native AArch64 output
 
-The native compiler accepts `--target=x86_64-linux-gnu` (default) and
-`--target=aarch64-linux-gnu`. Either target option can precede or follow `-O0`
+The native compiler accepts `--target=x86_64-linux-gnu` (default),
+`--target=aarch64-linux-gnu`, and `--target=riscv64-linux-gnu`. Either target option can precede or follow `-O0`
 or `-O1`, before the source and output paths. Unknown targets and duplicate
 options fail before reading source or allocating compiler storage.
 
@@ -397,8 +397,61 @@ AArch64 native subset generations. It compares those units and fixture objects,
 and confirms an AArch64 compiler host still produces identical x86-64 output.
 The native core has no undefined runtime imports. The same temporary C OS
 adapters remain linked at each generation. Floating-point/aggregate ABIs, data
-symbols, COFF/RISC-V native output, general packages/macros, and the complete
+symbols, COFF native output, general packages/macros, and the complete
 Stage 0 corpus remain open parts of M8.
 
 Encoding and object contracts follow Arm's [AAPCS64](https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst)
 and [ELF for AArch64](https://github.com/ARM-software/abi-aa/blob/main/aaelf64/aaelf64.rst).
+
+## Native RISC-V64 output
+
+`--target=riscv64-linux-gnu` selects native target ID 2 (RISC-V64 / LP64D /
+Linux / ELF64). Like the AArch64 target, it covers the documented native machine
+integer, pointer, Boolean, void, direct-call, control-flow, and memory subset.
+The generated ISA is RV64IM; ELF flags declare the LP64D link ABI (flag 4),
+without compressed instructions. Floating-point/aggregate source signatures
+are still rejected by native analysis.
+
+The encoder uses a0–a7 for arguments and a0 for results, preserves s0/ra,
+keeps SP sixteen-byte aligned, and leaves gp/tp untouched. s0 points at the
+entry SP; the saved frame pointer and return address lie at s0-16/-8.
+Narrow inputs/results are normalized internally. Unsigned 32-bit values are
+sign-extended at argument/result ABI boundaries as required by the psABI,
+while ordinary PSL arithmetic and casts retain their unsigned representation.
+Raw pointer operations use byte-wise memory access to support unaligned data.
+
+Calls and label jumps use fixed AUIPC/JALR pairs. Internal pairs are patched
+with signed PC-relative offsets; imported calls use `R_RISCV_CALL_PLT`, zero
+addends, and zero immediate placeholders. The writer validates both words,
+registers, alignment, spans, import references, and nonoverlapping fixups.
+No `R_RISCV_RELAX` relocations are emitted, so linker code deletion cannot
+invalidate already patched internal distances. Text is bounded by the paired
+instruction reach (2,147,481,592 bytes), while caller-owned buffer capacity
+still controls actual emission. The separate standalone ELF writer APIs retain
+their earlier bounds.
+
+Hosted driver output buffers now scale from source-unit capacity: the code
+buffer reserves 1 MiB plus 16 bytes per source byte/node capacity, and the
+object buffer adds 64 bytes per capacity plus 1 KiB for ELF overhead. Products
+and additions are checked before allocation. Allocation failures and exhaustion
+produce compilation failure and release all storage; this is bounded storage,
+not a promise to accept arbitrary source size. Existing nineteen-allocation
+fault/cleanup checks cover the larger buffers and boundary overflow cases.
+
+```sh
+make
+build/pslcc-native --target=riscv64-linux-gnu tests/bootstrap_stack_arguments.lisp build/stack-riscv64.o
+make test-native-riscv64
+```
+
+`tests/bootstrap_native_elf.sh` owns the shared AArch64/RISC-V native output
+gate; the target scripts select toolchains/runners. It checks O0/O1 C behavior
+against Stage 0, deterministic ELF objects, static/shared library calls, and
+three native subset generations of all four compiler units under QEMU.
+RISC-V-specific C boundary checks inspect raw unsigned-32 register/stack/return
+bits and unaligned memory, and generation outputs reproduce those fixtures.
+The ABI follows the [RISC-V psABI](https://riscv-non-isa.github.io/riscv-elf-psabi-doc/).
+
+M8 remains open: general source packages/macros, broader managed/runtime and
+ABI/data ports, native COFF, the remaining OS adapters, and full Stage 1–3
+source/object/interop corpus comparisons are still required.

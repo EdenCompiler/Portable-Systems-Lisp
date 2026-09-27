@@ -29,8 +29,8 @@ void *__wrap_calloc(size_t count, size_t size) {
     assert(index < 19);
     if (index == 11) expected *= 6;
     if (index == 12 || index == 15 || index == 16) expected *= 3;
-    if (index == 17) expected = 1048576;
-    if (index == 18) expected = 1200000;
+    if (index == 17) expected = 1048576 + 16 * capacity;
+    if (index == 18) expected = 1049600 + 80 * capacity;
     assert(count == expected && size == item_sizes[index]);
     if (allocation_count == fail_at) return NULL;
     allocations[index] = __real_calloc(count, size);
@@ -105,8 +105,8 @@ static void check_initialized(struct native_driver *d) {
     assert(d->calls.items == d->storage.calls && d->calls.capacity == cap);
     assert(d->jumps.items == d->storage.jumps && d->jumps.capacity == 3 * cap);
     assert(!d->calls.count && !d->calls.error && !d->jumps.count && !d->jumps.error);
-    assert(d->code.data == d->storage.code && d->code.capacity == 1048576);
-    assert(d->object.data == d->storage.object && d->object.capacity == 1200000);
+    assert(d->code.data == d->storage.code && d->code.capacity == 1048576 + 16 * cap);
+    assert(d->object.data == d->storage.object && d->object.capacity == 1049600 + 80 * cap);
     assert(!d->code.length && !d->object.length);
     assert(d->context.parser == &d->parser && d->context.source == d->source);
     assert(d->context.integer == &d->integer && d->context.hir == &d->hir);
@@ -156,7 +156,7 @@ static void test_prepare_compile_release(void) {
 
 static void test_invalid_capacity(void) {
     struct native_driver driver = {0};
-    const size_t lengths[] = {SIZE_MAX, SIZE_MAX / 6, SIZE_MAX / 2};
+    const size_t lengths[] = {SIZE_MAX, SIZE_MAX / 6, SIZE_MAX / 2, SIZE_MAX / 80, (SIZE_MAX - 1049600) / 80};
     size_t i;
     assert(!native_prepare_driver(&driver));
     assert(native_release_driver(&driver));

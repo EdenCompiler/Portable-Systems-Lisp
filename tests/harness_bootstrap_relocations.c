@@ -47,8 +47,40 @@ static int check_aarch64(void) {
     return rejected_target(1, code, sizeof code, functions, 2, &fixups);
 }
 
+static int check_riscv64(void) {
+    /* AUIPC ra,0; JALR ra,ra,0; RET, independent of the PSL encoder. */
+    uint8_t code[] = {0x97, 0, 0, 0, 0xe7, 0x80, 0, 0, 0x67, 0x80, 0, 0};
+    struct native_function functions[] = {
+        {.name=(const uint8_t *)"imported", .name_length=8, .imported=1, .referenced=1},
+        {.name=(const uint8_t *)"caller", .name_length=6, .size=sizeof code, .exported=1}
+    };
+    struct native_call_fixup fixup = {0, 1};
+    struct native_fixup_arena fixups = {&fixup, 1, 1, 0};
+    uint8_t bytes[2048];
+    struct byte_buffer output = {bytes, 0, sizeof bytes};
+    if (!write_elf64_calls_target(NATIVE_TARGET_RISCV64_LINUX, code, sizeof code,
+                                  functions, 2, &fixups, &output)) return 0;
+    if (bytes[18] != 243 || bytes[48] != 4) return 0;
+    fixup.instruction = 1;
+    if (!rejected_target(2, code, sizeof code, functions, 2, &fixups)) return 0;
+    fixup.instruction = 0;
+    code[2] = 1; /* Imported AUIPC must have a zero immediate. */
+    if (!rejected_target(2, code, sizeof code, functions, 2, &fixups)) return 0;
+    code[2] = 0;
+    code[7] = 1; /* Imported JALR must also have a zero immediate. */
+    if (!rejected_target(2, code, sizeof code, functions, 2, &fixups)) return 0;
+    code[7] = 0;
+    code[5] = 0; /* JALR's source must match the AUIPC return-address register. */
+    if (!rejected_target(2, code, sizeof code, functions, 2, &fixups)) return 0;
+    code[5] = 0x80;
+    functions[1].size = 4;
+    if (!rejected_target(2, code, 4, functions, 2, &fixups)) return 0;
+    return rejected_target(2, code, UINTPTR_MAX, functions, 2, &fixups);
+}
+
 int main(void) {
     if (!check_aarch64()) return 15;
+    if (!check_riscv64()) return 16;
     uint8_t code[] = {0xe8, 0, 0, 0, 0, 0xc3};
     struct native_function functions[] = {
         {.name=(const uint8_t *)"imported", .name_length=8, .imported=1, .referenced=1},

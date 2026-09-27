@@ -61,10 +61,12 @@ cleanup, and build variables. For example, `make PSLFLAGS=-O0` selects
 unoptimized compilation on a fresh build; `make clean` removes generated files.
 
 The native subset compiler emits x86-64 Linux ELF by default. Select
-`--target=aarch64-linux-gnu` for AAPCS64 ELF output. Its instruction encoders
+`--target=aarch64-linux-gnu` for AAPCS64 ELF or
+`--target=riscv64-linux-gnu` for LP64D ELF output. Its instruction encoders
 and object writer are implemented in PSL. Run `make test-native-aarch64` with
 the AArch64 C toolchain and QEMU to check C calls and successive native subset
-generations on AArch64. Full self hosting remains in progress.
+generations on AArch64. `make test-native-riscv64` runs the corresponding
+RISC-V gate. Full self hosting remains in progress.
 
 ## Source and C interop
 

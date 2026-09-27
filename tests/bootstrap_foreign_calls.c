@@ -2,10 +2,14 @@
 
 /* Inspect the ABI stack alignment at an imported boundary. Assembly is
    confined to this test provider; PSL encodes its own instructions. */
-#if defined(__aarch64__)
+#if defined(__aarch64__) || defined(__riscv)
 static uint64_t entry_alignment(void) {
     uintptr_t stack;
+#if defined(__riscv)
+    __asm__ volatile("mv %0, sp" : "=r"(stack));
+#else
     __asm__ volatile("mov %0, sp" : "=r"(stack));
+#endif
     return stack & 15;
 }
 #define EXPECTED_ALIGNMENT 0

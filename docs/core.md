@@ -243,9 +243,9 @@ remain on the [roadmap](roadmap.md).
 ## Native bootstrap subset
 
 The native executable built by `tests/bootstrap_native_compiler.sh` has a
-separate, narrower source contract than Stage 0. It emits x86-64 SysV or AArch64 AAPCS64 ELF
+separate, narrower source contract than Stage 0. It emits x86-64 SysV, AArch64 AAPCS64, or RISC-V64 LP64D ELF
 objects for integer and raw pointer functions. The first six (x86-64) or eight
-(AArch64) arguments use integer registers; later arguments use eight-byte stack slots, with
+(AArch64/RISC-V64) arguments use integer registers; later arguments use eight-byte stack slots, with
 padding after the final argument to preserve call alignment. Narrow values
 are normalized on entry. Arguments are evaluated in source order before their
 saved values are placed in ABI locations; nested and recursive calls work.
@@ -313,7 +313,7 @@ and `native_compiler_main(argc, argv)`. It owns source loading, preparation,
 unit compilation, output selection, and cleanup, and maps failing phases to
 diagnostic locations. The native subset CLI takes `[-O0|-O1] [--target=TARGET] SOURCE.lisp OUTPUT.o`;
 it does not yet accept Stage 0's other options. Supported native targets are
-`x86_64-linux-gnu` and `aarch64-linux-gnu`. Status is 0 on
+`x86_64-linux-gnu`, `aarch64-linux-gnu`, and `riscv64-linux-gnu`. Status is 0 on
 success, 1 for rejected language input, and 2 for usage, I/O, or allocation
 failure. Arguments are inspected only for the expected count. Repeated run
 calls allocate independent state and release it on every return. The temporary
@@ -384,7 +384,7 @@ return a usage failure. In-memory callers set `context.optimization` to 0 or 1;
 `native_prepare_driver` initializes it to 1. The exported optimizer rejects
 invalid SSA before mutation. Managed/indirect effect support still needs a native
 port. It directly compiles
-its full native core, including frontend, IR verification, x86-64/AArch64 encoding,
+its full native core, including frontend, IR verification, x86-64/AArch64/RISC-V64 encoding,
 and ELF writing. Successive native core generations reproduce identical
 objects and pass the native subset suite. The broader Stage 0 corpus, remaining
 targets and ABI/object features, and the remaining C file/diagnostic/path adapter ports remain
@@ -394,14 +394,15 @@ for its tests and remaining gate.
 ### Native output target selection
 
 The native subset uses target IDs 0 (x86-64 Linux / SysV / ELF64, default) and
-1 (AArch64 Linux / AAPCS64 / ELF64). `context.target` selects the output target;
+1 (AArch64 Linux / AAPCS64 / ELF64), and
+2 (RISC-V64 Linux / LP64D / ELF64). `context.target` selects the output target;
 `native_prepare_driver` initializes it to 0. An unsupported ID fails with phase
 10 before source collection. `native_run_compiler_target(source, output, level,
 target)` validates level and target before any source read or allocation.
 The CLI accepts either supported `--target=...`, optionally together with
 `-O0`/`-O1` in either order, before `SOURCE OUTPUT.o`.
 
-Both output targets cover the current native integer/pointer/Boolean/void
+All three output targets cover the current native integer/pointer/Boolean/void
 subset with the same frontend and HIR/SSA/LIR verification. AArch64 uses eight
 integer argument registers, 8-byte stack argument slots, aligned frames with
 saved FP/LR, direct internal calls, and `R_AARCH64_CALL26` imports. The native
@@ -410,3 +411,16 @@ API defaults to x86-64; `write_elf64_calls_target` selects explicitly. Backend
 and ELF validation reject unaligned AArch64 call/function spans and malformed
 import placeholders. This does not add native floating-point, aggregate, data,
 or general dynamic-language support.
+
+Native RISC-V64 emits RV64IM instructions with LP64D ELF machine 243 and flag
+4. Calls/jumps use fixed AUIPC/JALR pairs; imported calls use CALL_PLT (19),
+zero addends, and no RELAX relocation. The writer rejects malformed pairs,
+unaligned functions/fixups, overlapping call spans, and inconsistent imports.
+Saved s0/ra and eight incoming argument registers occupy an aligned frame; s0
+is the entry SP. Further arguments use eight-byte stack slots. C argument and
+result boundaries sign-extend unsigned 32-bit values; internal values remain
+zero-extended. Raw loads/stores use byte accesses for unaligned pointers.
+Hosted native code/object buffers scale with source capacity and reject product
+or additive overflow before allocation. The multi-function call writer accepts
+text up to 2,147,481,592 bytes within caller-supplied storage, replacing its old
+1 MiB development limit. Other standalone writer APIs retain their old limits.

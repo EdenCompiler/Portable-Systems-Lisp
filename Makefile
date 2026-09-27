@@ -15,7 +15,7 @@ NATIVE_SOURCE := $(BUILD_DIR)/native-source.o
 NATIVE_DRIVER := $(BUILD_DIR)/native-driver.o
 
 .PHONY: all native stage0 example test test-native test-self-core \
-        test-windows test-aarch64 test-native-aarch64 test-riscv64 clean help
+        test-windows test-aarch64 test-native-aarch64 test-native-riscv64 test-riscv64 clean help
 
 all: native
 native: $(NATIVE_COMPILER)
@@ -69,6 +69,9 @@ test-aarch64:
 test-native-aarch64: native
 	sh tests/bootstrap_native_aarch64.sh
 
+test-native-riscv64: native
+	sh tests/bootstrap_native_riscv64.sh
+
 test-riscv64:
 	sh tests/riscv64.sh
 
@@ -86,6 +89,7 @@ help:
 	@echo 'make test-windows      Run Windows checks (MinGW-w64 and Wine required)'
 	@echo 'make test-aarch64      Run AArch64 checks (cross compiler and QEMU required)'
 	@echo 'make test-native-aarch64 Check native AArch64 output and generations with QEMU'
+	@echo 'make test-native-riscv64 Check native RISC-V output and generations with QEMU'
 	@echo 'make test-riscv64      Run RISC-V checks (cross toolchains and QEMU required)'
 	@echo 'make clean             Remove generated Makefile artifacts'
 	@echo 'Variables: PSLCC, PSLFLAGS, BUILD_DIR, CC, CPPFLAGS, CFLAGS, LDFLAGS, LDLIBS'
