@@ -8,18 +8,19 @@
         (lir (deref (field-pointer context 'lir))))
     (let ((value (ssa_value_at ssa reference)))
       (let ((kind (deref (field-pointer value 'kind))))
-        (if (= kind 28) 1
-            (if (= kind 17) 1
-                (let ((result (lir_allocate lir kind reference (deref (field-pointer value 'left))
-                                            (deref (field-pointer value 'right))
-                                            (deref (field-pointer value 'target)))))
-                  (if (= result 0) 0
-                      (progn
-                        (store (field-pointer (lir_instruction_at lir result) 'value)
-                               (deref (field-pointer value 'value)))
-                        (lir_record_type lir result (deref (field-pointer value 'scalar_code))
-                                         (deref (field-pointer value 'pointee))
-                                         (deref (field-pointer value 'source))))))))))))
+        (if (= (deref (field-pointer value 'live)) 0) 1
+            (if (= kind 28) 1
+                (if (= kind 17) 1
+                    (let ((result (lir_allocate lir kind reference (deref (field-pointer value 'left))
+                                                (deref (field-pointer value 'right))
+                                                (deref (field-pointer value 'target)))))
+                      (if (= result 0) 0
+                          (progn
+                            (store (field-pointer (lir_instruction_at lir result) 'value)
+                                   (deref (field-pointer value 'value)))
+                            (lir_record_type lir result (deref (field-pointer value 'scalar_code))
+                                             (deref (field-pointer value 'pointee))
+                                             (deref (field-pointer value 'source)))))))))))))
 
 (defun lir_lower_values (context reference)
   (declare (type (ptr native_compile_context) context)
@@ -35,7 +36,9 @@
   (if (= reference 0) 1
       (let ((value (ssa_value_at (deref (field-pointer context 'ssa)) reference)))
         (if (= (deref (field-pointer value 'kind)) 28)
-            (let ((incoming (if (= predecessor (deref (field-pointer value 'predecessor_left)))
+            (if (= (deref (field-pointer value 'live)) 0)
+                (lir_lower_edge_copies context predecessor (deref (field-pointer value 'next)))
+                (let ((incoming (if (= predecessor (deref (field-pointer value 'predecessor_left)))
                                 (deref (field-pointer value 'left))
                                 (deref (field-pointer value 'right))))
                   (lir (deref (field-pointer context 'lir))))
@@ -43,7 +46,7 @@
                 (if (= (lir_record_type lir copy (deref (field-pointer value 'scalar_code))
                                         (deref (field-pointer value 'pointee))
                                         (deref (field-pointer value 'source))) 0) 0
-                    (lir_lower_edge_copies context predecessor (deref (field-pointer value 'next))))))
+                    (lir_lower_edge_copies context predecessor (deref (field-pointer value 'next)))))))
             1))))
 
 (defun lir_lower_edge (context predecessor successor)
@@ -109,4 +112,4 @@
     (store (field-pointer lir 'types) (deref (field-pointer ssa 'types)))
     (store (field-pointer lir 'value_count) (deref (field-pointer ssa 'value_count)))
     (store (field-pointer lir 'label_count) (deref (field-pointer ssa 'block_count)))
-    (lir_lower_blocks context 1)))
+    (if (= (ssa_verify_liveness context) 0) 0 (lir_lower_blocks context 1))))

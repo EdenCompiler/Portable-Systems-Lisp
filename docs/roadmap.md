@@ -473,8 +473,22 @@ signedness, modulo-64 shifts, joins, and effectful zero/null truth; the optimize
 native object is smaller. Both native modes also run stack, memory, mixed-type,
 foreign, and void interop harnesses. Mutation tests reject invalid SSA before
 optimizer mutation, and the generation gate compiles/reproduces the pass itself.
-This advances subgate 2; CFG simplification, inlining, dead-value removal, effects,
+This advances subgate 2; CFG simplification, inlining, effects,
 and the rest of the M8 gate remain open.
+
+Native dead-value removal now follows folding. A PSL liveness pass roots every
+condition/return, call, store, and load, then follows value dependencies through
+PHIs and call argument chains. LIR omits unmarked computations and PHI edge
+copies while preserving SSA IDs/catalog records. Liveness verification checks
+root coverage, dependency closure, and flag validity before lowering; structural
+SSA verification still covers the entire proof representation. Loads remain
+conservative roots pending native memory qualifiers/effects. An argument-dependent
+unused expression shrinks independently of folding, and C fixtures verify that
+discarded joins, stores, loads, and void results preserve observable behavior.
+Mutation fixtures reject omitted roots/argument links and confirm dead PHIs have
+no LIR definitions. The generation gate rebuilds and reproduces this pass.
+This ports dead pure-value removal for the native subset; CFG simplification,
+inlining, effects, the full source/target ports, and complete M8 gates remain open.
 
 The native compiler now compiles every module included by its own
 `bootstrap/native-core.lisp`. `sh tests/bootstrap_self_core.sh` builds three

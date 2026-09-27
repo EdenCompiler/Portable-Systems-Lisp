@@ -13,7 +13,8 @@
   (block usize)
   (next usize)
   (predecessor_left usize)
-  (predecessor_right usize))
+  (predecessor_right usize)
+  (live c-int))
 
 (defcstruct native_ssa_block
   (first usize)

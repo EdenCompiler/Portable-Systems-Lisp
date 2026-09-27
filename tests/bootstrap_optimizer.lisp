@@ -89,3 +89,27 @@
   (while (< (deref counter) 44)
     (store counter (wrap+ (deref counter) 1)))
   (deref counter))
+
+(defun dead_arithmetic (input)
+  (declare (type u64 input) (returns u64) (c-export :c))
+  (wrap* (wrap+ input 17) (wrap- input 3))
+  42)
+
+(defun dead_join (choice counter)
+  (declare (type u64 choice) (type (ptr u64) counter)
+           (returns u64) (c-export :c))
+  (let ((unused (if (= choice 0)
+                    (wrap+ (ffi:call optimizer_tick counter) choice)
+                    (wrap* (ffi:call optimizer_tick counter) choice))))
+    42))
+
+(defun dead_store (counter)
+  (declare (type (ptr u64) counter) (returns u64) (c-export :c))
+  (store counter 17)
+  (wrap* (deref counter) 3)
+  42)
+
+(defun dead_void (counter)
+  (declare (type (ptr u64) counter) (returns void) (c-export :c))
+  (wrap* (deref counter) 3)
+  (ffi:call optimizer_void counter))

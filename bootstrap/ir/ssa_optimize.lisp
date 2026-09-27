@@ -1,4 +1,5 @@
 (include "ssa_fold.lisp")
+(include "ssa_live.lisp")
 
 (defun ssa_fold_scan (context)
   (declare (type (ptr native_compile_context) context) (returns c-int))
@@ -25,5 +26,11 @@
   (let ((level (deref (field-pointer context 'optimization))))
     (if (< 1 level) 0
         (if (= (ssa_verify_function context) 0) 0
-            (if (= level 0) 1
-                (progn (ssa_fold_constants context) (ssa_verify_function context)))))))
+            (progn
+              (ssa_set_liveness (deref (field-pointer context 'ssa)) 1 1)
+              (if (= level 0) 1
+                  (progn
+                    (ssa_fold_constants context)
+                    (if (= (ssa_verify_function context) 0) 0
+                        (progn (ssa_eliminate_dead_values context)
+                               (ssa_verify_liveness context))))))))))

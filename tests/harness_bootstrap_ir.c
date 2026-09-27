@@ -1,5 +1,6 @@
 #include "../bootstrap/native_api.h"
 #include <string.h>
+#include <stdio.h>
 
 struct fixture {
     struct psl_ast_node syntax[256];
@@ -19,7 +20,7 @@ struct fixture {
     struct native_type_shape shape;
     struct native_layout_context layouts;
     struct native_signature signatures[1];
-    struct native_parameter parameters[1];
+    struct native_parameter parameters[2];
     struct native_signature_context signature_context;
     struct native_function functions[1];
     struct native_hir_arena hir;
@@ -30,7 +31,7 @@ struct fixture {
     struct native_compile_context context;
 };
 
-static int compile_source(struct fixture *f, const uint8_t *source) {
+static int compile_source_options(struct fixture *f, const uint8_t *source, uint32_t level) {
     memset(f, 0, sizeof *f);
     f->scanner = (struct psl_scanner){source, strlen((const char *)source), 0, 0};
     f->parser = (struct psl_parser){&f->scanner, &f->token, 0, f->syntax, 0, 256, 0};
@@ -38,7 +39,7 @@ static int compile_source(struct fixture *f, const uint8_t *source) {
         &f->parser, source, NULL, 0, 0, NULL, 0, 0, &f->shape, 0
     };
     f->signature_context = (struct native_signature_context){
-        &f->layouts, f->signatures, 0, 1, f->parameters, 0, 1, 0
+        &f->layouts, f->signatures, 0, 1, f->parameters, 0, 2, 0
     };
     f->hir = (struct native_hir_arena){f->hir_nodes, 0, 256, 0};
     f->ssa = (struct native_ssa_arena){f->ssa_values, f->types, 0, 256, f->ssa_blocks, 0, 256, 0, 0};
@@ -51,10 +52,61 @@ static int compile_source(struct fixture *f, const uint8_t *source) {
         &f->call_fixups, f->functions, &f->signature_context, 1, 0, NULL,
         0, 0, 0, 0, &f->ssa, f->bindings, &f->lir, f->labels, &f->jump_fixups, 0, 0, 0
     };
+    f->context.optimization = level;
     uintptr_t root = parser_next(&f->parser);
     return root && native_parse_signature(&f->signature_context, root) &&
            predeclare_scalar_form(&f->context, f->signatures, f->functions) &&
            compile_scalar_form(&f->context, f->signatures, f->functions);
+}
+
+static int compile_source(struct fixture *f, const uint8_t *source) {
+    return compile_source_options(f, source, 0);
+}
+
+static int check_live_mutation(struct fixture *f, uintptr_t index) {
+    f->ssa_values[index].live = 0;
+    int rejected = !ssa_verify_liveness(&f->context);
+    f->ssa_values[index].live = 1;
+    return rejected;
+}
+
+static int check_dead_values(struct fixture *f) {
+    static const uint8_t source[] =
+        "(defun choice (input counter)"
+        " (declare (type u64 input) (type (ptr u64) counter) (returns u64))"
+        " (wrap* input 17)"
+        " (let ((unused (if (< input 2) (choice input counter) (choice 0 counter))))"
+        "   (store counter input) (deref counter) (wrap+ input 3)))";
+    if (!compile_source_options(f, source, 1)) return 1;
+    if (!ssa_verify_liveness(&f->context)) return 2;
+    uintptr_t dead = 0, phi = 0, effects = 0, links = 0;
+    for (uintptr_t i = 0; i < f->ssa.value_count; ++i) {
+        struct native_ssa_value *value = &f->ssa_values[i];
+        if (!value->live) {
+            ++dead;
+            if (value->kind == 28) ++phi;
+            for (uintptr_t j = 0; j < f->lir.count; ++j)
+                if (f->lir_instructions[j].destination == i + 1) return 3;
+        }
+        if (value->kind == 7 || value->kind == 24 || value->kind == 25) {
+            if (!value->live || !check_live_mutation(f, i)) return 4;
+            ++effects;
+        }
+        if (value->kind == 17) {
+            if (!value->live || !check_live_mutation(f, i)) return 5;
+            ++links;
+        }
+    }
+    if (!dead || phi != 1 || effects != 4 || links != 4) return 6;
+    f->ssa_values[0].live = 2;
+    if (ssa_verify_liveness(&f->context)) return 7;
+    f->ssa_values[0].live = 1;
+    if (!ssa_optimize_function(&f->context)) return 8;
+    f->context.optimization = 0;
+    if (!ssa_optimize_function(&f->context)) return 9;
+    for (uintptr_t i = 0; i < f->ssa.value_count; ++i)
+        if (f->ssa_values[i].live != 1) return 10;
+    return 0;
 }
 
 static int compile_fixture(struct fixture *f) {
@@ -173,5 +225,10 @@ int main(void) {
     if (check_ssa_mutations(&fixture)) return 3;
     if (check_lir_mutations(&fixture)) return 4;
     if (check_void_mutations(&fixture)) return 5;
+    int dead_status = check_dead_values(&fixture);
+    if (dead_status) {
+        fprintf(stderr, "dead-value verification failed: %d\n", dead_status);
+        return 6;
+    }
     return 0;
 }

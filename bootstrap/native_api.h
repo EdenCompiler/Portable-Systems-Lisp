@@ -101,6 +101,7 @@ struct native_ssa_value {
     uint64_t value;
     uintptr_t left, right, target, source, block, next;
     uintptr_t predecessor_left, predecessor_right;
+    int32_t live;
 };
 struct native_ssa_block {
     uintptr_t first, last;
@@ -332,6 +333,7 @@ extern int native_parse_signature(struct native_signature_context *context,
 
 
 extern int ssa_optimize_function(struct native_compile_context *context);
+extern int ssa_verify_liveness(struct native_compile_context *context);
 extern int ssa_verify_function(struct native_compile_context *context);
 extern int lir_verify_function(struct native_compile_context *context);
 extern int hir_verify_root(struct native_hir_arena *arena, uintptr_t root,

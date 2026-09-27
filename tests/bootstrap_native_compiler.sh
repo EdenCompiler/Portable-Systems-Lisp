@@ -124,6 +124,10 @@ for level in 0 1; do
   "$work_dir/optimizer-stage0-$level"
 done
 test "$(wc -c < "$work_dir/optimizer-1.o")" -lt "$(wc -c < "$work_dir/optimizer-0.o")"
+# This expression depends on its argument, so folding cannot explain removal.
+dead_size0=$(nm -S --radix=d "$work_dir/optimizer-0.o" | awk '$4 == "dead_arithmetic" {print $2}')
+dead_size1=$(nm -S --radix=d "$work_dir/optimizer-1.o" | awk '$4 == "dead_arithmetic" {print $2}')
+test "$dead_size1" -lt "$dead_size0"
 for level in 0 1; do
   for fixture in bootstrap_stack_arguments bootstrap_pointers bootstrap_mixed_integers \
       bootstrap_foreign_calls bootstrap_void_calls; do

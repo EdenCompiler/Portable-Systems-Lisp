@@ -13,6 +13,9 @@ extern uint64_t fold_shift64(void), fold_shift65(void), fold_shiftmax(void);
 extern uint64_t fold_join(uint64_t), fold_boolean_join(uint64_t);
 extern uint64_t fold_truth(uint64_t *), fold_null_truth(uint64_t *);
 extern uint64_t fold_void_effect(uint64_t *), fold_loop(uint64_t *);
+extern uint64_t dead_arithmetic(uint64_t), dead_join(uint64_t, uint64_t *);
+extern uint64_t dead_store(uint64_t *);
+extern void dead_void(uint64_t *);
 
 uint64_t optimizer_tick(uint64_t *counter) { ++*counter; return 0; }
 void *optimizer_null(uint64_t *counter) { ++*counter; return 0; }
@@ -34,6 +37,12 @@ int main(void) {
     assert(fold_null_truth(&counter) == 42 && counter == 2);
     assert(fold_void_effect(&counter) == 42 && counter == 3);
     assert(fold_loop(&counter) == 44 && counter == 44);
+    assert(dead_arithmetic(0) == 42 && dead_arithmetic(UINT64_MAX) == 42);
+    assert(dead_join(0, &counter) == 42 && counter == 45);
+    assert(dead_join(1, &counter) == 42 && counter == 46);
+    assert(dead_store(&counter) == 42 && counter == 17);
+    dead_void(&counter);
+    assert(counter == 18);
     puts("PSL optimizer widths, shifts, joins, truth, and effects passed");
     return 0;
 }

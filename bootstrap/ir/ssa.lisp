@@ -66,6 +66,7 @@
             (store (field-pointer value 'next) 0)
             (store (field-pointer value 'predecessor_left) 0)
             (store (field-pointer value 'predecessor_right) 0)
+            (store (field-pointer value 'live) 1)
             (ssa_record_type arena reference value)
             (store (field-pointer arena 'value_count) reference)
             (ssa_append_value arena reference)

@@ -264,18 +264,28 @@ AND, U64 shifts with counts modulo 64, signed/unsigned comparisons, integer
 casts, equal integer/Boolean PHIs, and machine integer/pointer truth. Narrow
 signed results retain their sign-extended word representation. PHI rewrites
 preserve the verified prefix. The pass reaches a fixed point, updates the type
-catalog, and verifies both its input and output. `-O0` skips folding. Calls,
-loads, stores, and CFG edges are retained; CFG simplification, inlining, and
-dead-value removal remain open. The optimizer itself is compiled by every
+catalog, and verifies both its input and output. `-O0` skips optimization.
+After folding, liveness starts from all block conditions/results and all calls,
+loads, and stores, then follows their value dependencies, including argument
+links and PHIs. Only live definitions and PHI edge copies reach LIR. Stable SSA
+IDs and type records remain available for verification; a liveness verifier
+rejects omitted roots/dependencies before lowering. Loads are retained
+conservatively until native memory qualifiers and effects are ported. CFG
+simplification and inlining remain open. The optimizer itself is compiled by every
 native generation with no core runtime imports.
 
 The optimizer fixture runs through Stage 0 and native `-O0`/`-O1`, compares C
 observable results for width/signedness, large shift counts, equal joins,
 zero/null truth with effectful imports, void calls, and loops, and checks that
-the native `-O1` object is smaller. Both native modes also run the existing
+the native `-O1` object is smaller. An argument-dependent unused expression
+also has a smaller function symbol, demonstrating removal beyond folding;
+discarded joins retain branch calls, and discarded store/load/void results
+retain their effects. Both native modes also run the existing
 stack-call, pointer/memory, mixed-integer, foreign-call, and void-call harnesses.
 Repeat objects and generation snapshots are compared. IR mutation checks reject
 malformed SSA at the optimizer's public entry point before rewriting it.
+Liveness mutations reject missing calls, loads, stores, argument links, and
+invalid flags; dead definitions have no LIR destinations, including dead PHIs.
 
 The remaining bootstrap work is general symbol and string interpretation,
 macro execution, the broader Stage 0 source/interop corpus, the remaining optimization passes
