@@ -1,43 +1,9 @@
+(include "ssa_types.lisp")
 (include "ir_types.lisp")
 
 ;; Native portable SSA. Value IDs and block IDs are one-based arena indices.
 ;; Every value has one definition. Kind 28 is a two-edge PHI; other operation
 ;; numbers retain the native HIR's scalar meanings without its tree structure.
-
-(defcstruct native_ssa_value
-  (kind u32)
-  (scalar_code u32)
-  (pointee usize)
-  (value u64)
-  (left usize)
-  (right usize)
-  (target usize)
-  (source usize)
-  (block usize)
-  (next usize)
-  (predecessor_left usize)
-  (predecessor_right usize))
-
-(defcstruct native_ssa_block
-  (first usize)
-  (last usize)
-  (terminator u32)
-  (condition usize)
-  (target_left usize)
-  (target_right usize)
-  (result usize)
-  (visit u8))
-
-(defcstruct native_ssa_arena
-  (values (ptr native_ssa_value))
-  (types (ptr native_ir_type))
-  (value_count usize)
-  (value_capacity usize)
-  (blocks (ptr native_ssa_block))
-  (block_count usize)
-  (block_capacity usize)
-  (current usize)
-  (error u32))
 
 (defun ssa_value_at (arena reference)
   (declare (type (ptr native_ssa_arena) arena)

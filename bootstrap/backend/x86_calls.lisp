@@ -1,19 +1,10 @@
+(include "x86_calls_types.lisp")
 (include "common.lisp")
 (include "../binary.lisp")
 
 ;; Calls are encoded with an empty rel32 field, then patched after all function
 ;; offsets are known. Defined calls are patched within .text; imported calls
 ;; retain zero placeholders for the ELF writer's PLT32 relocations.
-(defcstruct native_call_fixup
-  (instruction usize)
-  (target usize))
-
-(defcstruct native_fixup_arena
-  (items (ptr native_call_fixup))
-  (count usize)
-  (capacity usize)
-  (error u32))
-
 (defun call_fixup_at (arena index)
   (declare (type (ptr native_fixup_arena) arena)
            (type usize index)

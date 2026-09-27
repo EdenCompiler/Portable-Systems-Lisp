@@ -2,6 +2,7 @@
 #define PSL_BOOTSTRAP_NATIVE_API_H
 
 #include <stdint.h>
+#include <stddef.h>
 
 /* Temporary C host boundary for the compiled PSL bootstrap modules. */
 struct byte_buffer {
@@ -224,6 +225,49 @@ struct native_signature_context {
     uintptr_t parameter_capacity;
     uint32_t error;
 };
+
+struct native_storage {
+    struct psl_ast_node *syntax;
+    struct native_layout *layouts;
+    struct native_layout_field *fields;
+    struct native_parameter *parameters;
+    struct native_function *functions;
+    struct native_signature *signatures;
+    struct native_hir_node *hir;
+    struct native_ssa_value *ssa;
+    struct native_ssa_block *ssa_blocks;
+    struct native_ir_type *types;
+    struct native_lir_instruction *lir;
+    struct native_lir_block *lir_blocks;
+    struct native_call_fixup *calls, *jumps;
+    uintptr_t *bindings, *labels;
+    uint8_t *code, *object;
+};
+
+struct native_driver {
+    uint8_t *source;
+    size_t length;
+    struct native_storage storage;
+    struct psl_scanner scanner;
+    struct psl_token token;
+    struct psl_parser parser;
+    struct psl_parsed_integer integer;
+    struct native_type_shape shape;
+    struct native_layout_context layouts;
+    struct native_signature_context signature_context;
+    struct native_hir_arena hir;
+    struct native_ssa_arena ssa;
+    struct native_lir_arena lir;
+    struct native_fixup_arena calls, jumps;
+    struct byte_buffer code, object;
+    struct native_compile_context context;
+};
+
+/* A zeroed driver takes ownership of a free-compatible SOURCE buffer. Prepare
+   allocates/initializes its arenas; release handles partial failure and repeated
+   release. Release before preparing again; contexts are invalid after release. */
+extern int native_prepare_driver(struct native_driver *);
+extern int native_release_driver(struct native_driver *);
 
 /* Zero means success. Form is a one-based AST reference; index is a
    zero-based signature index. Only the failing phase's location is valid. */

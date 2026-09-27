@@ -1,10 +1,6 @@
+(include "atoms_types.lisp")
 ;; Interpret integer atoms from scanner spans. The sign is recorded separately
 ;; so type checking can decide which machine integer types accept the value.
-
-(defcstruct psl_parsed_integer
-  (magnitude u64)
-  (negative u8)
-  (radix u8))
 
 (defun integer_digit (byte)
   (declare (type u8 byte) (returns u8))

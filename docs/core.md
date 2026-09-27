@@ -298,9 +298,17 @@ allocation-free guarantee.
 using freshly initialized caller-owned contexts and arenas. It collects layouts
 and signatures, predeclares functions, compiles bodies through the verified
 pipeline, patches calls, and writes the ELF object. Failures return zero with
-a phase and AST/signature location in `native_unit_result`. The temporary C
-wrapper still owns buffer allocation/initialization, file I/O, and diagnostic
-rendering. This API does not yet accept Stage 0's CLI options or targets.
+a phase and AST/signature location in `native_unit_result`.
+`bootstrap/host/driver.lisp` exposes `native_prepare_driver` and
+`native_release_driver` for owned hosted storage. Preparation requires a zeroed
+`native_driver` with a live, free-compatible source buffer, rejects wrapped
+source/IR capacities, allocates zeroed arenas through explicit `calloc` imports,
+and initializes every logical field. Failed preparation leaves partial storage
+owned by the driver. Release frees partial/full storage and the source, clears
+the owning pointers, and may be repeated; release before preparing again.
+Compilation contexts become invalid on release. This hosted module explicitly
+imports `calloc` and `free`; the native core remains free of unresolved symbols.
+The temporary C wrapper supplies file I/O and diagnostic rendering. This API does not yet accept Stage 0's CLI options or targets.
 
 Top-level lowercase `(include "relative-file.lisp")` now splices source into
 the same unit. A native PSL parser identifies include forms and decodes their
@@ -317,6 +325,6 @@ and allocation-effect analysis still need native ports. It directly compiles
 its full native core, including frontend, IR verification, x86-64 encoding,
 and ELF writing. Successive native core generations reproduce identical
 objects and pass the native subset suite. The broader Stage 0 corpus, remaining
-targets and ABI/object features, and C driver/source traversal ports remain
+targets and ABI/object features, and the remaining C file/diagnostic/source traversal ports remain
 open, so it is still an M8 development slice. See [the bootstrap contract](../bootstrap/README.md)
 for its tests and remaining gate.

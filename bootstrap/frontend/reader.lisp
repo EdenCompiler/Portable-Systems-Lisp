@@ -1,16 +1,6 @@
+(include "reader_types.lisp")
 ;; Byte-oriented token scanning for the native compiler bootstrap. The parser
 ;; will interpret atoms, escapes, and reader dispatch forms in later stages.
-
-(defcstruct psl_scanner
-  (data (ptr u8))
-  (length usize)
-  (cursor usize)
-  (error u8))
-
-(defcstruct psl_token
-  (kind u32)
-  (start usize)
-  (length usize))
 
 (defun scanner_has_byte (scanner)
   (declare (type (ptr psl_scanner) scanner) (returns c-int))

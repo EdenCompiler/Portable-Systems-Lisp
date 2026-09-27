@@ -1,24 +1,8 @@
+(include "parser_types.lisp")
 (include "reader.lisp")
 
 ;; References are one-based indices into a caller-owned node arena. Zero means
 ;; no node, so the parser never embeds host pointers in the syntax tree.
-(defcstruct psl_ast_node
-  (kind u32)
-  (start usize)
-  (length usize)
-  (first usize)
-  (last usize)
-  (next usize))
-
-(defcstruct psl_parser
-  (scanner (ptr psl_scanner))
-  (token (ptr psl_token))
-  (has_token u8)
-  (nodes (ptr psl_ast_node))
-  (count usize)
-  (capacity usize)
-  (error u32))
-
 (defun parser_node (parser reference)
   (declare (type (ptr psl_parser) parser)
            (type usize reference)

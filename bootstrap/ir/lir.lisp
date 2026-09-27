@@ -1,34 +1,7 @@
+(include "lir_types.lisp")
 ;; Flat portable LIR. SSA IDs become virtual registers; PHI definitions become
 ;; edge copies. Control operations: 100 label, 101 jump, 102 branch, 103 return,
 ;; 104 copy. Types and call argument links have a separate immutable catalog.
-(defcstruct native_lir_instruction
-  (kind u32)
-  (scalar_code u32)
-  (pointee usize)
-  (value u64)
-  (left usize)
-  (right usize)
-  (target usize)
-  (source usize)
-  (destination usize))
-
-(defcstruct native_lir_block
-  (first usize)
-  (last usize)
-  (visit u8))
-
-(defcstruct native_lir_arena
-  (instructions (ptr native_lir_instruction))
-  (count usize)
-  (capacity usize)
-  (types (ptr native_ir_type))
-  (value_count usize)
-  (value_capacity usize)
-  (blocks (ptr native_lir_block))
-  (label_count usize)
-  (label_capacity usize)
-  (error u32))
-
 (defun lir_instruction_at (arena index)
   (declare (type (ptr native_lir_arena) arena)
            (type usize index) (returns (ptr native_lir_instruction)))

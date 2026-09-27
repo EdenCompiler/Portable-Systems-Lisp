@@ -1,40 +1,9 @@
+(include "layout_types.lisp")
 (include "parser.lisp")
 
 ;; Native structure metadata uses parser references, not host Lisp objects.
 ;; Only earlier structures may appear in a type, matching Stage 0's layout
 ;; registration order. Pointer layout is independent of its pointee's size.
-(defcstruct native_type_shape
-  (size usize)
-  (alignment usize)
-  (kind u32)
-  (pointee usize))
-
-(defcstruct native_layout_field
-  (name usize)
-  (type_ast usize)
-  (offset usize)
-  (size usize)
-  (alignment usize))
-
-(defcstruct native_layout
-  (name usize)
-  (first usize)
-  (count usize)
-  (size usize)
-  (alignment usize))
-
-(defcstruct native_layout_context
-  (parser (ptr psl_parser))
-  (source (ptr u8))
-  (layouts (ptr native_layout))
-  (layout_count usize)
-  (layout_capacity usize)
-  (fields (ptr native_layout_field))
-  (field_count usize)
-  (field_capacity usize)
-  (scratch (ptr native_type_shape))
-  (error u32))
-
 (defun native_layout_at (context index)
   (declare (type (ptr native_layout_context) context)
            (type usize index)

@@ -1,3 +1,4 @@
+(include "hir_types.lisp")
 (include "../backend/common.lisp")
 
 ;; Integer nodes use a 64-bit word representation. Scalar codes retain their
@@ -15,23 +16,6 @@
 ;; right references.
 ;; Source is a parser-node
 ;; reference for later diagnostics. Comparisons have Boolean type code 2.
-(defcstruct native_hir_node
-  (kind u32)
-  (type_code u32)
-  (value u64)
-  (left usize)
-  (right usize)
-  (target usize)
-  (source usize)
-  (scalar_code u32)
-  (pointee usize))
-
-(defcstruct native_hir_arena
-  (nodes (ptr native_hir_node))
-  (count usize)
-  (capacity usize)
-  (error u32))
-
 (defun hir_node_at (arena reference)
   (declare (type (ptr native_hir_arena) arena)
            (type usize reference)

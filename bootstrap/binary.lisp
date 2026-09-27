@@ -1,11 +1,7 @@
+(include "binary_types.lisp")
 ;; Native PSL port of the compiler's little-endian byte emission primitives.
 ;; The caller owns the storage; later bootstrap stages can supply a growable
 ;; allocator without changing these encoding operations.
-
-(defcstruct byte_buffer
-  (data (ptr u8))
-  (length usize)
-  (capacity usize))
 
 (defun room_for (buffer count)
   (declare (type (ptr byte_buffer) buffer)

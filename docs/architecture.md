@@ -51,9 +51,14 @@ bootstrap/
   arena.lisp           caller-owned aligned allocation
   compile_scalar.lisp  native analysis, verification, and lowering coordinator
   driver.lisp          native compilation-unit pipeline and failure locations
-  driver.c             temporary host file-I/O, storage, and diagnostic rendering
+  driver.c             temporary host file-I/O, argv, and diagnostic rendering
   native_api.h         C host boundary for the compiled PSL modules
+  *_types.lisp         shared record layouts, without compiler algorithms
   host/
+    driver.lisp         owned storage preparation and initialization coordinator
+    driver_types.lisp   driver and storage record layouts
+    storage.lisp        explicit calloc/free imports and partial cleanup
+    initialize.lisp    per-record initialization of arenas and compilation context
     source.c, source.h temporary file reads, path resolution, and source traversal
   frontend/
     reader.lisp, parser.lisp, atoms.lisp, source.lisp
@@ -216,9 +221,12 @@ include decoding with Stage 0.
 The PSL unit driver first collects all signatures, then predeclares functions,
 compiles bodies, patches relative calls, and invokes the ELF call writer.
 `native_compile_unit` exposes this pipeline on caller-owned source/arenas,
-with a failure phase and AST/signature location. The temporary C driver
-allocates and initializes those arenas, supplies file I/O, and renders the
-returned failure location. It contains no signature/body compilation loops.
+with a failure phase and AST/signature location. The separately compiled PSL
+hosted driver allocates, initializes, and releases those arenas. Record layouts
+are factored into declaration-only modules in their owning directories; the
+hosted driver includes them without bringing in compiler algorithms. Its only
+foreign imports are `calloc` and `free`; these stay out of `native-core.lisp`.
+The temporary C driver supplies file I/O and renders the failure location. It contains no signature/body compilation loops.
 This permits forward calls and recursion. It is a
 restricted source-to-object proof, not Stage 1: general symbol interpretation,
 macro expansion, full semantic analysis, generic optimization and effects,
@@ -245,6 +253,9 @@ SSA instructions. The earlier HIR-to-machine encoders have been removed.
 Native generic optimization, effects, remaining ABI/backend features, and the
 full Stage 1–3 comparison remain pending M8 work. The x86-64 Linux
 `bootstrap_self_core.sh` gate now compiles the complete native core through
-three native generations and runs the full native subset suite on each. The
-core objects match byte for byte. Their C driver and source loader are shared
+three native generations and runs the full native subset suite on each. Both
+the core and hosted storage objects match byte for byte. A C harness compares
+arena sizes and context links, injects failure at every allocation on Linux,
+and checks overflow rejection, idempotent cleanup, and reuse. Their C driver
+and source loader are shared
 temporary host code, so this does not establish full self hosting.

@@ -5,12 +5,15 @@ includes separate source modules in one translation unit so their functions
 use ordinary Lisp calls. Stage 0 builds the initial core. The resulting native
 compiler can now compile every module included by `native-core.lisp`, including
 its frontend, IR verifiers, x86-64 encoder, and ELF writer. A temporary C
-host wrapper still supplies source traversal, file I/O, and memory; this is
+file wrapper still supplies source traversal, file I/O, and diagnostics;
+hosted allocation and initialization now live in PSL, with explicit libc imports; this is
 **not yet a complete Stage 1 compiler**.
 
 From a fresh checkout on x86-64 Linux:
 
 ```sh
+make
+build/pslcc-native examples/basic/standalone.lisp build/standalone.o
 ./pslcc -c bootstrap/native-core.lisp -o /tmp/psl-native-core.o
 sh tests/bootstrap_modules.sh
 sh tests/bootstrap_binary.sh
@@ -134,7 +137,8 @@ and output buffers. It returns one on success and zero on failure. The
 
 Only the failing phase's location is valid. Arenas may contain partial work
 after failure; the host writes the object file only after successful completion.
-The C wrapper renders these locations and provides storage and file services.
+The C wrapper renders these locations and provides file services. The separately
+compiled PSL hosted driver provides storage.
 An independent C API caller compiles a unit from memory, checks declaration,
 reader, signature, body, and output-capacity failures, and links/runs the emitted
 object with a forward Lisp call and a C import. It runs with each core generation.
@@ -175,8 +179,17 @@ integer/pointer round trips across the full address width.
 `sh tests/layout_queries.sh [TARGET]` runs the Stage 0 fixture at `-O0` and
 `-O1` on each hosted target. Native core generations run the same C fixture,
 reject malformed queries/address conversions, and compare deterministic objects.
-Buffer allocation and initialization in the native driver still await a PSL
-port; these queries and address checks provide its required source primitives.
+The hosted driver uses these queries to allocate typed arrays and address checks
+to detect allocation failure. `host/driver.lisp` compiles separately from the
+core and exports `native_prepare_driver` and `native_release_driver`. Supply a
+zeroed driver with an owned, free-compatible source; preparation allocates and
+initializes arenas. On failure, release the partial storage; release is
+idempotent and clears owning pointers. Release before preparing the driver
+again. Its compilation context must not be used after release. `storage.lisp`
+uses explicit `calloc`/`free` imports; the core retains no unresolved symbols.
+The C harness compares allocations with C record sizes, checks context links
+and capacity overflow, compiles from memory, releases/reuses a driver, and
+injects failure at each of the 18 allocation points on Linux.
 
 The native compiler now compiles its complete `native-core.lisp` translation
 unit. Dedicated C harnesses also exercise native-generated integer rules, byte
@@ -211,14 +224,15 @@ the tests through `native_api.h`.
 
 `sh tests/bootstrap_self_core.sh` bootstraps three successive native core
 generations on x86-64 Linux. Each generation compiles `native-core.lisp` with
-no external tool lookup path, then runs the same full native subset suite.
-The native-generated core and fixture objects are byte-identical across
+no external tool lookup path, then compiles the hosted storage module and runs
+the same full native subset suite.
+The native-generated core, hosted storage, and fixture objects are byte-identical across
 generations, core objects have no unresolved symbols, and rejected-source
 diagnostics match exactly. The same C host wrapper is linked to each core;
 these are core generations, not complete Stage 1–3 compilers.
 
 The remaining bootstrap work is general symbol and string interpretation,
 macro execution, the broader Stage 0 source/interop corpus, generic optimization
-and effects, remaining target backends and object features, and a PSL driver
-and source traversal. Full Stage 1–3 builds and their corpus comparisons remain
+and effects, remaining target backends and object features, and the remaining
+file/diagnostic driver services and source traversal. Full Stage 1–3 builds and their corpus comparisons remain
 the M8 gate.

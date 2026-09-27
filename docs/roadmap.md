@@ -388,8 +388,8 @@ M8.
 The compilation-unit coordinator has moved from C into `bootstrap/driver.lisp`.
 Its reusable `native_compile_unit` API owns layout/signature collection,
 predeclaration, verified body compilation, call patching, and ELF emission.
-The C host renders returned failure phases/locations and still initializes and
-allocates storage, traverses source files, and performs file I/O. An independent
+The C host renders returned failure phases/locations, traverses source files,
+and performs file I/O. Hosted storage preparation has since moved to PSL. An independent
 in-memory API test compiles a forward-call/C-import unit and runs its object,
 checks rejection phases and output capacity, and runs through the native core
 generation gate. The refactor preserves diagnostics on the existing rejected
@@ -416,8 +416,21 @@ allocation checks while preserving Lisp pointer truth. The C fixture compares
 sizes, alignments, offsets, live/null addresses, and full-width pointer/address
 round trips. It runs with Stage 0 at both optimization levels and with native
 core generations; malformed queries/conversions remain in the rejection corpus.
-These are prerequisites for porting the native driver's storage allocation and
-initialization; those services still reside in C.
+The hosted driver now uses these primitives for allocation and initialization.
+
+`bootstrap/host/driver.lisp` now owns storage preparation, with small per-record
+initializers and allocation/release helpers. Declaration-only layout modules
+are shared with the core without linking its algorithms into the hosted unit.
+This unit explicitly imports `calloc`/`free`; the native core still has no
+unresolved symbols. The C wrapper now handles argv, file I/O, source traversal,
+and diagnostic rendering. A C harness checks allocation sizes and context links,
+rejects overflowing capacities before allocation, compiles in memory, and checks
+repeated cleanup and driver reuse. Linux linker fault injection fails each of
+its 18 allocations and verifies that partial buffers and the source are freed.
+The core-generation gate now builds both PSL objects at each generation and
+compares their artifacts, behavior, and rejection diagnostics. `make` builds
+both objects and the native executable; this advances the PSL driver subgate,
+while the remaining file/source services and full M8 gate stay open.
 
 The native compiler now compiles every module included by its own
 `bootstrap/native-core.lisp`. `sh tests/bootstrap_self_core.sh` builds three
@@ -427,7 +440,9 @@ generation, and compares their native-generated core and fixture objects byte
 for byte. Core objects have no unresolved symbols; rejected-source diagnostics
 match exactly across generations. Signature/layout tables no longer have
 the old 256-entry ceiling, and the ELF writer permits the complete core.
-The same temporary C driver and source loader are linked to each generation.
+Each generation also compiles its hosted storage unit; successive hosted
+objects match byte for byte. The same temporary C file/diagnostic driver and
+source loader are linked to each generation.
 This is a core reproduction gate; the broader Stage 0 corpus, native optimizer
 and effects, remaining target/ABI/object features, and PSL driver/source loader
 are still open. Full Stage 1, Stage 2, and Stage 3 compiler builds remain open,

@@ -1,3 +1,4 @@
+(include "compile_scalar_types.lisp")
 (include "frontend/parser.lisp")
 (include "frontend/atoms.lisp")
 (include "object/elf64_multi.lisp")
@@ -12,28 +13,6 @@
 
 ;; First native source-to-object path. Signatures are collected before bodies;
 ;; typed HIR and x86 call fixups support forward calls and recursion.
-
-(defcstruct native_compile_context
-  (parser (ptr psl_parser))
-  (source (ptr u8))
-  (integer (ptr psl_parsed_integer))
-  (hir (ptr native_hir_arena))
-  (code (ptr byte_buffer))
-  (fixups (ptr native_fixup_arena))
-  (functions (ptr native_function))
-  (signatures (ptr native_signature_context))
-  (prior_count usize)
-  (current_arity usize)
-  (current_signature (ptr native_signature))
-  (expected_type u32)
-  (active_binding usize)
-  (local_count usize)
-  (expected_pointee usize)
-  (ssa (ptr native_ssa_arena))
-  (bindings (ptr usize))
-  (lir (ptr native_lir_arena))
-  (labels (ptr usize))
-  (jumps (ptr native_fixup_arena)))
 
 (include "frontend/scalar_syntax.lisp")
 (include "frontend/scalar_types.lisp")
