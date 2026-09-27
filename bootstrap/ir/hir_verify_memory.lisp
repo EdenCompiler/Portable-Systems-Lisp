@@ -126,4 +126,13 @@
       ((= kind 25) (hir_verify_memory_access context node depth))
       ((= kind 26) (hir_verify_loop context node depth))
       ((= kind 27) (hir_verify_pointer_add context node depth))
+      ((= kind 30) (hir_verify_pointer_address context node depth))
       (t 0))))
+
+(defun hir_verify_pointer_address (context node depth)
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_hir_node) node) (type usize depth) (returns c-int))
+  (let ((child (deref (field-pointer node 'left))))
+    (if (= (deref (field-pointer node 'scalar_code)) 2)
+        (if (= (hir_pointer_child_p context child) 0) 0
+            (hir_verify_scalar_tree context child (wrap+ depth 1))) 0)))

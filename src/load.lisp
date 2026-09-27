@@ -12,6 +12,7 @@
                   "frontend/closures.lisp"
                   "frontend/strings.lisp"
                   "frontend/multiple-values.lisp"
+                  "frontend/pointers.lisp"
                   "frontend/analyze.lisp"
                   "frontend/effects.lisp"
                   "ir/lower.lisp"

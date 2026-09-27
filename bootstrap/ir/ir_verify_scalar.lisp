@@ -79,6 +79,7 @@
        (if (= code 0) (source_valid_code_p (deref (field-pointer child 'scalar_code))) 0))
       ((= kind 21) (if (= code 11) (ir_types_same_p context types (deref (field-pointer op 'left)) 2 0) 0))
       ((= kind 22) (if (= code 11) (if (= (deref (field-pointer child 'scalar_code)) 11) 1 0) 0))
+      ((= kind 30) (if (= code 2) (if (= (deref (field-pointer child 'scalar_code)) 11) 1 0) 0))
       (t 0))))
 
 (defun ir_verify_scalar_type (context types op)
@@ -102,6 +103,7 @@
           ((= kind 20) (ir_verify_unary_type context types op))
           ((= kind 21) (ir_verify_unary_type context types op))
           ((= kind 22) (ir_verify_unary_type context types op))
+          ((= kind 30) (ir_verify_unary_type context types op))
           ((< 22 kind) (ir_verify_memory_type context types op))
           (t (ir_verify_integer_binary context types op)))))))
 

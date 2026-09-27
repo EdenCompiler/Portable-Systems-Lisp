@@ -321,6 +321,8 @@
        (analyze-pointer-cast form environment context nil))
       ((psl-form-p form "ptr-from-address")
        (analyze-pointer-cast form environment context t))
+      ((psl-form-p form "ptr-address")
+       (analyze-pointer-address form environment context))
       ((psl-form-p form "wrap-cast")
        (analyze-integer-cast form environment context))
       ((ffi-form-p form "call")

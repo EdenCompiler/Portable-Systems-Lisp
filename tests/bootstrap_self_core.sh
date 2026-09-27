@@ -45,6 +45,9 @@ compare_rejections() {
   for source in "$project_root"/tests/bootstrap_void_errors/*.lisp; do
     compare_diagnostic "$compiler" "$source" "void-${source##*/}" "$generation"
   done
+  for source in "$project_root"/tests/bootstrap_query_errors/*.lisp; do
+    compare_diagnostic "$compiler" "$source" "query-${source##*/}" "$generation"
+  done
   for fixture in cycle-a missing invalid unterminated; do
     compare_diagnostic "$compiler" "$project_root/tests/include/native/$fixture.lisp" \
       "include-$fixture" "$generation"

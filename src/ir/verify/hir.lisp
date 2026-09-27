@@ -91,6 +91,10 @@
                   (eq (pointer-volatile-p (first types))
                       (pointer-volatile-p (hir-type node))))
        (fail "HIR field pointer lost its qualifiers")))
+    (:pointer-address
+     (expect-count types 1 "pointer address")
+     (unless (and (eq (hir-type node) :usize) (pointer-type-p (first types)))
+       (fail "invalid HIR pointer address")))
     (:pointer-cast
      (expect-count types 1 "pointer cast")
      (unless (and (pointer-type-p (hir-type node))
@@ -147,7 +151,7 @@
                     (equal (pointed-type (hir-type node))
                            (cdr (hir-value node))))
          (fail "invalid HIR data address")))
-      ((:load :store :pointer-add :field-pointer :pointer-cast)
+      ((:load :store :pointer-add :field-pointer :pointer-cast :pointer-address)
        (verify-hir-memory
         node (verify-hir-children node environment signatures pointer-bits)))
       (otherwise (fail "unknown HIR node kind ~S" (hir-kind node))))

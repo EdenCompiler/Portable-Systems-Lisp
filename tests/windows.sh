@@ -191,4 +191,5 @@ for extension in o a dll exe; do
       "$work_dir/repeat-b/psl.$extension"
 done
 
+sh "$project_root/tests/layout_queries.sh" x86_64-windows-gnu
 echo 'PSL Windows test passed'

@@ -88,7 +88,8 @@ Supported expressions are machine integer and floating literals, `t`, `nil`,
 lexical variables, `let`, `progn`, three-operand `if`, direct calls, `psl:wrap+`,
 `psl:wrap-`, `psl:wrap*`, `psl:bits-and`, `psl:shr64`, `psl:wrap-cast`,
 `psl:while`, `=`, `<`, `psl:pointer+`, `deref`, `psl:store`,
-`psl:ptr-cast`, `psl:ptr-from-address`, and `psl:field-pointer`. The compile-time
+`psl:ptr-cast`, `psl:ptr-from-address`, `psl:ptr-address`, and
+`psl:field-pointer`. The compile-time
 queries `psl:sizeof`, `psl:alignof`, and `psl:offset-of` accept quoted type or
 field designators. `let` initializers see the outer lexical environment;
 `if` treats only `nil` as false, so integer zero is true. Unsupported forms
@@ -125,6 +126,11 @@ compile-time byte offset. Loads sign-extend signed narrow values and
 zero-extend unsigned narrow values. Stores through `:const` pointers are
 rejected. Raw dereferences require the caller to provide a valid, aligned,
 live address. Stage 0 does not check bounds or lifetime at runtime.
+`ptr-address` accepts one raw pointer and returns its address bits as `usize`.
+It does not read the pointed-to storage. It is the explicit inverse of
+`ptr-from-address`; zero addresses can be tested with ordinary integer `=`.
+This does not change the rule that raw pointers, including null, are true in
+Lisp conditions. Managed values and integers cannot be passed to `ptr-address`.
 
 `psl:defstruct/packed` lays fields out in source order with no padding and
 alignment 1. Nested previously declared packed structures have known size.
@@ -273,6 +279,13 @@ conditions, arithmetic, and value arguments are rejected. Opaque pointers may
 be passed, returned, stored in pointer fields, and explicitly cast. A `(ptr void)`
 must be cast to a sized pointee before dereferencing or using `pointer+`.
 Opaque null pointers are true under the raw-pointer Lisp truth rule.
+Native `ptr-address` returns a `usize` from typed or opaque pointers; it is
+checked through HIR/SSA/LIR. Native `sizeof`, `alignof`, and `offset-of` accept
+quoted type/field designators and resolve to `usize` literals before lowering.
+They use the same native C layout metadata as field access. Unknown types,
+unknown fields, malformed/unquoted designators, unsized `void` queries, and
+offset queries on nonstructures are rejected. These queries still cover only
+the native subset's types and spelling rules.
 Explicit libc imports such as `malloc` and `free` work; they do not become
 implicit runtime dependencies of other units.
 

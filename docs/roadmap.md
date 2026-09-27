@@ -409,6 +409,16 @@ PHIs, and return operands. These facilities enable direct allocation/file
 service imports for the remaining driver port; the full native driver and
 M8 gate remain open.
 
+The native frontend now ports the existing `sizeof`, `alignof`, and `offset-of`
+queries, resolving quoted designators to `usize` literals from C layout metadata.
+An explicit `ptr-address` primitive is shared with Stage 0; it permits null
+allocation checks while preserving Lisp pointer truth. The C fixture compares
+sizes, alignments, offsets, live/null addresses, and full-width pointer/address
+round trips. It runs with Stage 0 at both optimization levels and with native
+core generations; malformed queries/conversions remain in the rejection corpus.
+These are prerequisites for porting the native driver's storage allocation and
+initialization; those services still reside in C.
+
 The native compiler now compiles every module included by its own
 `bootstrap/native-core.lisp`. `sh tests/bootstrap_self_core.sh` builds three
 successive native core generations on x86-64 Linux, compiles the full core

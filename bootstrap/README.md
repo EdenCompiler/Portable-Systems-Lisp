@@ -163,6 +163,21 @@ names. Structure values, float loads and stores, pointer
 qualifiers, packages, and general macro expansion remain outside this native
 slice. Include forms currently use the unqualified lowercase spelling.
 
+The native frontend implements `(sizeof 'TYPE)`, `(alignof 'TYPE)`, and
+`(offset-of 'STRUCT 'FIELD)` as `usize` literals from its layout table.
+Quoted pointer designators such as `'(ptr void)` work; unsized `void`, unknown
+types/fields, and malformed designators are rejected. `(ptr-address pointer)`
+obtains a typed or opaque raw pointer's address as `usize` without a memory
+read. To check allocation failure, use `(= (ptr-address memory) 0)`; the raw
+pointer itself remains true in `if`. C harnesses compare layout queries with
+`sizeof`, `_Alignof`, and `offsetof`, then check live/null pointers and
+integer/pointer round trips across the full address width.
+`sh tests/layout_queries.sh [TARGET]` runs the Stage 0 fixture at `-O0` and
+`-O1` on each hosted target. Native core generations run the same C fixture,
+reject malformed queries/address conversions, and compare deterministic objects.
+Buffer allocation and initialization in the native driver still await a PSL
+port; these queries and address checks provide its required source primitives.
+
 The native compiler now compiles its complete `native-core.lisp` translation
 unit. Dedicated C harnesses also exercise native-generated integer rules, byte
 emission, arena, integer reader, scanner, parser, and include decoding modules. Its C boundary checks match Stage 0, its object has no

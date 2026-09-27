@@ -221,6 +221,24 @@ for source in bootstrap_answer bootstrap_answer_hex \
   cmp "$work_dir/$source.o" "$work_dir/$source-repeat.o"
 done
 
+run_host "$work_dir/pslcc-native-slice$host_suffix" \
+  "$project_root/tests/bootstrap_layout_queries.lisp" "$work_dir/layout-queries.o"
+test -z "$(nm -u "$work_dir/layout-queries.o")"
+cc -Wall -Wextra -Werror "$project_root/tests/harness_bootstrap_layout_queries.c" \
+  "$work_dir/layout-queries.o" -o "$work_dir/layout-queries"
+"$work_dir/layout-queries"
+run_host "$work_dir/pslcc-native-slice$host_suffix" \
+  "$project_root/tests/bootstrap_layout_queries.lisp" "$work_dir/layout-queries-repeat.o"
+cmp "$work_dir/layout-queries.o" "$work_dir/layout-queries-repeat.o"
+for source in "$project_root"/tests/bootstrap_query_errors/*.lisp; do
+  if run_host "$work_dir/pslcc-native-slice$host_suffix" "$source" "$work_dir/invalid-query.o" \
+      >"$work_dir/stdout" 2>"$work_dir/stderr"; then
+    echo "native slice accepted invalid layout/address source: $source" >&2
+    exit 1
+  fi
+  test ! -e "$work_dir/invalid-query.o"
+done
+
 nm --defined-only "$work_dir/bootstrap_lisp_names.o" | \
   grep -q ' t helper-one$'
 if nm -g --defined-only "$work_dir/bootstrap_lisp_names.o" | \
@@ -608,6 +626,9 @@ if test "$host_target" != x86_64-linux-gnu; then
   "$work_dir/native-reference" "$project_root/tests/bootstrap_void_calls.lisp" \
     "$work_dir/void-reference.o"
   cmp "$work_dir/void-calls.o" "$work_dir/void-reference.o"
+  "$work_dir/native-reference" "$project_root/tests/bootstrap_layout_queries.lisp" \
+    "$work_dir/layout-queries-reference.o"
+  cmp "$work_dir/layout-queries.o" "$work_dir/layout-queries-reference.o"
   "$work_dir/native-reference" "$project_root/tests/bootstrap_stack_arguments.lisp" \
     "$work_dir/stack-arguments-reference.o"
   cmp "$work_dir/stack-arguments.o" "$work_dir/stack-arguments-reference.o"
@@ -681,6 +702,9 @@ cmp "$work_dir/foreign-calls.o" "$work_dir/foreign-O0.o"
 run_host "$work_dir/pslcc-native-O0$host_suffix" \
   "$project_root/tests/bootstrap_void_calls.lisp" "$work_dir/void-O0.o"
 cmp "$work_dir/void-calls.o" "$work_dir/void-O0.o"
+run_host "$work_dir/pslcc-native-O0$host_suffix" \
+  "$project_root/tests/bootstrap_layout_queries.lisp" "$work_dir/layout-queries-O0.o"
+cmp "$work_dir/layout-queries.o" "$work_dir/layout-queries-O0.o"
 
 if test -n "${PSL_NATIVE_OBJECT_SNAPSHOT_DIR:-}"; then
   mkdir -p "$PSL_NATIVE_OBJECT_SNAPSHOT_DIR"

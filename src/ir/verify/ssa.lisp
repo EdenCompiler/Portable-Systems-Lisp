@@ -230,9 +230,10 @@
          (fail "SSA field pointer lost its qualifiers")))
       (:cast
        (expect-count types 1 "SSA pointer cast")
-       (unless (and (pointer-type-p type)
-                    (or (pointer-type-p (first types))
-                        (eq (first types) :usize)))
+       (unless (or (and (pointer-type-p type)
+                        (or (pointer-type-p (first types))
+                            (eq (first types) :usize)))
+                   (and (eq type :usize) (pointer-type-p (first types))))
          (fail "invalid SSA pointer cast"))))))
 
 (defun verify-ssa-instruction (instruction function definitions

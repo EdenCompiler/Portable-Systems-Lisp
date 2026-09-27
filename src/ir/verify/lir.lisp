@@ -69,7 +69,8 @@
                         (integer-type-p (first types)))
                    (and (pointer-type-p type)
                         (or (pointer-type-p (first types))
-                            (eq (first types) :usize))))
+                            (eq (first types) :usize)))
+                   (and (eq type :usize) (pointer-type-p (first types))))
          (fail "invalid LIR conversion")))
       (:binary
        (verify-ssa-binary

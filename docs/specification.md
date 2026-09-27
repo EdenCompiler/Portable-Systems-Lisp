@@ -112,6 +112,7 @@ access the pointed-to value and obey its type, alignment, and qualifiers.
 `deref` is the unqualified spelling of `psl:load` in source units.
 `psl:ptr-cast` changes the pointer type without changing address bits;
 `psl:ptr-from-address` explicitly converts an integer address to a pointer;
+`psl:ptr-address` explicitly obtains its unsigned, pointer-width `usize` address;
 `psl:bitcast` reinterprets equal-sized machine values. `psl:store` returns the
 stored value. Integer-to-pointer
 conversion is never implicit. Volatile loads and stores are observable and

@@ -40,7 +40,7 @@
            (type usize reference count arity depth) (returns c-int))
   (let ((kind (deref (field-pointer node 'kind)))
         (left (deref (field-pointer node 'left))))
-    (if (< 27 kind)
+    (if (if (= kind 30) nil (< 27 kind))
         0
         (if (= (hir_child_before_p left reference) 0)
             0

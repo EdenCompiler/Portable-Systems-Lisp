@@ -134,7 +134,7 @@
        (emit-value state :pointer-add type :value (hir-value node)
                    :args (lower-children node state environment)
                    :source source))
-      (:pointer-cast
+      ((:pointer-cast :pointer-address)
        (emit-value state :cast type
                    :args (lower-children node state environment)
                    :source source))

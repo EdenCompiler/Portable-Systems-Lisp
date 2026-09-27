@@ -115,4 +115,5 @@ aarch64-linux-gnu-gcc "$project_root/examples/ffi/harness_source_import.c" \
   -o "$work_dir/shared-ffi-harness"
 run_target "$work_dir/shared-ffi-harness"
 
+sh "$project_root/tests/layout_queries.sh" "$target"
 echo 'AArch64 Linux tests passed'

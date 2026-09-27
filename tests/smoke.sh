@@ -312,5 +312,6 @@ cmp "$work_dir/standalone.o" "$work_dir/library.o"
 
 sh "$project_root/tests/negative.sh"
 sh "$project_root/tests/runtime.sh"
+sh "$project_root/tests/layout_queries.sh"
 
 printf 'PSL smoke test passed\n'

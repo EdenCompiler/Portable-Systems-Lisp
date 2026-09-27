@@ -164,4 +164,5 @@ failure_status=$?
 set -e
 test "$failure_status" -eq 1
 
+sh "$project_root/tests/layout_queries.sh" riscv64-linux-gnu
 echo 'RISC-V Linux and freestanding tests passed'

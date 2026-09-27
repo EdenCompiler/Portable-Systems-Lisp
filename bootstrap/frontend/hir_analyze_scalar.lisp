@@ -5,6 +5,7 @@
 (include "hir_analyze_calls.lisp")
 (include "hir_analyze_cond.lisp")
 (include "hir_analyze_memory.lisp")
+(include "hir_analyze_layout.lisp")
 
 (defun comparison_kind (parser source head)
   (declare (type (ptr psl_parser) parser)

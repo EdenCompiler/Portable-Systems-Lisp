@@ -174,7 +174,20 @@
     ((= kind 25) (analyze_memory_access context body kind depth))
     ((= kind 26) (analyze_while_expr context body depth))
     ((= kind 27) (analyze_pointer_add context body depth))
+    ((= kind 30) (analyze_pointer_address context body depth))
+    ((< 30 kind) (analyze_layout_query context body kind))
     (t 0)))
+
+(defun analyze_pointer_address (context body depth)
+  (declare (type (ptr native_compile_context) context)
+           (type usize body depth) (returns usize))
+  (let ((parser (deref (field-pointer context 'parser))))
+    (let ((operand (ast_next parser (ast_first parser body))))
+      (if (= (call_shape_from_p parser operand 1) 0) 0
+          (let ((pointer (analyze_pointer_operand context operand depth)))
+            (if (= pointer 0) 0
+                (hir_new_scalar (deref (field-pointer context 'hir))
+                                30 0 pointer 0 0 body 2)))))))
 
 (defun source_memory_operation (parser source head)
   (declare (type (ptr psl_parser) parser)
@@ -188,4 +201,8 @@
     ((= (ast_word_p parser source head #x65726f7473 5) 1) 25)
     ((= (ast_word_p parser source head #x656c696877 5) 1) 26)
     ((= (ast_word_p parser source head #x2b7265746e696f70 8) 1) 27)
+    ((= (ast_long_word_p parser source head #x726464612d727470 #x737365 11) 1) 30)
+    ((= (ast_word_p parser source head #x666f657a6973 6) 1) 31)
+    ((= (ast_word_p parser source head #x666f6e67696c61 7) 1) 32)
+    ((= (ast_long_word_p parser source head #x6f2d74657366666f #x66 9) 1) 33)
     (t 0)))

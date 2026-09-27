@@ -9,7 +9,8 @@
 ;; 13 sequence, 14 local binding, 15 local read, 16 lexical let,
 ;; 17 call-argument link, 18 integer cast, 19 Boolean literal, 20 word truth,
 ;; 21 address to pointer, 22 pointer cast, 23 field pointer, 24 load,
-;; 25 store, 26 while, 27 pointer arithmetic. Pointee is a type AST reference.
+;; 25 store, 26 while, 27 pointer arithmetic, 30 pointer address.
+;; Pointee is a type AST reference.
 ;; Call links chain backward through
 ;; right references.
 ;; Source is a parser-node

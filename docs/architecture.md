@@ -19,6 +19,7 @@ src/
     closures.lisp       lexical capture and closure functions
     strings.lisp        hosted UTF-8 source literals
     multiple-values.lisp  two-value source forms
+    pointers.lisp        explicit raw pointer address conversion
     analyze.lisp        macro expansion and typed semantic analysis
     effects.lisp        transitive allocation-effect checking
   ir/
@@ -61,7 +62,7 @@ bootstrap/
                        C layout, ordinary signatures, and explicit C imports
     scalar_syntax.lisp, scalar_types.lisp, scalar_resolve.lisp, pointer_types.lisp
                        source navigation, type equality, and symbol lookup
-    hir_analyze_*.lisp integer, pointer, call, control, and lexical analysis
+    hir_analyze_*.lisp integer, pointer, layout query, call, control, and lexical analysis
   ir/
     hir.lisp, hir_verify_*.lisp
                        typed HIR and structural, scope, and source checks
@@ -198,6 +199,13 @@ The type verifiers reject void machine-value consumers. Opaque pointee syntax
 remains in pointer signatures and layout metadata; memory analysis requires a
 sized pointee before accesses or pointer arithmetic. No assembler or
 code-generation library participates in this path.
+
+`hir_analyze_layout.lisp` resolves native `sizeof`, `alignof`, and `offset-of`
+to typed literals using the existing source layout table. Raw `ptr-address`
+conversion has a distinct HIR operation and typed pointer-to-`usize` checks;
+its lowering reuses ordinary conversion/move encoding. Stage 0 exposes the
+same primitive through `frontend/pointers.lisp`, and its HIR/SSA/LIR verifiers
+permit pointer-to-`usize` conversion while rejecting other integer result types.
 
 The native signature pass resolves grouped parameter declarations and return
 types against those layouts before scalar body compilation. The scalar compiler
