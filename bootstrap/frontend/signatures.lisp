@@ -16,7 +16,8 @@
   (result_size usize)
   (result_kind u32)
   (body usize)
-  (exported u8))
+  (exported u8)
+  (imported u8))
 
 (defcstruct native_signature_context
   (layouts (ptr native_layout_context))
@@ -341,6 +342,7 @@
   (store (field-pointer signature 'arity) 0)
   (store (field-pointer signature 'result_type) 0)
   (store (field-pointer signature 'exported) 0)
+  (store (field-pointer signature 'imported) 0)
   (store (field-pointer signature 'body)
          (signature_next context declaration))
   (if (= (signature_add_parameters context signature

@@ -10,6 +10,11 @@
       (let ((entry (native_function_at functions index)))
         (let ((offset (deref (field-pointer entry 'offset)))
               (size (deref (field-pointer entry 'size))))
+          (if (= (deref (field-pointer entry 'imported)) 1)
+              (if (= size 0)
+                  (if (= offset 0)
+                      (valid_function_spans_from functions (wrap+ index 1) count expected code_size) 0)
+                  0)
           (if (= offset expected)
               (if (< 0 size)
                   (if (< code_size offset)
@@ -20,7 +25,7 @@
                            functions (wrap+ index 1) count
                            (wrap+ offset size) code_size)))
                   0)
-              0)))))
+              0))))))
 
 (defun valid_function_spans_p (functions count code_size)
   (declare (type (ptr native_function) functions)
@@ -35,7 +40,8 @@
   (if (= index count)
       0
       (let ((entry (native_function_at functions index)))
-        (wrap+ (wrap+ (deref (field-pointer entry 'name_length)) 1)
+        (wrap+ (if (= (native_function_emitted_p entry) 1)
+                   (wrap+ (deref (field-pointer entry 'name_length)) 1) (wrap-cast usize 0))
                (multi_name_bytes_from functions (wrap+ index 1) count)))))
 
 (defun multi_name_bytes (functions count)
@@ -75,29 +81,28 @@
           1
           (earlier_name_p functions candidate (wrap- index 1)))))
 
+(defun valid_function_flags_p (function)
+  (declare (type (ptr native_function) function) (returns c-int))
+  (if (< 1 (deref (field-pointer function 'exported))) 0
+      (if (< 1 (deref (field-pointer function 'imported))) 0
+          (if (< 1 (deref (field-pointer function 'referenced))) 0 1))))
+
+(defun valid_function_name_p (function)
+  (declare (type (ptr native_function) function) (returns c-int))
+  (let ((size (deref (field-pointer function 'name_length))))
+    (if (= size 0) 0
+        (if (< 255 size) 0
+            (name_ascii_p (deref (field-pointer function 'name)) 0 size)))))
+
 (defun valid_function_names_from (functions index count)
   (declare (type (ptr native_function) functions)
-           (type usize index count)
-           (returns c-int))
-  (if (= index count)
-      1
+           (type usize index count) (returns c-int))
+  (if (= index count) 1
       (let ((entry (native_function_at functions index)))
-        (let ((size (deref (field-pointer entry 'name_length))))
-          (if (= size 0)
-              0
-              (if (< 1 (deref (field-pointer entry 'exported)))
-                  0
-                  (if (< 255 size)
-                      0
-                      (if (= (name_ascii_p
-                              (deref (field-pointer entry 'name))
-                              0 size) 0)
-                          0
-                          (if (= (earlier_name_p functions entry index) 1)
-                              0
-                              (valid_function_names_from
-                               functions (wrap+ index 1)
-                               count))))))))))
+        (if (= (valid_function_flags_p entry) 0) 0
+            (if (= (valid_function_name_p entry) 0) 0
+                (if (= (earlier_name_p functions entry index) 1) 0
+                    (valid_function_names_from functions (wrap+ index 1) count)))))))
 
 (defun valid_function_names_p (functions count)
   (declare (type (ptr native_function) functions)
@@ -112,9 +117,20 @@
   (if (= index count)
       0
       (let ((entry (native_function_at functions index)))
-        (wrap+ (if (= (deref (field-pointer entry 'exported)) 0) 1 0)
+        (wrap+ (if (= (native_function_global_p entry) 0) 1 0)
                (local_function_count_from functions (wrap+ index 1)
                                           count)))))
+
+(defun multi_function_selected_p (function selected)
+  (declare (type (ptr native_function) function) (type usize selected) (returns c-int))
+  (if (= (native_function_emitted_p function) 1)
+      (if (= (native_function_global_p function) selected) 1 0) 0))
+
+(defun multi_function_count_from (functions index count)
+  (declare (type (ptr native_function) functions) (type usize index count) (returns usize))
+  (if (= index count) (wrap-cast usize 0)
+      (wrap+ (native_function_emitted_p (native_function_at functions index))
+             (multi_function_count_from functions (wrap+ index 1) count))))
 
 (defun emit_selected_symbols_from (buffer functions index count name_offset
                                    selected)
@@ -125,10 +141,11 @@
   (if (= index count)
       name_offset
       (let ((entry (native_function_at functions index)))
-        (if (= (deref (field-pointer entry 'exported)) selected)
+        (if (= (multi_function_selected_p entry selected) 1)
             (progn
               (emit_symbol buffer (wrap-cast u64 name_offset)
-                           (if (= selected 0) 2 18) 1
+                           (if (= selected 0) 2 18)
+                           (if (= (deref (field-pointer entry 'imported)) 1) 0 1)
                            (wrap-cast u64
                                       (deref (field-pointer entry 'offset)))
                            (wrap-cast u64
@@ -161,7 +178,7 @@
   (if (= index count)
       1
       (let ((entry (native_function_at functions index)))
-        (if (= (deref (field-pointer entry 'exported)) selected)
+        (if (= (multi_function_selected_p entry selected) 1)
             (progn
               (emit_source_bytes buffer
                                  (deref (field-pointer entry 'name))
@@ -188,15 +205,15 @@
     (align8 (wrap+ (wrap+ (align8 (wrap+ 64 code_size)) symbols)
                    (wrap+ name_bytes 66)))))
 
-(defun emit_multi_section_headers (buffer code_size functions count
-                                   name_bytes)
+(defun emit_multi_section_headers_with_relocations (buffer code_size functions count
+                                                     name_bytes relocation_bytes)
   (declare (type (ptr byte_buffer) buffer)
            (type (ptr native_function) functions)
-           (type usize code_size count name_bytes)
+           (type usize code_size count name_bytes relocation_bytes)
            (returns c-int))
   (let ((data_offset (wrap+ 64 code_size))
-        (symbol_offset (align8 (wrap+ 64 code_size)))
-        (symbol_bytes (wrap* (wrap+ count 3) 24)))
+        (symbol_offset (wrap+ (align8 (wrap+ 64 code_size)) relocation_bytes))
+        (symbol_bytes (wrap* (wrap+ (multi_function_count_from functions 0 count) 3) 24)))
     (let ((name_offset (wrap+ symbol_offset symbol_bytes)))
       (let ((section_names (wrap+ name_offset name_bytes)))
         (emit_zero_until buffer (wrap+ (deref (field-pointer buffer 'length))
@@ -206,7 +223,8 @@
         (emit_section_header buffer 7 1 3
                              (wrap-cast u64 data_offset) 0 0 0 1 0)
         (emit_section_header buffer 13 4 0
-                             (wrap-cast u64 symbol_offset) 0 4 1 8 24)
+                             (wrap-cast u64 (align8 (wrap+ 64 code_size)))
+                             (wrap-cast u64 relocation_bytes) 4 1 8 24)
         (emit_section_header buffer 24 2 0
                              (wrap-cast u64 symbol_offset)
                              (wrap-cast u64 symbol_bytes) 5
@@ -224,6 +242,12 @@
                              0 0 0 1 0)
         1))))
 
+(defun emit_multi_section_headers (buffer code_size functions count name_bytes)
+  (declare (type (ptr byte_buffer) buffer)
+           (type (ptr native_function) functions)
+           (type usize code_size count name_bytes) (returns c-int))
+  (emit_multi_section_headers_with_relocations buffer code_size functions count name_bytes 0))
+
 (defun emit_multi_object (machine flags code code_size functions count
                           name_bytes buffer)
   (declare (type u16 machine)
@@ -234,7 +258,7 @@
            (type (ptr byte_buffer) buffer)
            (returns c-int))
   (emit_elf_header buffer
-                   (multi_section_offset code_size count name_bytes)
+                   (multi_section_offset code_size (multi_function_count_from functions 0 count) name_bytes)
                    machine flags)
   (emit_source_bytes buffer code code_size)
   (emit_zero_until buffer (align8 (deref (field-pointer buffer 'length))))
@@ -270,7 +294,7 @@
                             (if (= (room_for
                                     buffer
                                     (wrap+ (multi_section_offset
-                                            code_size count name_bytes)
+                                            code_size (multi_function_count_from functions 0 count) name_bytes)
                                            512)) 1)
                                 (emit_multi_object machine flags code
                                                    code_size functions count

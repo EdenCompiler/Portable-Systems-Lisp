@@ -27,6 +27,14 @@ static int collect_forms(struct psl_parser *parser,
             }
             continue;
         }
+        if (native_import_form_p(signatures, root)) {
+            if (!native_parse_import(signatures, root)) {
+                fprintf(stderr, "cannot parse C import at byte %lu\n",
+                         (unsigned long)parser->nodes[root - 1].start);
+                return 0;
+            }
+            continue;
+        }
         if (!native_parse_signature(signatures, root)) {
             fprintf(stderr, "cannot parse declaration at byte %lu\n",
                      (unsigned long)parser->nodes[root - 1].start);
@@ -56,6 +64,7 @@ static int compile_forms(struct native_compile_context *context,
                          uintptr_t count) {
     context->prior_count = count;
     for (uintptr_t i = 0; i < count; ++i) {
+        if (context->signatures->signatures[i].imported) continue;
         if (!compile_scalar_form(context,
                                  &context->signatures->signatures[i],
                                  &context->functions[i])) {
@@ -215,9 +224,8 @@ static int compile_unit(struct native_driver *d) {
            compile_forms(&d->context, d->signature_context.signature_count) &&
            patch_call_fixups(&d->code, d->storage.functions,
                              d->signature_context.signature_count, &d->calls) &&
-           write_elf64_functions(62, 0, d->code.data, d->code.length,
-                                 d->storage.functions, d->signature_context.signature_count,
-                                 &d->object);
+           write_elf64_calls(d->code.data, d->code.length, d->storage.functions,
+                             d->signature_context.signature_count, &d->calls, &d->object);
 }
 
 static int run_compiler(const char *source_path, const char *output_path) {

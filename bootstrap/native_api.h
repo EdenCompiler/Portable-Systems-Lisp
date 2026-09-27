@@ -55,6 +55,8 @@ struct native_function {
     uintptr_t size;
     uintptr_t arity;
     uintptr_t exported;
+    uintptr_t imported;
+    uintptr_t referenced;
 };
 
 struct native_hir_node {
@@ -209,6 +211,7 @@ struct native_signature {
     uint32_t result_kind;
     uintptr_t body;
     uint8_t exported;
+    uint8_t imported;
 };
 
 struct native_signature_context {
@@ -246,6 +249,10 @@ extern int native_layout_form_p(struct native_layout_context *context,
                                 uintptr_t root);
 extern int native_register_layout(struct native_layout_context *context,
                                    uintptr_t root);
+extern int native_import_form_p(struct native_signature_context *, uintptr_t);
+extern int native_parse_import(struct native_signature_context *, uintptr_t);
+extern int write_elf64_calls(const uint8_t *, uintptr_t, const struct native_function *,
+                             uintptr_t, const struct native_fixup_arena *, struct byte_buffer *);
 extern int native_parse_signature(struct native_signature_context *context,
                                    uintptr_t root);
 

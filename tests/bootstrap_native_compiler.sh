@@ -123,6 +123,54 @@ for module in parser source; do
   test "$(nm -u "$work_dir/$module-native.o" | wc -l)" -eq 0
 done
 
+"$host_compiler" -Wall -Wextra -Werror \
+  "$project_root/tests/harness_bootstrap_relocations.c" \
+  "$work_dir/native-core.o" -o "$work_dir/relocation-check$host_suffix"
+run_host "$work_dir/relocation-check$host_suffix"
+
+run_host "$work_dir/pslcc-native-slice$host_suffix" \
+  "$project_root/tests/bootstrap_foreign_calls.lisp" "$work_dir/foreign-calls.o"
+readelf -r "$work_dir/foreign-calls.o" > "$work_dir/foreign-relocations"
+test "$(grep -c R_X86_64_PLT32 "$work_dir/foreign-relocations")" -eq 7
+for symbol in foreign_seven foreign_eight foreign_narrow foreign_pointer strlen \
+    foreign_integer_zero foreign_pointer_zero; do
+  grep -q " $symbol - 4$" "$work_dir/foreign-relocations"
+  nm -u "$work_dir/foreign-calls.o" | grep -q " U $symbol$"
+done
+if nm "$work_dir/foreign-calls.o" | grep -q 'unused_foreign'; then
+  echo 'native object retained an unused C import' >&2
+  exit 1
+fi
+cc -Wall -Wextra -Werror -fPIC -c "$project_root/tests/bootstrap_foreign_calls.c" \
+  -o "$work_dir/foreign-c.o"
+cc -Wall -Wextra -Werror "$project_root/tests/harness_bootstrap_foreign_calls.c" \
+  "$work_dir/foreign-calls.o" "$work_dir/foreign-c.o" -o "$work_dir/foreign-calls"
+"$work_dir/foreign-calls"
+"$project_root/pslcc" -c "$project_root/tests/bootstrap_foreign_calls.lisp" \
+  -o "$work_dir/foreign-stage0.o"
+cc -Wall -Wextra -Werror "$project_root/tests/harness_bootstrap_foreign_calls.c" \
+  "$work_dir/foreign-stage0.o" "$work_dir/foreign-c.o" -o "$work_dir/foreign-stage0"
+"$work_dir/foreign-stage0"
+cc -shared "$work_dir/foreign-calls.o" "$work_dir/foreign-c.o" -o "$work_dir/libforeign.so"
+cc -Wall -Wextra -Werror "$project_root/tests/harness_bootstrap_foreign_calls.c" \
+  -L"$work_dir" -lforeign -Wl,-rpath,"$work_dir" -o "$work_dir/foreign-shared"
+"$work_dir/foreign-shared"
+ar rcs "$work_dir/libforeign.a" "$work_dir/foreign-calls.o" "$work_dir/foreign-c.o"
+cc -Wall -Wextra -Werror "$project_root/tests/harness_bootstrap_foreign_calls.c" \
+  "$work_dir/libforeign.a" -o "$work_dir/foreign-static"
+"$work_dir/foreign-static"
+run_host "$work_dir/pslcc-native-slice$host_suffix" \
+  "$project_root/tests/bootstrap_foreign_calls.lisp" "$work_dir/foreign-repeat.o"
+cmp "$work_dir/foreign-calls.o" "$work_dir/foreign-repeat.o"
+for source in "$project_root"/tests/bootstrap_foreign_errors/*.lisp; do
+  if run_host "$work_dir/pslcc-native-slice$host_suffix" "$source" "$work_dir/invalid-foreign.o" \
+      >"$work_dir/stdout" 2>"$work_dir/stderr"; then
+    echo "native slice accepted invalid foreign source: $source" >&2
+    exit 1
+  fi
+  test ! -e "$work_dir/invalid-foreign.o"
+done
+
 for source in bootstrap_answer bootstrap_answer_hex \
     bootstrap_answer_arithmetic bootstrap_answer_overflow \
     bootstrap_conditionals bootstrap_recursion bootstrap_layouts \
@@ -521,6 +569,9 @@ if test "$host_target" != x86_64-linux-gnu; then
       "$work_dir/native-reference-$source.o"
     cmp "$work_dir/$source.o" "$work_dir/native-reference-$source.o"
   done
+  "$work_dir/native-reference" "$project_root/tests/bootstrap_foreign_calls.lisp" \
+    "$work_dir/foreign-reference.o"
+  cmp "$work_dir/foreign-calls.o" "$work_dir/foreign-reference.o"
   "$work_dir/native-reference" "$project_root/tests/bootstrap_stack_arguments.lisp" \
     "$work_dir/stack-arguments-reference.o"
   cmp "$work_dir/stack-arguments.o" "$work_dir/stack-arguments-reference.o"
@@ -587,6 +638,10 @@ cmp "$work_dir/pointers.o" "$work_dir/pointers-O0.o"
 run_host "$work_dir/pslcc-native-O0$host_suffix" \
   "$project_root/tests/bootstrap_stack_arguments.lisp" "$work_dir/stack-arguments-O0.o"
 cmp "$work_dir/stack-arguments.o" "$work_dir/stack-arguments-O0.o"
+
+run_host "$work_dir/pslcc-native-O0$host_suffix" \
+  "$project_root/tests/bootstrap_foreign_calls.lisp" "$work_dir/foreign-O0.o"
+cmp "$work_dir/foreign-calls.o" "$work_dir/foreign-O0.o"
 
 if test -n "${PSL_NATIVE_OBJECT_SNAPSHOT_DIR:-}"; then
   mkdir -p "$PSL_NATIVE_OBJECT_SNAPSHOT_DIR"

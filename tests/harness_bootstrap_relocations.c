@@ -1,0 +1,63 @@
+#include "../bootstrap/native_api.h"
+#include <string.h>
+
+static int rejected(const uint8_t *code, uintptr_t size,
+                     struct native_function *functions, uintptr_t count,
+                     struct native_fixup_arena *fixups) {
+    uint8_t bytes[2048];
+    memset(bytes, 0x7f, sizeof bytes);
+    struct byte_buffer output = {bytes, 0, sizeof bytes};
+    return !write_elf64_calls(code, size, functions, count, fixups, &output)
+        && output.length == 0 && bytes[0] == 0x7f;
+}
+
+int main(void) {
+    uint8_t code[] = {0xe8, 0, 0, 0, 0, 0xc3};
+    struct native_function functions[] = {
+        {.name=(const uint8_t *)"imported", .name_length=8, .imported=1, .referenced=1},
+        {.name=(const uint8_t *)"caller", .name_length=6, .size=sizeof code, .exported=1}
+    };
+    struct native_call_fixup fixup = {0, 1};
+    struct native_fixup_arena fixups = {&fixup, 1, 1, 0};
+    uint8_t bytes[2048];
+    struct byte_buffer output = {bytes, 0, sizeof bytes};
+    if (!write_elf64_calls(code, sizeof code, functions, 2, &fixups, &output)) return 1;
+    fixup.target = 3;
+    if (!rejected(code, sizeof code, functions, 2, &fixups)) return 2;
+    fixup.target = 0;
+    if (!rejected(code, sizeof code, functions, 2, &fixups)) return 3;
+    fixup.target = 1;
+    fixup.instruction = sizeof code - 4;
+    if (!rejected(code, sizeof code, functions, 2, &fixups)) return 4;
+    fixup.instruction = UINTPTR_MAX;
+    if (!rejected(code, sizeof code, functions, 2, &fixups)) return 5;
+    fixup.instruction = 0;
+    code[0] = 0x90;
+    if (!rejected(code, sizeof code, functions, 2, &fixups)) return 6;
+    code[0] = 0xe8;
+    code[1] = 1;
+    if (!rejected(code, sizeof code, functions, 2, &fixups)) return 7;
+    code[1] = 0;
+    functions[0].size = 1;
+    if (!rejected(code, sizeof code, functions, 2, &fixups)) return 8;
+    functions[0].size = 0;
+    functions[0].imported = 2;
+    if (!rejected(code, sizeof code, functions, 2, &fixups)) return 9;
+    functions[0].imported = 1;
+    functions[0].referenced = 0;
+    if (!rejected(code, sizeof code, functions, 2, &fixups)) return 12;
+    functions[0].referenced = 1;
+    fixups.count = 0;
+    if (!rejected(code, sizeof code, functions, 2, &fixups)) return 13;
+    fixups.count = 1;
+    fixups.capacity = 0;
+    if (!rejected(code, sizeof code, functions, 2, &fixups)) return 10;
+    fixups.capacity = 1;
+    fixups.error = 1;
+    if (!rejected(code, sizeof code, functions, 2, &fixups)) return 11;
+    fixups.error = 0;
+    struct native_call_fixup duplicates[] = {{0, 1}, {0, 1}};
+    fixups = (struct native_fixup_arena){duplicates, 2, 2, 0};
+    if (!rejected(code, sizeof code, functions, 2, &fixups)) return 14;
+    return 0;
+}

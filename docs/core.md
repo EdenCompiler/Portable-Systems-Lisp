@@ -252,6 +252,23 @@ Field designators may use `'field` or `(quote field)`. Pointee types remain
 part of call, local, and result checking; integer zero cannot implicitly
 become a pointer. Raw pointers, including address zero, are true in `if`.
 
+Native C calls use `ffi:import-function` declarations and explicit `ffi:call`
+expressions, with the same integer and raw pointer source types as ordinary
+functions. Imported names must currently be lowercase C-compatible strings.
+Declarations can appear before or after their callers. Duplicate names,
+malformed parameters, mismatched arity/types, ordinary calls to imports, and
+`ffi:call` on defined Lisp functions are rejected. Imported calls lower through
+the same verified HIR/SSA/LIR pipeline. The ELF writer emits undefined function
+symbols and `R_X86_64_PLT32` relocations only for referenced imports. Unused
+imports are absent from the symbol table. C-built executables, static libraries,
+and shared libraries consume these objects; the native CLI still emits objects
+rather than invoking a linker.
+
+Native `ffi:source`, data symbols, floating/aggregate signatures, `void`, pointer
+qualifiers, and import effect annotations remain unsupported. Allocation-effect
+certification still needs a native port; imports do not carry a native
+allocation-free guarantee.
+
 Top-level lowercase `(include "relative-file.lisp")` now splices source into
 the same unit. A native PSL parser identifies include forms and decodes their
 filenames; the temporary C host loader resolves canonical paths, reads files,

@@ -63,6 +63,21 @@
         (let ((index (prior_function_index
                       context name
                       (deref (field-pointer context 'prior_count)))))
-          (if (= index 0)
-              0
-              (hir_from_resolved_call context body name index depth))))))
+          (if (= index 0) 0
+              (let ((signature (native_signature_at (deref (field-pointer context 'signatures))
+                                                    (wrap- index 1))))
+                (if (= (deref (field-pointer signature 'imported)) 0)
+                    (hir_from_resolved_call context body name index depth) 0)))))))
+
+(defun hir_from_foreign_call (context body depth)
+  (declare (type (ptr native_compile_context) context)
+           (type usize body depth) (returns usize))
+  (let ((parser (deref (field-pointer context 'parser))))
+    (let ((name (ast_next parser (ast_first parser body))))
+      (if (= name 0) 0
+          (let ((index (prior_function_index context name (deref (field-pointer context 'prior_count)))))
+            (if (= index 0) 0
+                (let ((signature (native_signature_at (deref (field-pointer context 'signatures))
+                                                      (wrap- index 1))))
+                  (if (= (deref (field-pointer signature 'imported)) 1)
+                      (hir_from_resolved_call context body name index depth) 0))))))))

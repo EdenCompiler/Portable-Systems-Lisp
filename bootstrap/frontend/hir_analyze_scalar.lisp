@@ -83,6 +83,8 @@
         (source (deref (field-pointer context 'source))))
     (let ((head (ast_first parser body)))
       (cond
+        ((= (ast_word_p parser source head #x6c6c61633a696666 8) 1)
+         (hir_from_foreign_call context body depth))
         ((= (ast_word_p parser source head #x6669 2) 1)
          (analyze_if_expr context body depth))
         ((= (ast_word_p parser source head #x6e676f7270 5) 1)

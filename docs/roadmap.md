@@ -296,8 +296,9 @@ relative source and C-file paths from included modules.
 byte for byte with Stage 0's object for a single exported function, then links
 and runs it with C. This passes for x86-64, AArch64, and RISC-V64 ELF64 without
 executing target code during object generation. A separate native writer now
-emits multiple x86-64 function symbols. Relocations, data, and COFF remain to
-be ported.
+emits multiple x86-64 function symbols. The native x86-64 writer now supports
+PLT32 call relocations for C imports. Data, other relocation families, and COFF
+remain to be ported.
 `sh tests/bootstrap_native_compiler.sh [HOST_TARGET]` builds a native executable from PSL
 compiler components plus a temporary C file-I/O wrapper. It parses a source
 file, accepts machine-integer functions with independently typed parameters,
@@ -366,6 +367,23 @@ host module reads files, resolves canonical paths, preserves include order,
 deduplicates repeats, and rejects cycles. Tests compare nested/repeated include
 objects with a flattened unit and reject missing files, malformed includes,
 and reader errors. File traversal still needs to move into PSL.
+
+The native frontend also accepts explicit `ffi:import-function` signatures
+and `ffi:call` sites for integer/pointer C functions. Source checks reject
+malformed declarations, duplicate names, incorrect arity/types, and implicit
+calls across the C boundary. LIR records referenced functions; the ELF writer
+emits only required undefined function symbols and PLT32 relocations. The
+native suite compares C behavior with Stage 0, verifies actual SysV entry
+alignment for seven/eight-argument imports, narrow signed returns, pointer
+returns, `strlen`, and Lisp truth for integer zero and raw null pointers, then
+consumes the objects through executable, static,
+and shared C links. It inspects relocations/symbols and excludes unused imports.
+An object API mutation harness rejects malformed call fixups and import
+metadata before output. The core-generation gate includes these fixtures and
+foreign-source rejection diagnostics. Native `ffi:source`, data symbols, void,
+floating/aggregate signatures, and import effects still need ports. This adds
+part of the subgate 3 object/ABI path needed by a PSL driver; it does not close
+M8.
 
 The native compiler now compiles every module included by its own
 `bootstrap/native-core.lisp`. `sh tests/bootstrap_self_core.sh` builds three

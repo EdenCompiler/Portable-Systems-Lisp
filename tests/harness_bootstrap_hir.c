@@ -7,7 +7,7 @@ int main(void) {
         {4, 1, 0, 1, 2, 0, 3, 1, 0},
     };
     struct native_hir_arena arena = {nodes, 3, 3, 0};
-    struct native_function functions[1] = {{0, 0, 0, 0, 0, 0}};
+    struct native_function functions[1] = {{0}};
     struct native_hir_node control_nodes[5] = {
         {1, 1, 4, 0, 0, 0, 1, 1, 0},
         {1, 1, 5, 0, 0, 0, 2, 1, 0},

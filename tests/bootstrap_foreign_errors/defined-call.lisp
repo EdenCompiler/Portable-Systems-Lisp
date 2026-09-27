@@ -1,0 +1,6 @@
+(defun helper (input)
+  (declare (type u64 input) (returns u64))
+  input)
+(defun answer ()
+  (declare (returns u64) (c-export :c))
+  (ffi:call helper 42))

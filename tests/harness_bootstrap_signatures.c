@@ -87,6 +87,7 @@ struct native_signature {
     uint32_t result_kind;
     uintptr_t body;
     uint8_t exported;
+    uint8_t imported;
 };
 
 struct native_signature_context {

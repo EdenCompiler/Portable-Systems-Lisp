@@ -52,7 +52,9 @@ The native modules currently implement:
 - A first ELF64 writer for one exported x86-64, AArch64, or RISC-V64 function
   without data or relocations. Its output matches Stage 0 byte for byte for
   the accepted cases. A separate multi-function writer builds x86-64 symbol
-  tables for several functions in source order.
+  tables for several functions in source order. The x86-64 call writer emits
+  undefined symbols and `R_X86_64_PLT32` relocations for referenced C imports;
+  unused import declarations leave no object symbols.
 - A restricted native compiler that accepts independently typed machine-integer
   parameters, locals, and results.
   Types are `u8`, `u16`, `u32`, `u64`, `s8`, `s16`, `s32`, `s64`,
@@ -64,6 +66,16 @@ The native modules currently implement:
   and calls to functions defined anywhere in the same source file. Every call
   argument and result must match its declared source type; arithmetic operands
   must have equal types. `shr64` remains specific to `u64`.
+  C calls use `(ffi:import-function "name" ((arg TYPE) ...) -> TYPE)` and
+  `(ffi:call name ...)`. Imports currently accept lowercase C-compatible
+  names and integer/pointer signatures. Ordinary calls cannot invoke an
+  import, and `ffi:call` cannot invoke an ordinary Lisp function. The native
+  frontend checks duplicate names, parameter shapes, call arity, and source
+  types before code generation. C harnesses verify narrow returns, pointers,
+  `strlen`, integer-zero/null-pointer Lisp truth, register/stack calls and
+  alignment, and static/shared consumption.
+  `ffi:source`, data imports, floating/aggregate signatures, `void`, pointer
+  qualifiers, and allocation-effect annotations still need native ports.
   It accepts `t`, `nil`, `if`, lexical `let`, `progn`, and test-and-body `cond`
   clauses. Integer zero is true in a condition; only Boolean `nil` is false.
   Test-only `cond` clauses remain unsupported. Binding initializers use
@@ -139,7 +151,9 @@ them under Wine or QEMU with the corresponding cross toolchain.
 The native compiler test also checks that malformed HIR, SSA, and LIR are
 rejected. Mutation cases cover wrong PHI predecessors, non-dominating uses,
 invalid operand and label references, missing edge copies, and undefined
-register reads. The native modules are organized under `frontend/`, `ir/`,
+register reads. An ELF mutation harness rejects invalid relocation targets,
+overlapping call positions, wrong opcodes/placeholders, contradictory import
+reference flags, and malformed descriptor/arena metadata before writing bytes. The native modules are organized under `frontend/`, `ir/`,
 `backend/`, and `object/`; the temporary C wrapper shares its ABI records with
 the tests through `native_api.h`.
 

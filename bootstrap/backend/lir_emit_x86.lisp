@@ -117,6 +117,7 @@
            (type (ptr native_lir_instruction) op) (returns c-int))
   (let ((target (deref (field-pointer op 'target))))
     (let ((function (native_function_at (deref (field-pointer context 'functions)) (wrap- target 1))))
+      (store (field-pointer function 'referenced) 1)
       (let ((arity (deref (field-pointer function 'arity))))
         (let ((count (x86_stack_argument_count arity)))
           ;; Limit the aligned byte reservation to a positive signed imm32.

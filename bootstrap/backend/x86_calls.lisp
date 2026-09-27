@@ -2,8 +2,8 @@
 (include "../binary.lisp")
 
 ;; Calls are encoded with an empty rel32 field, then patched after all function
-;; offsets are known. The emitted ELF object needs no relocation for calls
-;; within its own .text section.
+;; offsets are known. Defined calls are patched within .text; imported calls
+;; retain zero placeholders for the ELF writer's PLT32 relocations.
 (defcstruct native_call_fixup
   (instruction usize)
   (target usize))
@@ -63,34 +63,30 @@
                   (emit_integer code #x08c48348 4) ; add rsp, 8
                   (wrap-cast c-int 1)))))))
 
+(defun patch_defined_call (code function instruction)
+  (declare (type (ptr byte_buffer) code)
+           (type (ptr native_function) function)
+           (type usize instruction) (returns c-int))
+  (let ((destination (deref (field-pointer function 'offset))))
+    (if (< (deref (field-pointer code 'length)) destination) 0
+        (patch_i32 code (wrap+ instruction 1)
+                   (wrap-cast s32 (wrap- destination (wrap+ instruction 5)))))))
+
 (defun patch_call_at (code functions count fixups index)
   (declare (type (ptr byte_buffer) code)
            (type (ptr native_function) functions)
            (type usize count index)
-           (type (ptr native_fixup_arena) fixups)
-           (returns c-int))
+           (type (ptr native_fixup_arena) fixups) (returns c-int))
   (let ((entry (call_fixup_at fixups index)))
     (let ((target (deref (field-pointer entry 'target)))
           (instruction (deref (field-pointer entry 'instruction))))
-      (if (= target 0)
-          0
-          (if (< count target)
-              0
-              (if (< (deref (field-pointer code 'length))
-                     (wrap+ instruction 5))
-                  0
-                  (let ((destination
-                         (deref (field-pointer
-                                 (native_function_at functions
-                                                     (wrap- target 1))
-                                 'offset))))
-                    (if (< (deref (field-pointer code 'length)) destination)
-                        0
-                        (patch_i32
-                         code (wrap+ instruction 1)
-                         (wrap-cast s32
-                                    (wrap- destination
-                                           (wrap+ instruction 5))))))))))))
+      (if (= target 0) 0
+          (if (< count target) 0
+              (if (< (deref (field-pointer code 'length)) 5) 0
+                  (if (< (wrap- (deref (field-pointer code 'length)) 5) instruction) 0
+                      (let ((function (native_function_at functions (wrap- target 1))))
+                        (if (= (deref (field-pointer function 'imported)) 1) 1
+                            (patch_defined_call code function instruction))))))))))
 
 (defun patch_call_fixups_from (code functions count fixups index)
   (declare (type (ptr byte_buffer) code)

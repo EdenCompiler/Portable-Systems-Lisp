@@ -56,8 +56,8 @@ bootstrap/
   frontend/
     reader.lisp, parser.lisp, atoms.lisp, source.lisp
                        byte scanning, syntax, integer atoms, and include decoding
-    layout.lisp, signatures.lisp
-                       C layout and source function declarations
+    layout.lisp, signatures.lisp, ffi.lisp
+                       C layout, ordinary signatures, and explicit C imports
     scalar_syntax.lisp, scalar_types.lisp, scalar_resolve.lisp, pointer_types.lisp
                        source navigation, type equality, and symbol lookup
     hir_analyze_*.lisp integer, pointer, call, control, and lexical analysis
@@ -80,6 +80,7 @@ bootstrap/
   object/
     elf64.lisp         first native cross-target ELF64 writer slice
     elf64_multi.lisp   native ELF64 symbol table for multiple functions
+    elf64_calls.lisp   x86-64 imported-call symbols and PLT32 relocations
 runtime/
   psl_runtime.h         versioned hosted value and root ABI
   gc.c                  mark-and-sweep collector
@@ -177,6 +178,18 @@ loader preserves include order and suppresses repeated canonical files.
 The driver allocates signature and layout tables according to the source size;
 it no longer has a 256-function ceiling. The ELF writer bounds counts by its
 symbol/name field widths rather than that old development limit.
+
+Native C imports share the signature/type tables with ordinary functions,
+with a distinct imported flag. The frontend requires `ffi:call` at an imported
+call site; ordinary Lisp calls remain unqualified. Signature string names are
+validated as C identifiers and represented by atom slices in the syntax arena.
+LIR call emission records referenced functions in their encoded descriptors.
+Defined calls are patched directly; imported calls keep zero rel32 fields.
+The ELF call writer independently verifies fixup targets, code bounds, opcodes,
+placeholder bytes, nonoverlapping positions, and import reference flags. It
+orders local and global symbols, omits unreferenced imports, and maps source
+function IDs to ELF symbol indices for PLT32 relocations. No assembler or
+code-generation library participates in this path.
 
 The native signature pass resolves grouped parameter declarations and return
 types against those layouts before scalar body compilation. The scalar compiler
