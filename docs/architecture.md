@@ -59,7 +59,12 @@ bootstrap/
     driver_types.lisp   driver and storage record layouts
     storage.lisp        explicit calloc/free imports and partial cleanup
     initialize.lisp    per-record initialization of arenas and compilation context
-    source.c, source.h temporary file reads, path resolution, and source traversal
+    source_unit.lisp   include traversal, cycles, and source-unit assembly
+    source_paths.lisp  relative/absolute include paths and platform path policy
+    source_buffers.lisp  assembled bytes and canonical file ownership
+    source_frames.lisp  per-file scanner/parser state and cleanup
+    source_imports.lisp, source_types.lisp  typed host/core ABI and loader records
+    source.c, source.h temporary file reads, canonical paths, and error rendering
   frontend/
     reader.lisp, parser.lisp, atoms.lisp, source.lisp
                        byte scanning, syntax, integer atoms, and include decoding
@@ -177,11 +182,14 @@ alignment, and field offsets against compiled C structures. Typed field
 pointers can access nested structure fields; loads and stores support integers
 and pointers. Structure values, floating accesses, and pointer qualifiers
 remain outside the native function subset.
-Native source inclusion is split between `frontend/source.lisp`, which
-recognizes top-level include forms and decodes Lisp strings, and the temporary
-`host/source.c` OS boundary, which reads files, resolves canonical paths,
-checks active cycles, and splices forms into a shared source buffer. The
-loader preserves include order and suppresses repeated canonical files.
+Native source inclusion uses `frontend/source.lisp` for include recognition
+and Lisp string decoding. `host/source_unit.lisp` owns traversal, active-cycle
+checks, and ordered assembly. Its path, buffer, and frame helpers own relative
+paths, canonical file records, syntax arrays, and partial cleanup. The separately
+compiled loader imports the core's exported parser/include functions through
+explicit typed C ABI declarations. The temporary `host/source.c` adapter only
+reads files, canonicalizes names, reports platform path policy, and renders
+errors. The PSL loader preserves order and suppresses repeated canonical files.
 The driver allocates signature and layout tables according to the source size;
 it no longer has a 256-function ceiling. The ELF writer bounds counts by its
 symbol/name field widths rather than that old development limit.
@@ -254,8 +262,8 @@ Native generic optimization, effects, remaining ABI/backend features, and the
 full Stage 1–3 comparison remain pending M8 work. The x86-64 Linux
 `bootstrap_self_core.sh` gate now compiles the complete native core through
 three native generations and runs the full native subset suite on each. Both
-the core and hosted storage objects match byte for byte. A C harness compares
+the core, hosted storage, and source loader objects match byte for byte. A C harness compares
 arena sizes and context links, injects failure at every allocation on Linux,
 and checks overflow rejection, idempotent cleanup, and reuse. Their C driver
-and source loader are shared
+and file/path/error adapter are shared
 temporary host code, so this does not establish full self hosting.

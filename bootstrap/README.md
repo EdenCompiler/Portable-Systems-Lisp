@@ -5,8 +5,9 @@ includes separate source modules in one translation unit so their functions
 use ordinary Lisp calls. Stage 0 builds the initial core. The resulting native
 compiler can now compile every module included by `native-core.lisp`, including
 its frontend, IR verifiers, x86-64 encoder, and ELF writer. A temporary C
-file wrapper still supplies source traversal, file I/O, and diagnostics;
-hosted allocation and initialization now live in PSL, with explicit libc imports; this is
+adapter still supplies file I/O, canonical paths, and diagnostic rendering.
+Allocation, initialization, cleanup, and source traversal live in PSL, with
+explicit libc imports; this is
 **not yet a complete Stage 1 compiler**.
 
 From a fresh checkout on x86-64 Linux:
@@ -34,11 +35,11 @@ The native modules currently implement:
   Lisp reader punctuation.
 - List and prefix-form parsing into an index-linked, caller-owned node arena.
 - Top-level `include` recognition and Lisp string decoding in
-  `frontend/source.lisp`. `host/source.c` supplies file reads, canonical paths,
-  relative path resolution, once-per-unit inclusion, and cycle checks. Includes
-  share an ordinary Lisp compilation unit; missing files, malformed includes,
-  and reader errors prevent object output. This temporary host traversal still
-  needs a PSL port.
+  `frontend/source.lisp`. `host/source_unit.lisp` owns relative path resolution,
+  once-per-unit inclusion, active-cycle checks, and ordered source assembly.
+  `host/source.c` provides file reads, canonical names, platform path policy,
+  and error rendering. Missing files, malformed includes, and reader errors
+  prevent object output.
 - C-compatible structure layouts in caller-owned tables. The native source
   pass accepts `defcstruct`, computes field offsets, size, and alignment for
   the current 64-bit target slice, and resolves scalar, pointer, and earlier
@@ -116,7 +117,8 @@ The native modules currently implement:
   Stage 0 also cross-compiles the combined native unit to AArch64 and RISC-V64
   objects; the test script supports execution on those hosts when their cross
   compilers and runners are available. `driver.c` and `host/source.c` supply
-  file I/O, source traversal, and memory until those facilities move into PSL.
+  file I/O, canonical paths, argv, and diagnostic rendering until those services
+  move into PSL. Hosted memory and traversal are already compiled PSL modules.
 
 `driver.lisp` now owns the compilation-unit pipeline, exposed as
 `native_compile_unit(context, object, result)`. Callers supply freshly
@@ -137,7 +139,7 @@ and output buffers. It returns one on success and zero on failure. The
 
 Only the failing phase's location is valid. Arenas may contain partial work
 after failure; the host writes the object file only after successful completion.
-The C wrapper renders these locations and provides file services. The separately
+The C wrapper renders these locations and provides file/path services. The separately
 compiled PSL hosted driver provides storage.
 An independent C API caller compiles a unit from memory, checks declaration,
 reader, signature, body, and output-capacity failures, and links/runs the emitted
@@ -224,15 +226,28 @@ the tests through `native_api.h`.
 
 `sh tests/bootstrap_self_core.sh` bootstraps three successive native core
 generations on x86-64 Linux. Each generation compiles `native-core.lisp` with
-no external tool lookup path, then compiles the hosted storage module and runs
+no external tool lookup path, then compiles the hosted storage and source
+loader modules and runs
 the same full native subset suite.
-The native-generated core, hosted storage, and fixture objects are byte-identical across
+The native-generated core, hosted storage, source loader, and fixture objects
+are byte-identical across
 generations, core objects have no unresolved symbols, and rejected-source
 diagnostics match exactly. The same C host wrapper is linked to each core;
 these are core generations, not complete Stage 1–3 compilers.
 
+The source loader is compiled as its own PSL unit. It calls core parser/include
+exports through their typed C ABI and explicitly imports string/memory and OS
+services. `native_read_source_unit(path, length)` returns an owned NUL-terminated
+buffer, including a valid empty buffer for an empty unit. Failed loads release
+all partial state. The source-unit harness uses an independent in-memory OS
+adapter to compare flattened bytes, include deduplication/cycles, reader errors,
+POSIX/Windows path rules, and reuse after failure. On Linux it injects failure
+at every malloc/calloc/realloc in both ordinary and empty loads and verifies
+complete cleanup. The real OS adapter is exercised by the native compiler's
+nested/repeated/symlink include fixtures on the supported hosts.
+
 The remaining bootstrap work is general symbol and string interpretation,
 macro execution, the broader Stage 0 source/interop corpus, generic optimization
 and effects, remaining target backends and object features, and the remaining
-file/diagnostic driver services and source traversal. Full Stage 1–3 builds and their corpus comparisons remain
+file/diagnostic/path adapter services. Full Stage 1–3 builds and their corpus comparisons remain
 the M8 gate.

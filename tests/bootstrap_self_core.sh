@@ -7,7 +7,7 @@ trap 'rm -rf "$work_dir"' EXIT HUP INT TERM
 
 build_driver() {
   cc -Wall -Wextra -Werror "$project_root/bootstrap/driver.c" \
-    "$project_root/bootstrap/host/source.c" "$1" "$2" -o "$3"
+    "$project_root/bootstrap/host/source.c" "$1" "$2" "$3" -o "$4"
 }
 
 compare_diagnostic() {
@@ -57,21 +57,26 @@ compare_rejections() {
 }
 
 # These are generations of the native compiler core, with the same temporary
-# C file/diagnostic wrapper at each generation. They are not complete Stage 1-3 compilers.
+# C file/path/diagnostic adapter at each generation. They are not complete Stage 1-3 compilers.
 "$project_root/pslcc" -c "$project_root/bootstrap/native-core.lisp" \
   -o "$work_dir/core-0.o"
 "$project_root/pslcc" -c "$project_root/bootstrap/host/driver.lisp" \
   -o "$work_dir/host-0.o"
+"$project_root/pslcc" -c "$project_root/bootstrap/host/source_unit.lisp" \
+  -o "$work_dir/source-0.o"
 for generation in 0 1 2; do
   build_driver "$work_dir/core-$generation.o" "$work_dir/host-$generation.o" \
-    "$work_dir/compiler-$generation"
+    "$work_dir/source-$generation.o" "$work_dir/compiler-$generation"
   PATH=/nonexistent "$work_dir/compiler-$generation" \
     "$project_root/bootstrap/native-core.lisp" "$work_dir/core-$((generation + 1)).o"
   PATH=/nonexistent "$work_dir/compiler-$generation" \
     "$project_root/bootstrap/host/driver.lisp" "$work_dir/host-$((generation + 1)).o"
+  PATH=/nonexistent "$work_dir/compiler-$generation" \
+    "$project_root/bootstrap/host/source_unit.lisp" "$work_dir/source-$((generation + 1)).o"
   test "$(nm -u "$work_dir/core-$((generation + 1)).o" | wc -l)" -eq 0
   readelf -h "$work_dir/core-$((generation + 1)).o" | grep -q 'REL (Relocatable file)'
-  PSL_NATIVE_HOST_OBJECT="$work_dir/host-$generation.o" \
+  PSL_NATIVE_SOURCE_OBJECT="$work_dir/source-$generation.o" \
+    PSL_NATIVE_HOST_OBJECT="$work_dir/host-$generation.o" \
     PSL_NATIVE_CORE_OBJECT="$work_dir/core-$generation.o" \
     PSL_NATIVE_OBJECT_SNAPSHOT_DIR="$work_dir/objects-$generation" \
     sh "$project_root/tests/bootstrap_native_compiler.sh"
@@ -86,4 +91,6 @@ cmp "$work_dir/core-1.o" "$work_dir/core-2.o"
 cmp "$work_dir/core-2.o" "$work_dir/core-3.o"
 cmp "$work_dir/host-1.o" "$work_dir/host-2.o"
 cmp "$work_dir/host-2.o" "$work_dir/host-3.o"
-echo 'PSL native compiler core and hosted storage generations reproduce identical objects'
+cmp "$work_dir/source-1.o" "$work_dir/source-2.o"
+cmp "$work_dir/source-2.o" "$work_dir/source-3.o"
+echo 'PSL native core, storage, and source loader generations reproduce identical objects'

@@ -363,10 +363,10 @@ open; this is progress on subgate 2, not completion of M8.
 
 Native source loading now accepts top-level includes. The PSL frontend
 recognizes include syntax and decodes Lisp string filenames; a temporary C
-host module reads files, resolves canonical paths, preserves include order,
-deduplicates repeats, and rejects cycles. Tests compare nested/repeated include
+adapter reads files and resolves canonical paths. The PSL hosted loader
+preserves include order, deduplicates repeats, and rejects cycles. Tests compare nested/repeated include
 objects with a flattened unit and reject missing files, malformed includes,
-and reader errors. File traversal still needs to move into PSL.
+and reader errors. The traversal and source-buffer ownership are now in PSL.
 
 The native frontend also accepts explicit `ffi:import-function` signatures
 and `ffi:call` sites for integer/pointer C functions. Source checks reject
@@ -422,8 +422,8 @@ The hosted driver now uses these primitives for allocation and initialization.
 initializers and allocation/release helpers. Declaration-only layout modules
 are shared with the core without linking its algorithms into the hosted unit.
 This unit explicitly imports `calloc`/`free`; the native core still has no
-unresolved symbols. The C wrapper now handles argv, file I/O, source traversal,
-and diagnostic rendering. A C harness checks allocation sizes and context links,
+unresolved symbols. The C wrapper handles argv, file I/O, canonical paths,
+and diagnostic rendering; source traversal has since moved into PSL. A C harness checks allocation sizes and context links,
 rejects overflowing capacities before allocation, compiles in memory, and checks
 repeated cleanup and driver reuse. Linux linker fault injection fails each of
 its 18 allocations and verifies that partial buffers and the source are freed.
@@ -431,6 +431,21 @@ The core-generation gate now builds both PSL objects at each generation and
 compares their artifacts, behavior, and rejection diagnostics. `make` builds
 both objects and the native executable; this advances the PSL driver subgate,
 while the remaining file/source services and full M8 gate stay open.
+
+The source loader has moved into `bootstrap/host/source_unit.lisp`, with small
+path, buffer, parser-frame, and file-ownership helpers. It imports the core's
+parser/include API through typed C ABI signatures, plus explicit string/memory
+services. The C adapter only reads files, canonicalizes names, reports platform
+path policy, and renders errors. Source inclusion still preserves order,
+deduplicates canonical files, rejects active cycles, and releases partial state.
+An independent in-memory OS fixture checks flattened bytes, empty units,
+POSIX/Windows paths, include/reader errors, and reuse after failure. Linux
+allocation injection checks every malloc/calloc/realloc failure in ordinary and
+empty loads. The real adapter retains the compiler suite's include and symlink
+checks. The generation gate now compiles and compares this PSL loader alongside
+the core and storage objects, with no external tool lookup during compilation.
+This advances source/runtime services in subgate 4; complete file/diagnostic
+services, the broader compiler ports, and Stage 1–3 remain open.
 
 The native compiler now compiles every module included by its own
 `bootstrap/native-core.lisp`. `sh tests/bootstrap_self_core.sh` builds three
@@ -440,12 +455,12 @@ generation, and compares their native-generated core and fixture objects byte
 for byte. Core objects have no unresolved symbols; rejected-source diagnostics
 match exactly across generations. Signature/layout tables no longer have
 the old 256-entry ceiling, and the ELF writer permits the complete core.
-Each generation also compiles its hosted storage unit; successive hosted
-objects match byte for byte. The same temporary C file/diagnostic driver and
-source loader are linked to each generation.
+Each generation also compiles its hosted storage and source loader units;
+successive hosted objects match byte for byte. The same temporary C
+file/path/diagnostic adapter is linked to each generation.
 This is a core reproduction gate; the broader Stage 0 corpus, native optimizer
-and effects, remaining target/ABI/object features, and PSL driver/source loader
-are still open. Full Stage 1, Stage 2, and Stage 3 compiler builds remain open,
+and effects, remaining target/ABI/object features, and the remaining PSL
+driver/file/path/error services are still open. Full Stage 1, Stage 2, and Stage 3 compiler builds remain open,
 as does the M8 gate.
 The scalar source path accepts lowercase hyphenated internal function and local
 names; C exports still require C-compatible names. Its deterministic object

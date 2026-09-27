@@ -11,6 +11,7 @@ STAGE0_SOURCES := $(shell find src -name '*.lisp') pslcc
 NATIVE_COMPILER := $(BUILD_DIR)/pslcc-native
 NATIVE_CORE := $(BUILD_DIR)/native-core.o
 NATIVE_HOST := $(BUILD_DIR)/native-host.o
+NATIVE_SOURCE := $(BUILD_DIR)/native-source.o
 
 .PHONY: all native stage0 example test test-native test-self-core \
         test-windows test-aarch64 test-riscv64 clean help
@@ -31,11 +32,14 @@ $(NATIVE_CORE): $(BOOTSTRAP_SOURCES) $(STAGE0_SOURCES) | $(BUILD_DIR)
 $(NATIVE_HOST): $(BOOTSTRAP_SOURCES) $(STAGE0_SOURCES) | $(BUILD_DIR)
 	$(PSLCC) $(PSLFLAGS) -c bootstrap/host/driver.lisp -o "$@"
 
+$(NATIVE_SOURCE): $(BOOTSTRAP_SOURCES) $(STAGE0_SOURCES) | $(BUILD_DIR)
+	$(PSLCC) $(PSLFLAGS) -c bootstrap/host/source_unit.lisp -o "$@"
+
 # The native compiler currently emits x86-64 Linux objects for its typed subset.
-$(NATIVE_COMPILER): $(NATIVE_CORE) $(NATIVE_HOST) bootstrap/driver.c bootstrap/native_api.h \
+$(NATIVE_COMPILER): $(NATIVE_CORE) $(NATIVE_HOST) $(NATIVE_SOURCE) bootstrap/driver.c bootstrap/native_api.h \
                     bootstrap/host/source.c bootstrap/host/source.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) bootstrap/driver.c bootstrap/host/source.c \
-	  "$(NATIVE_CORE)" "$(NATIVE_HOST)" $(LDFLAGS) $(LDLIBS) -o "$@"
+	  "$(NATIVE_CORE)" "$(NATIVE_HOST)" "$(NATIVE_SOURCE)" $(LDFLAGS) $(LDLIBS) -o "$@"
 
 $(BUILD_DIR)/arithmetic: examples/native/arithmetic.lisp $(STAGE0_SOURCES) | $(BUILD_DIR)
 	$(PSLCC) $(PSLFLAGS) "$<" -o "$@"
@@ -63,7 +67,7 @@ test-riscv64:
 
 # Remove only artifacts owned by this Makefile.
 clean:
-	rm -f "$(NATIVE_COMPILER)" "$(NATIVE_CORE)" "$(NATIVE_HOST)" "$(BUILD_DIR)/arithmetic"
+	rm -f "$(NATIVE_COMPILER)" "$(NATIVE_CORE)" "$(NATIVE_HOST)" "$(NATIVE_SOURCE)" "$(BUILD_DIR)/arithmetic"
 
 help:
 	@echo 'make                   Build the native compiler subset (SBCL + C compiler)'

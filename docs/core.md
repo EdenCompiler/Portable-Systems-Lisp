@@ -312,10 +312,15 @@ The temporary C wrapper supplies file I/O and diagnostic rendering. This API doe
 
 Top-level lowercase `(include "relative-file.lisp")` now splices source into
 the same unit. A native PSL parser identifies include forms and decodes their
-filenames; the temporary C host loader resolves canonical paths, reads files,
-deduplicates repeated includes, and rejects active include cycles. Nested paths
+filenames. The hosted PSL loader resolves relative include paths, deduplicates
+canonical files, rejects active cycles, and assembles forms in source order.
+Its temporary C adapter reads files, canonicalizes paths, and renders errors. Nested paths
 are relative to the file naming them. Reader and include failures produce no
-object. This host traversal still needs to move into PSL.
+object. `native_read_source_unit` returns an owned, NUL-terminated byte buffer
+and its length; the caller releases it with a free-compatible allocator. An
+empty unit returns an owned empty buffer. Errors return null and release partial
+frames, paths, syntax arrays, and assembled bytes. The loader is a separate PSL
+translation unit using the core parser/include exports through their C ABI.
 
 It does not yet support packages, general host macro execution, qualifiers,
 floating accesses, or structure values. Its
@@ -325,6 +330,6 @@ and allocation-effect analysis still need native ports. It directly compiles
 its full native core, including frontend, IR verification, x86-64 encoding,
 and ELF writing. Successive native core generations reproduce identical
 objects and pass the native subset suite. The broader Stage 0 corpus, remaining
-targets and ABI/object features, and the remaining C file/diagnostic/source traversal ports remain
+targets and ABI/object features, and the remaining C file/diagnostic/path adapter ports remain
 open, so it is still an M8 development slice. See [the bootstrap contract](../bootstrap/README.md)
 for its tests and remaining gate.

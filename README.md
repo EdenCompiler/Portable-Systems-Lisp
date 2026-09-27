@@ -51,9 +51,9 @@ make example
 make test
 ```
 
-`make` compiles the PSL native core and hosted storage module into
-`build/native-core.o` and `build/native-host.o`, then links the temporary host
-wrapper. `build/pslcc-native SOURCE OUTPUT.o` accepts the
+`make` compiles the PSL native core, hosted storage, and source loader into
+`build/native-core.o`, `build/native-host.o`, and `build/native-source.o`, then
+links the temporary OS and diagnostic adapter. `build/pslcc-native SOURCE OUTPUT.o` accepts the
 [documented bootstrap subset](bootstrap/README.md); it is not yet the complete
 Stage 0 compiler. `make example` uses Stage 0 to build and run a pure Lisp
 program. Use `make help` for native generation checks, cross-target tests,
@@ -149,8 +149,9 @@ linker script. Other bare-metal boards need their own startup and memory map.
 The [native bootstrap core](bootstrap/README.md) now compiles its own PSL
 modules and reproduces identical objects across successive native generations.
 Its compilation-unit pipeline is written in PSL and exposed as an in-memory
-API. Buffer allocation, initialization, and cleanup are now in PSL; file I/O,
-diagnostic rendering, and source traversal still use a temporary C host wrapper; the broader language and target corpus remains to be ported,
+API. Allocation, initialization, cleanup, and include traversal are in PSL.
+File I/O, path canonicalization, and diagnostic rendering still use a temporary
+C adapter; the broader language and target corpus remains to be ported,
 so full self hosting is still in progress.
 See the [roadmap](docs/roadmap.md) for milestone status.
 
