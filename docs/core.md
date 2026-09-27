@@ -254,7 +254,8 @@ become a pointer. Raw pointers, including address zero, are true in `if`.
 
 Native C calls use `ffi:import-function` declarations and explicit `ffi:call`
 expressions, with the same integer and raw pointer source types as ordinary
-functions. Imported names must currently be lowercase C-compatible strings.
+functions, including opaque `(ptr void)` arguments/results and `void` results.
+Imported names must currently be lowercase C-compatible strings.
 Declarations can appear before or after their callers. Duplicate names,
 malformed parameters, mismatched arity/types, ordinary calls to imports, and
 `ffi:call` on defined Lisp functions are rejected. Imported calls lower through
@@ -264,7 +265,18 @@ imports are absent from the symbol table. C-built executables, static libraries,
 and shared libraries consume these objects; the native CLI still emits objects
 rather than invoking a linker.
 
-Native `ffi:source`, data symbols, floating/aggregate signatures, `void`, pointer
+Native `void` calls may appear in sequences, `let` bindings/bodies, conditional
+arms, and loop bodies. Functions declared `(returns void)` must end in a void
+expression. Void results carry completion metadata through SSA/LIR; they never
+become return-register values or PHI copies. Void parameters, structure fields,
+conditions, arithmetic, and value arguments are rejected. Opaque pointers may
+be passed, returned, stored in pointer fields, and explicitly cast. A `(ptr void)`
+must be cast to a sized pointee before dereferencing or using `pointer+`.
+Opaque null pointers are true under the raw-pointer Lisp truth rule.
+Explicit libc imports such as `malloc` and `free` work; they do not become
+implicit runtime dependencies of other units.
+
+Native `ffi:source`, data symbols, floating/aggregate signatures, pointer
 qualifiers, and import effect annotations remain unsupported. Allocation-effect
 certification still needs a native port; imports do not carry a native
 allocation-free guarantee.
@@ -284,7 +296,8 @@ deduplicates repeated includes, and rejects active include cycles. Nested paths
 are relative to the file naming them. Reader and include failures produce no
 object. This host traversal still needs to move into PSL.
 
-It does not yet support packages, general host macro execution, qualifiers, `void` pointers, floating accesses, or structure values. Its
+It does not yet support packages, general host macro execution, qualifiers,
+floating accesses, or structure values. Its
 implemented subset now passes verified HIR, typed CFG/SSA, and flat LIR; the
 backend consumes virtual registers and explicit labels. Generic optimization
 and allocation-effect analysis still need native ports. It directly compiles

@@ -20,6 +20,7 @@
     ((= (signature_word_p signatures type #x746e692d63 5) 1) 8) ; c-int
     ((= (signature_word_p signatures type #x343673 3) 1) 9) ; s64
     ((= (signature_word_p signatures type #x657a697369 5) 1) 10) ; isize
+    ((= (signature_word_p signatures type #x64696f76 4) 1) 12) ; void result
     (t (if (= (source_type_pointee signatures type) 0) 0 11))))
 
 (defun scalar_literal_code (expected integer)

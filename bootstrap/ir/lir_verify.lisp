@@ -23,8 +23,10 @@
               ((= kind 103)
                (if (= target 0)
                    (if (= right 0)
-                       (if (= (ir_reference_p left (deref (field-pointer arena 'value_count))) 0) 0
-                           (lir_return_type_p context op)) 0) 0))
+                       (if (= (deref (field-pointer op 'scalar_code)) 12)
+                           (if (= left 0) (lir_return_type_p context op) 0)
+                           (if (= (ir_reference_p left (deref (field-pointer arena 'value_count))) 0) 0
+                               (lir_return_type_p context op))) 0) 0))
               (t 0)) 0) 0)))
 
 (defun lir_catalog_entry_p (context reference)
@@ -103,6 +105,9 @@
         (kind (deref (field-pointer op 'kind))))
     (cond
       ((= kind 100) 1) ((= kind 101) 1)
+      ((= kind 103)
+       (if (= (deref (field-pointer op 'scalar_code)) 12) 1
+           (lir_value_defined_p arena (deref (field-pointer op 'left)) index block)))
       ((= (ir_leaf_kind_p kind) 1) 1)
       ((= kind 7)
        (let ((signature (native_signature_at (deref (field-pointer context 'signatures))
@@ -148,8 +153,10 @@
              (deref (field-pointer op 'pointee))
              (scalar_signature_type_code context signature)
              (scalar_signature_result_pointee context signature)) 0) 0
-        (ir_operand_matches_op_p context types (deref (field-pointer op 'left))
-                                 (ptr-cast (ptr native_scalar_op) op)))))
+        (if (= (deref (field-pointer op 'scalar_code)) 12)
+            (if (= (deref (field-pointer op 'left)) 0) 1 0)
+            (ir_operand_matches_op_p context types (deref (field-pointer op 'left))
+                                     (ptr-cast (ptr native_scalar_op) op))))))
 
 (defun lir_entry_p (arena)
   (declare (type (ptr native_lir_arena) arena) (returns c-int))

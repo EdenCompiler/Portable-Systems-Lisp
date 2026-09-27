@@ -30,13 +30,9 @@ struct fixture {
     struct native_compile_context context;
 };
 
-static int compile_fixture(struct fixture *f) {
-    static const uint8_t source[] =
-        "(defun choice (input)"
-        " (declare (type u64 input) (returns u64) (c-export :c))"
-        " (let ((x (if (< input 2) (wrap+ input 10) (wrap* input 3))))"
-        "   (wrap+ x 1)))";
-    f->scanner = (struct psl_scanner){source, sizeof source - 1, 0, 0};
+static int compile_source(struct fixture *f, const uint8_t *source) {
+    memset(f, 0, sizeof *f);
+    f->scanner = (struct psl_scanner){source, strlen((const char *)source), 0, 0};
     f->parser = (struct psl_parser){&f->scanner, &f->token, 0, f->syntax, 0, 256, 0};
     f->layouts = (struct native_layout_context){
         &f->parser, source, NULL, 0, 0, NULL, 0, 0, &f->shape, 0
@@ -59,6 +55,51 @@ static int compile_fixture(struct fixture *f) {
     return root && native_parse_signature(&f->signature_context, root) &&
            predeclare_scalar_form(&f->context, f->signatures, f->functions) &&
            compile_scalar_form(&f->context, f->signatures, f->functions);
+}
+
+static int compile_fixture(struct fixture *f) {
+    static const uint8_t source[] =
+        "(defun choice (input)"
+        " (declare (type u64 input) (returns u64) (c-export :c))"
+        " (let ((x (if (< input 2) (wrap+ input 10) (wrap* input 3))))"
+        "   (wrap+ x 1)))";
+    return compile_source(f, source);
+}
+
+static int check_void_mutations(struct fixture *f) {
+    static const uint8_t source[] =
+        "(defun choice (input) (declare (type u64 input) (returns void))"
+        " (if (< input 2) (choice 0) (choice 1)))";
+    if (!compile_source(f, source)) return 1;
+    uintptr_t join = 0, call = 0, returned = 0;
+    for (uintptr_t i = 0; i < f->ssa.value_count; ++i)
+        if (f->ssa_values[i].kind == 29) join = i;
+    for (uintptr_t i = 0; i < f->lir.count; ++i) {
+        if (f->lir_instructions[i].kind == 7) call = i + 1;
+        if (f->lir_instructions[i].kind == 103) returned = i + 1;
+        if (f->lir_instructions[i].kind == 104) return 2;
+    }
+    if (!join || !call || !returned) return 3;
+    /* A void join has no incoming machine values to copy. */
+    f->ssa_values[join].left = 1;
+    if (ssa_verify_function(&f->context)) return 4;
+    f->ssa_values[join].left = 0;
+    /* A marker cannot masquerade as a value literal or PHI. */
+    f->ssa_values[join].kind = 1;
+    f->types[join].kind = 1;
+    if (ssa_verify_function(&f->context)) return 5;
+    f->ssa_values[join].kind = 28;
+    f->types[join].kind = 28;
+    if (ssa_verify_function(&f->context)) return 6;
+    f->ssa_values[join].kind = 29;
+    f->types[join].kind = 29;
+    f->lir_instructions[returned - 1].left = f->lir_instructions[call - 1].destination;
+    if (lir_verify_function(&f->context)) return 7;
+    f->lir_instructions[returned - 1].left = 0;
+    f->lir_instructions[call - 1].scalar_code = 1;
+    if (lir_verify_function(&f->context)) return 8;
+    f->lir_instructions[call - 1].scalar_code = 12;
+    return ssa_verify_function(&f->context) && lir_verify_function(&f->context) ? 0 : 9;
 }
 
 static int check_ssa_mutations(struct fixture *f) {
@@ -127,5 +168,6 @@ int main(void) {
     if (!ssa_verify_function(&fixture.context) || !lir_verify_function(&fixture.context)) return 2;
     if (check_ssa_mutations(&fixture)) return 3;
     if (check_lir_mutations(&fixture)) return 4;
+    if (check_void_mutations(&fixture)) return 5;
     return 0;
 }

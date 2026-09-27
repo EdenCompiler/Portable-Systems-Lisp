@@ -14,7 +14,7 @@
 
 (defun ir_leaf_kind_p (kind)
   (declare (type u32 kind) (returns c-int))
-  (if (= kind 1) 1 (if (= kind 2) 1 (if (= kind 19) 1 0))))
+  (if (= kind 1) 1 (if (= kind 2) 1 (if (= kind 19) 1 (if (= kind 29) 1 0)))))
 
 (defun ir_unary_kind_p (kind)
   (declare (type u32 kind) (returns c-int))
@@ -54,6 +54,7 @@
           ((= kind 23) (if (= target 0) 0 1))
           ((= target 0)
            (cond
+             ((= kind 29) (if (= value 0) 1 0))
              ((= (ir_leaf_kind_p kind) 1) 1)
              ((= kind 24) (if (= value 1) 1 (if (= value 2) 1 (if (= value 4) 1 (if (= value 8) 1 0)))))
              ((= kind 25) (if (= value 1) 1 (if (= value 2) 1 (if (= value 4) 1 (if (= value 8) 1 0)))))

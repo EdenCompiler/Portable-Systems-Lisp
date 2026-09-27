@@ -10,13 +10,14 @@
         (pointee (deref (field-pointer node 'pointee))))
     (if (= code 11)
         (if (= (deref (field-pointer node 'type_code)) 1)
-            (if (= (source_type_reference_p context pointee) 0) 0
-                (if (= (source_type_size context pointee) 0) 0 1))
+            (source_pointer_pointee_p context pointee)
             0)
         (if (= pointee 0)
             (if (= (deref (field-pointer node 'type_code)) 2)
                 (if (= code 0) 1 0)
-                (scalar_valid_code_p code))
+                (if (= (deref (field-pointer node 'type_code)) 3)
+                    (if (= code 12) 1 0)
+                    (scalar_valid_code_p code)))
             0))))
 
 (defun hir_scalar_same_p (context reference code)

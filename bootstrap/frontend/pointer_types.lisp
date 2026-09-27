@@ -35,6 +35,14 @@
       (if (< (deref (field-pointer (deref (field-pointer context 'parser)) 'count))
              reference) 0 1)))
 
+(defun source_pointer_pointee_p (context pointee)
+  (declare (type (ptr native_compile_context) context)
+           (type usize pointee) (returns c-int))
+  (if (= (source_type_reference_p context pointee) 0) 0
+      (if (= (scalar_type_code (deref (field-pointer context 'signatures)) pointee) 12)
+          1
+          (if (= (source_type_size context pointee) 0) 0 1))))
+
 (defun source_resolved_types_equal_p (context left right depth)
   (declare (type (ptr native_compile_context) context)
            (type usize left right depth) (returns c-int))

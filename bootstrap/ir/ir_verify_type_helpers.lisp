@@ -21,7 +21,6 @@
   (declare (type (ptr native_compile_context) context)
            (type u32 code) (type usize pointee) (returns c-int))
   (if (= code 11)
-      (if (= (source_type_reference_p context pointee) 0) 0
-          (if (= (source_type_size context pointee) 0) 0 1))
+      (source_pointer_pointee_p context pointee)
       (if (= pointee 0)
-          (if (= code 0) 1 (scalar_valid_code_p code)) 0)))
+          (if (= code 0) 1 (if (= code 12) 1 (scalar_valid_code_p code))) 0)))

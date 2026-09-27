@@ -1,7 +1,8 @@
 (include "../backend/common.lisp")
 
 ;; Integer nodes use a 64-bit word representation. Scalar codes retain their
-;; source width and signedness; source code 11 is a raw pointer. References are one-based
+;; source width and signedness; source code 11 is a raw pointer, 12 is void.
+;; Broad type codes are 1 word, 2 Boolean, and 3 void. References are one-based
 ;; arena indices and point
 ;; only to earlier nodes. Kinds: 1 literal, 2 parameter, 4/5/6 arithmetic,
 ;; 7 direct call, 8/9 comparison, 10 conditional, 11 bitwise and, 12 shift,
@@ -79,7 +80,7 @@
           (store (field-pointer (hir_node_at arena reference) 'scalar_code)
                  code)
           (store (field-pointer (hir_node_at arena reference) 'type_code)
-                 (if (= code 0) 2 1))
+                 (if (= code 0) 2 (if (= code 12) 3 1)))
           reference))))
 
 (defun hir_scalar_code (arena reference)
@@ -230,9 +231,11 @@
   (let ((code (deref (field-pointer node 'type_code))))
     (if (= (hir_boolean_result_kind_p kind) 1)
         (if (= code 2) 1 0)
-        (if (= (hir_flexible_result_kind_p kind) 1)
-            (if (= code 1) 1 (if (= code 2) 1 0))
-            (if (= code 1) 1 0)))))
+        (if (= code 3)
+            (if (= kind 7) 1 (hir_flexible_result_kind_p kind))
+            (if (= (hir_flexible_result_kind_p kind) 1)
+                (if (= code 1) 1 (if (= code 2) 1 0))
+                (if (= code 1) 1 0))))))
 
 (defun hir_sequence_shape_p (arena node reference)
   (declare (type (ptr native_hir_arena) arena)
@@ -444,7 +447,8 @@
   (if (= (deref (field-pointer arena 'error)) 0)
       (if (= (hir_verify_node arena root functions prior_count arity 0) 1)
           (if (= (hir_verify_scope arena root 0 0) 1)
-              (hir_child_type_p arena root 1)
+              (if (= (hir_child_type_p arena root 3) 1) 1
+                  (hir_child_type_p arena root 1))
               0)
           0)
       0))

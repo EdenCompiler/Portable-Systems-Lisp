@@ -13,8 +13,9 @@
   (declare (type (ptr native_compile_context) context)
            (type (ptr native_lir_instruction) op) (returns c-int))
   (let ((code (deref (field-pointer op 'scalar_code))))
-    (x86_normalize_integer (deref (field-pointer context 'code))
-                           (scalar_type_bits code) (scalar_type_signed_p code))))
+    (if (= code 12) 1
+        (x86_normalize_integer (deref (field-pointer context 'code))
+                               (scalar_type_bits code) (scalar_type_signed_p code)))))
 
 (defun x86_lir_binary_operands (context op)
   (declare (type (ptr native_compile_context) context)
@@ -136,6 +137,7 @@
        (if (= (x86_load_parameter code (wrap-cast usize (deref (field-pointer op 'value)))) 0) 0
            (x86_lir_normalize context op)))
       ((= kind 7) (x86_lir_call context op))
+      ((= kind 29) 1)
       ((= (ir_binary_kind_p kind) 1) (x86_lir_binary context op))
       (t (x86_lir_unary context op)))))
 
@@ -164,7 +166,8 @@
                        (if (= then_jump 0) 0
                            (record_call_fixup jumps (wrap+ then_jump 1) (deref (field-pointer op 'target))))))))))
       ((= kind 103)
-       (if (= (x86_lir_load context (deref (field-pointer op 'left))) 0) 0 (x86_return code)))
+       (if (= (deref (field-pointer op 'scalar_code)) 12) (x86_return code)
+           (if (= (x86_lir_load context (deref (field-pointer op 'left))) 0) 0 (x86_return code))))
       (t 0))))
 
 (defun x86_lir_emit_instructions (context index)
@@ -176,10 +179,16 @@
           (if (= (deref (field-pointer op 'destination)) 0)
               (if (= (x86_lir_control context op) 0) 0 (x86_lir_emit_instructions context (wrap+ index 1)))
               (if (= (x86_lir_value context op) 0) 0
-                  (if (= (x86_store_local (deref (field-pointer context 'code))
-                                          (deref (field-pointer op 'destination))
-                                          (deref (field-pointer lir 'value_count))) 0) 0
+                  (if (= (x86_lir_store_result context op) 0) 0
                       (x86_lir_emit_instructions context (wrap+ index 1)))))))))
+
+(defun x86_lir_store_result (context op)
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_lir_instruction) op) (returns c-int))
+  (if (= (deref (field-pointer op 'scalar_code)) 12) 1
+      (x86_store_local (deref (field-pointer context 'code))
+                       (deref (field-pointer op 'destination))
+                       (deref (field-pointer (deref (field-pointer context 'lir)) 'value_count)))))
 
 (defun x86_lir_patch_jumps (context index)
   (declare (type (ptr native_compile_context) context)

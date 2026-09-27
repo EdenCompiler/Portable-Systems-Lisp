@@ -380,7 +380,7 @@ consumes the objects through executable, static,
 and shared C links. It inspects relocations/symbols and excludes unused imports.
 An object API mutation harness rejects malformed call fixups and import
 metadata before output. The core-generation gate includes these fixtures and
-foreign-source rejection diagnostics. Native `ffi:source`, data symbols, void,
+foreign-source rejection diagnostics. Native `ffi:source`, data symbols,
 floating/aggregate signatures, and import effects still need ports. This adds
 part of the subgate 3 object/ABI path needed by a PSL driver; it does not close
 M8.
@@ -395,6 +395,19 @@ checks rejection phases and output capacity, and runs through the native core
 generation gate. The refactor preserves diagnostics on the existing rejected
 source corpus. This advances subgate 4; the full native driver, source services,
 and Stage 1–3 gate remain open.
+
+Native signatures now accept `void` results and `(ptr void)` arguments/results.
+Void calls run through verified HIR/SSA/LIR without supplying a machine value.
+Void conditional joins have completion markers instead of value PHIs, and
+return instructions do not read a result register. The native test fixture uses
+direct `malloc`/`free` imports and checks recursive/forward void calls,
+seven-argument imports, branches, lexical bindings, loops, opaque pointer
+fields/casts, and null-pointer truth against Stage 0 C behavior. Negative
+fixtures reject void parameters/fields, value consumers, mismatched pointer
+calls, and unsized memory operations. IR mutations reject void literals,
+PHIs, and return operands. These facilities enable direct allocation/file
+service imports for the remaining driver port; the full native driver and
+M8 gate remain open.
 
 The native compiler now compiles every module included by its own
 `bootstrap/native-core.lisp`. `sh tests/bootstrap_self_core.sh` builds three
@@ -415,8 +428,8 @@ test checks both the local ELF symbol and a C caller.
 The native source pass now registers simple `defcstruct` declarations. The
 bootstrap test compares their size, alignment, and field offsets with C on
 each hosted test target. Native function bodies support integer and pointer
-access through these layouts; floating accesses, pointer qualifiers, `void`
-pointers, and structure values still need a broader native implementation.
+access through these layouts; floating accesses, pointer qualifiers,
+and structure values still need a broader native implementation.
 It also records typed `defun` signatures in source order. The signature test
 parses the byte emitter, arena, integer reader, and scanner modules and checks
 their resolved parameter and return shapes. Scalar body compilation consumes

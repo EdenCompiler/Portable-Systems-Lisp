@@ -24,6 +24,20 @@
             (ssa_record_type arena reference value)
             reference)))))
 
+;; A void join carries completion metadata, with no value PHI or edge copies.
+;; Both arms have already been lowered and terminated before this is emitted.
+(defun ssa_make_void_join (context node)
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_hir_node) node) (returns usize))
+  (let ((arena (deref (field-pointer context 'ssa))))
+    (let ((reference (ssa_new_value arena node 0 0)))
+      (if (= reference 0) 0
+          (let ((value (ssa_value_at arena reference)))
+            (store (field-pointer value 'kind) 29)
+            (store (field-pointer value 'target) 0)
+            (ssa_record_type arena reference value)
+            reference)))))
+
 (defun ssa_lower_if_arms (context node then_block else_block join depth)
   (declare (type (ptr native_compile_context) context)
            (type (ptr native_hir_node) node)
@@ -38,7 +52,9 @@
               (if (= right 0) 0
                   (let ((else_end (deref (field-pointer arena 'current))))
                     (store (field-pointer arena 'current) join)
-                    (ssa_make_phi context node left right then_end else_end)))))))))
+                    (if (= (deref (field-pointer node 'scalar_code)) 12)
+                        (ssa_make_void_join context node)
+                        (ssa_make_phi context node left right then_end else_end))))))))))
 
 (defun ssa_lower_if (context node depth)
   (declare (type (ptr native_compile_context) context)

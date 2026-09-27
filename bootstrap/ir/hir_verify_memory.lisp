@@ -35,15 +35,16 @@
   (declare (type (ptr native_compile_context) context)
            (type (ptr native_hir_node) node)
            (type usize depth) (returns c-int))
-  (let ((left (deref (field-pointer node 'left))))
-    (if (= (hir_pointer_child_p context left) 0) 0
+  (let ((left (deref (field-pointer node 'left)))
+        (size (source_type_size context (deref (field-pointer node 'pointee)))))
+    (if (= size 0) 0
+        (if (= (hir_pointer_child_p context left) 0) 0
         (if (= (hir_source_matches_node_p context left node) 0) 0
             (if (= (hir_scalar_same_p context (deref (field-pointer node 'right)) 10) 0) 0
                 (if (= (deref (field-pointer node 'value))
-                       (wrap-cast u64 (source_type_size context
-                                       (deref (field-pointer node 'pointee)))))
+                       (wrap-cast u64 size))
                     (hir_verify_scalar_pair context node depth)
-                    0))))))
+                    0)))))))
 
 (defun hir_verify_field_metadata (context node field)
   (declare (type (ptr native_compile_context) context)

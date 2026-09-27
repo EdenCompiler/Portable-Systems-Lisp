@@ -87,7 +87,8 @@
            (type (ptr native_scalar_op) op) (returns c-int))
   (let ((kind (deref (field-pointer op 'kind)))
         (code (deref (field-pointer op 'scalar_code))))
-    (if (= (ir_source_type_p context code (deref (field-pointer op 'pointee))) 0) 0
+    (if (= (ir_result_kind_p code kind) 0) 0
+        (if (= (ir_source_type_p context code (deref (field-pointer op 'pointee))) 0) 0
         (cond
           ((= kind 1) (scalar_word_valid_p code (deref (field-pointer op 'value))))
           ((= kind 2) (ir_verify_parameter_type context op))
@@ -96,9 +97,15 @@
           ((= kind 9) (ir_verify_comparison context types op))
           ((= kind 17) (ir_operand_matches_op_p context types (deref (field-pointer op 'left)) op))
           ((= kind 19) (if (= code 0) (if (< 1 (deref (field-pointer op 'value))) 0 1) 0))
+          ((= kind 29) (if (= code 12) 1 0))
           ((= kind 18) (ir_verify_unary_type context types op))
           ((= kind 20) (ir_verify_unary_type context types op))
           ((= kind 21) (ir_verify_unary_type context types op))
           ((= kind 22) (ir_verify_unary_type context types op))
           ((< 22 kind) (ir_verify_memory_type context types op))
-          (t (ir_verify_integer_binary context types op))))))
+          (t (ir_verify_integer_binary context types op)))))))
+
+(defun ir_result_kind_p (code kind)
+  (declare (type u32 code kind) (returns c-int))
+  (if (= code 12)
+      (if (= kind 7) 1 (if (= kind 29) 1 0)) 1))

@@ -55,7 +55,10 @@
       ((= kind 25) (ir_verify_access_type context types op))
       ((= kind 27) (ir_verify_pointer_add_type context types op))
       ((= kind 28)
-       (if (= (ir_operand_matches_op_p context types (deref (field-pointer op 'left)) op) 0) 0
-           (ir_operand_matches_op_p context types (deref (field-pointer op 'right)) op)))
-      ((= kind 104) (ir_operand_matches_op_p context types (deref (field-pointer op 'left)) op))
+       (if (= (deref (field-pointer op 'scalar_code)) 12) 0
+           (if (= (ir_operand_matches_op_p context types (deref (field-pointer op 'left)) op) 0) 0
+               (ir_operand_matches_op_p context types (deref (field-pointer op 'right)) op))))
+      ((= kind 104)
+       (if (= (deref (field-pointer op 'scalar_code)) 12) 0
+           (ir_operand_matches_op_p context types (deref (field-pointer op 'left)) op)))
       (t 0))))

@@ -27,9 +27,10 @@
     (if (= result 0)
         0
         (let ((arena (deref (field-pointer context 'hir))))
-          (if (= (hir_child_type_p arena result 2) 1)
-              result
-              (hir_new_scalar arena 20 0 result 0 0 body 0))))))
+          (if (= (hir_scalar_code arena result) 12) 0
+              (if (= (hir_child_type_p arena result 2) 1)
+                  result
+                  (hir_new_scalar arena 20 0 result 0 0 body 0)))))))
 
 (defun analyze_if_parts (context body condition then_ast else_ast depth)
   (declare (type (ptr native_compile_context) context)

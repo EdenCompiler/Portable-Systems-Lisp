@@ -199,7 +199,9 @@
            (returns c-int)
            (c-export :c))
   (let ((parser (deref (field-pointer context 'parser))))
-    (if (= (layout_atom_p parser type) 1)
+    (if (= (layout_word_p context type #x64696f76 4) 1)
+        (layout_set_shape output 0 1 4 0) ; void is a result/pointee, not storage
+        (if (= (layout_atom_p parser type) 1)
         (let ((size (layout_primitive_size context type)))
           (if (< 0 size)
               (layout_set_shape output size size 1 0)
@@ -212,7 +214,7 @@
                        output (deref (field-pointer layout 'size))
                        (deref (field-pointer layout 'alignment)) 3
                        index))))))
-        (native_resolve_pointer_type context type output))))
+        (native_resolve_pointer_type context type output)))))
 
 (defun native_resolve_pointer_type (context type output)
   (declare (type (ptr native_layout_context) context)
@@ -296,7 +298,8 @@
                                        name)
                           'next))))
         (if (= (native_resolve_type context type shape) 1)
-            (layout_commit_field context layout name type shape)
+            (if (= (deref (field-pointer shape 'kind)) 4) 0
+                (layout_commit_field context layout name type shape))
             0))))
 
 (defun layout_add_field (context field layout shape)

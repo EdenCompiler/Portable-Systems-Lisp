@@ -68,13 +68,14 @@ The native modules currently implement:
   must have equal types. `shr64` remains specific to `u64`.
   C calls use `(ffi:import-function "name" ((arg TYPE) ...) -> TYPE)` and
   `(ffi:call name ...)`. Imports currently accept lowercase C-compatible
-  names and integer/pointer signatures. Ordinary calls cannot invoke an
+  names and integer/pointer signatures, including `(ptr void)` and `void`
+  results. Ordinary calls cannot invoke an
   import, and `ffi:call` cannot invoke an ordinary Lisp function. The native
   frontend checks duplicate names, parameter shapes, call arity, and source
   types before code generation. C harnesses verify narrow returns, pointers,
   `strlen`, integer-zero/null-pointer Lisp truth, register/stack calls and
   alignment, and static/shared consumption.
-  `ffi:source`, data imports, floating/aggregate signatures, `void`, pointer
+  `ffi:source`, data imports, floating/aggregate signatures, pointer
   qualifiers, and allocation-effect annotations still need native ports.
   It accepts `t`, `nil`, `if`, lexical `let`, `progn`, and test-and-body `cond`
   clauses. Integer zero is true in a condition; only Boolean `nil` is false.
@@ -144,9 +145,21 @@ and internal `-` characters. C exports use C-compatible lowercase names
 symbols may contain hyphens. The Stage 0 reader handles more
 Common Lisp spelling rules; those rules have not yet been ported to the native
 compiler.
+Native `void` functions and calls execute effects without producing a machine
+value. `progn`, `let`, `if`, and loop bodies can sequence void calls; a function
+declared `(returns void)` must end in a void expression. Opaque `(ptr void)`
+values can be passed, returned, stored as pointer fields, and explicitly cast
+to or from typed pointers. Dereferencing or offsetting an opaque pointer is
+rejected until it is cast to a sized pointee. Void parameters and fields are
+rejected. Void is not `nil` and cannot be an `if` condition, arithmetic operand,
+or ordinary machine-value argument. A C fixture exercises native `malloc`/`free`
+imports, seven-argument void calls, forward calls, recursion, branches, loops,
+opaque fields, and the true value of an opaque null pointer. SSA/LIR mutation
+checks reject void values used as literals, PHIs, or return-register operands.
+
 Its structure declarations use lowercase names and the primitive types handled
 by `layout.lisp`. Field pointers support nested structures and quoted field
-names. Structure values, float loads and stores, `void` pointers, pointer
+names. Structure values, float loads and stores, pointer
 qualifiers, packages, and general macro expansion remain outside this native
 slice. Include forms currently use the unqualified lowercase spelling.
 

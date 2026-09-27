@@ -189,7 +189,14 @@ Defined calls are patched directly; imported calls keep zero rel32 fields.
 The ELF call writer independently verifies fixup targets, code bounds, opcodes,
 placeholder bytes, nonoverlapping positions, and import reference flags. It
 orders local and global symbols, omits unreferenced imports, and maps source
-function IDs to ELF symbol indices for PLT32 relocations. No assembler or
+function IDs to ELF symbol indices for PLT32 relocations. Void results retain
+separate source and broad HIR type codes. SSA void joins use a completion
+marker with no value PHI; LIR emits neither edge copies nor return operands
+for those results. The encoder skips result normalization/storage and return
+loads for void, while preserving call arguments, stack restoration, and effects.
+The type verifiers reject void machine-value consumers. Opaque pointee syntax
+remains in pointer signatures and layout metadata; memory analysis requires a
+sized pointee before accesses or pointer arithmetic. No assembler or
 code-generation library participates in this path.
 
 The native signature pass resolves grouped parameter declarations and return

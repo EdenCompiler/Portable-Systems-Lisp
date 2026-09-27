@@ -82,7 +82,9 @@
       (t (let ((result (deref (field-pointer block 'result)))
                (types (deref (field-pointer lir 'types))))
            (let ((type (ir_type_at types result))
-                 (return (lir_allocate lir 103 0 result 0 0)))
+                 (return (lir_allocate lir 103 0
+                          (if (= (deref (field-pointer (ir_type_at types result) 'scalar_code)) 12)
+                              (wrap-cast usize 0) result) 0 0)))
              (lir_record_type lir return (deref (field-pointer type 'scalar_code))
                               (deref (field-pointer type 'pointee)) 1)))))))
 
