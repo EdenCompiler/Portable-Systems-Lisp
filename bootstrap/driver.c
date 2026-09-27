@@ -13,70 +13,6 @@ static int write_object(const char *path, const struct byte_buffer *object) {
     return result;
 }
 
-static int collect_forms(struct psl_parser *parser,
-                         struct native_layout_context *layouts,
-                         struct native_signature_context *signatures) {
-    uintptr_t root;
-
-    while ((root = parser_next(parser)) != 0) {
-        if (native_layout_form_p(layouts, root)) {
-            if (!native_register_layout(layouts, root)) {
-                fprintf(stderr, "cannot register layout at byte %lu\n",
-                         (unsigned long)parser->nodes[root - 1].start);
-                return 0;
-            }
-            continue;
-        }
-        if (native_import_form_p(signatures, root)) {
-            if (!native_parse_import(signatures, root)) {
-                fprintf(stderr, "cannot parse C import at byte %lu\n",
-                         (unsigned long)parser->nodes[root - 1].start);
-                return 0;
-            }
-            continue;
-        }
-        if (!native_parse_signature(signatures, root)) {
-            fprintf(stderr, "cannot parse declaration at byte %lu\n",
-                     (unsigned long)parser->nodes[root - 1].start);
-            return 0;
-        }
-    }
-    return parser->error == 0 && layouts->error == 0 &&
-           signatures->signature_count != 0;
-}
-
-static int predeclare_forms(struct native_compile_context *context,
-                            uintptr_t count) {
-    for (uintptr_t i = 0; i < count; ++i) {
-        if (!predeclare_scalar_form(context,
-                                    &context->signatures->signatures[i],
-                                    &context->functions[i])) {
-            fprintf(stderr, "cannot predeclare function at byte %lu\n",
-                     (unsigned long)context->parser->nodes[
-                       context->signatures->signatures[i].name - 1].start);
-            return 0;
-        }
-    }
-    return 1;
-}
-
-static int compile_forms(struct native_compile_context *context,
-                         uintptr_t count) {
-    context->prior_count = count;
-    for (uintptr_t i = 0; i < count; ++i) {
-        if (context->signatures->signatures[i].imported) continue;
-        if (!compile_scalar_form(context,
-                                 &context->signatures->signatures[i],
-                                 &context->functions[i])) {
-            struct native_function *function = &context->functions[i];
-            fprintf(stderr, "cannot compile function: %.*s\n",
-                     (int)function->name_length, function->name);
-            return 0;
-        }
-    }
-    return 1;
-}
-
 struct native_storage {
     struct psl_ast_node *syntax;
     struct native_layout *layouts;
@@ -218,19 +154,35 @@ static int prepare_driver(struct native_driver *d) {
     return 1;
 }
 
-static int compile_unit(struct native_driver *d) {
-    return collect_forms(&d->parser, &d->layouts, &d->signature_context) &&
-           predeclare_forms(&d->context, d->signature_context.signature_count) &&
-           compile_forms(&d->context, d->signature_context.signature_count) &&
-           patch_call_fixups(&d->code, d->storage.functions,
-                             d->signature_context.signature_count, &d->calls) &&
-           write_elf64_calls(d->code.data, d->code.length, d->storage.functions,
-                             d->signature_context.signature_count, &d->calls, &d->object);
+static void report_unit_error(const struct native_driver *d,
+                               const struct native_unit_result *result) {
+    const char *message = NULL;
+    switch (result->phase) {
+    case NATIVE_UNIT_LAYOUT: message = "cannot register layout"; break;
+    case NATIVE_UNIT_IMPORT: message = "cannot parse C import"; break;
+    case NATIVE_UNIT_SIGNATURE: message = "cannot parse declaration"; break;
+    case NATIVE_UNIT_PREDECLARE: {
+        uintptr_t name = d->storage.signatures[result->index].name;
+        fprintf(stderr, "cannot predeclare function at byte %lu\n",
+                (unsigned long)d->parser.nodes[name - 1].start);
+        return;
+    }
+    case NATIVE_UNIT_BODY: {
+        const struct native_function *function = &d->storage.functions[result->index];
+        fprintf(stderr, "cannot compile function: %.*s\n",
+                (int)function->name_length, function->name);
+        return;
+    }
+    default: return;
+    }
+    fprintf(stderr, "%s at byte %lu\n", message,
+            (unsigned long)d->parser.nodes[result->form - 1].start);
 }
 
 static int run_compiler(const char *source_path, const char *output_path) {
     struct native_driver driver = {0};
     int result = 0;
+    struct native_unit_result unit_result = {0};
     driver.source = native_read_source_unit(source_path, &driver.length);
     if (!driver.source) {
         fprintf(stderr, "cannot read source: %s\n", source_path);
@@ -239,7 +191,8 @@ static int run_compiler(const char *source_path, const char *output_path) {
     if (!prepare_driver(&driver)) {
         fprintf(stderr, "cannot allocate compiler buffers\n");
         result = 2;
-    } else if (!compile_unit(&driver)) {
+    } else if (!native_compile_unit(&driver.context, &driver.object, &unit_result)) {
+        report_unit_error(&driver, &unit_result);
         fprintf(stderr, "unsupported or malformed source: %s\n", source_path);
         result = 1;
     } else if (!write_object(output_path, &driver.object)) {

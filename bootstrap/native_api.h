@@ -225,6 +225,26 @@ struct native_signature_context {
     uint32_t error;
 };
 
+/* Zero means success. Form is a one-based AST reference; index is a
+   zero-based signature index. Only the failing phase's location is valid. */
+enum native_unit_phase {
+    NATIVE_UNIT_LAYOUT = 1,
+    NATIVE_UNIT_IMPORT,
+    NATIVE_UNIT_SIGNATURE,
+    NATIVE_UNIT_COLLECTION,
+    NATIVE_UNIT_PREDECLARE,
+    NATIVE_UNIT_BODY,
+    NATIVE_UNIT_CALL_FIXUPS,
+    NATIVE_UNIT_OBJECT
+};
+struct native_unit_result {
+    uintptr_t phase, form, index;
+};
+
+/* Fresh contexts/arenas and live caller-owned buffers are required. */
+extern int native_compile_unit(struct native_compile_context *, struct byte_buffer *,
+                               struct native_unit_result *);
+
 extern uintptr_t parser_next(struct psl_parser *parser);
 extern uint32_t native_source_form_kind(struct psl_parser *, const uint8_t *, uintptr_t);
 extern uintptr_t native_source_include_size(struct psl_parser *, const uint8_t *, uintptr_t);

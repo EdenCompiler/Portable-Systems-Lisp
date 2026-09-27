@@ -127,9 +127,10 @@ RISC-V freestanding output boots on QEMU `virt` with the selected startup and
 linker script. Other bare-metal boards need their own startup and memory map.
 The [native bootstrap core](bootstrap/README.md) now compiles its own PSL
 modules and reproduces identical objects across successive native generations.
-Its driver and source traversal still use a temporary C host wrapper; the
-broader language and target corpus remains to be ported, so full self hosting
-is still in progress.
+Its compilation-unit pipeline is written in PSL and exposed as an in-memory
+API. File I/O, buffer allocation, and source traversal still use a temporary
+C host wrapper; the broader language and target corpus remains to be ported,
+so full self hosting is still in progress.
 See the [roadmap](docs/roadmap.md) for milestone status.
 
 ## Documentation and tests

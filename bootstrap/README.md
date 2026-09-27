@@ -114,6 +114,30 @@ The native modules currently implement:
   compilers and runners are available. `driver.c` and `host/source.c` supply
   file I/O, source traversal, and memory until those facilities move into PSL.
 
+`driver.lisp` now owns the compilation-unit pipeline, exposed as
+`native_compile_unit(context, object, result)`. Callers supply freshly
+initialized source, syntax/signature/layout tables, IR arenas, fixup arenas,
+and output buffers. It returns one on success and zero on failure. The
+`native_unit_result` record reports these failure phases:
+
+| Phase | Failure | Location |
+| --- | --- | --- |
+| 1 | Layout declaration | One-based AST `form` |
+| 2 | C import declaration | One-based AST `form` |
+| 3 | Function declaration | One-based AST `form` |
+| 4 | Reader, collection state, or empty unit | No location |
+| 5 | Function predeclaration | Zero-based signature `index` |
+| 6 | Function body pipeline | Zero-based signature `index` |
+| 7 | Call patching | No location |
+| 8 | ELF writing | No location |
+
+Only the failing phase's location is valid. Arenas may contain partial work
+after failure; the host writes the object file only after successful completion.
+The C wrapper renders these locations and provides storage and file services.
+An independent C API caller compiles a unit from memory, checks declaration,
+reader, signature, body, and output-capacity failures, and links/runs the emitted
+object with a forward Lisp call and a C import. It runs with each core generation.
+
 This bootstrap compiler slice accepts lowercase Lisp names with digits, `_`,
 and internal `-` characters. C exports use C-compatible lowercase names
 (`a`–`z`, digits after the first character, and `_`); internal function

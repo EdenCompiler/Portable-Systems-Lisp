@@ -385,6 +385,17 @@ floating/aggregate signatures, and import effects still need ports. This adds
 part of the subgate 3 object/ABI path needed by a PSL driver; it does not close
 M8.
 
+The compilation-unit coordinator has moved from C into `bootstrap/driver.lisp`.
+Its reusable `native_compile_unit` API owns layout/signature collection,
+predeclaration, verified body compilation, call patching, and ELF emission.
+The C host renders returned failure phases/locations and still initializes and
+allocates storage, traverses source files, and performs file I/O. An independent
+in-memory API test compiles a forward-call/C-import unit and runs its object,
+checks rejection phases and output capacity, and runs through the native core
+generation gate. The refactor preserves diagnostics on the existing rejected
+source corpus. This advances subgate 4; the full native driver, source services,
+and Stage 1–3 gate remain open.
+
 The native compiler now compiles every module included by its own
 `bootstrap/native-core.lisp`. `sh tests/bootstrap_self_core.sh` builds three
 successive native core generations on x86-64 Linux, compiles the full core

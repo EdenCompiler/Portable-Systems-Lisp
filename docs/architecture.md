@@ -49,7 +49,8 @@ bootstrap/
   binary.lisp          caller-owned byte emission and patching
   arena.lisp           caller-owned aligned allocation
   compile_scalar.lisp  native analysis, verification, and lowering coordinator
-  driver.c             temporary host file-I/O and storage wrapper
+  driver.lisp          native compilation-unit pipeline and failure locations
+  driver.c             temporary host file-I/O, storage, and diagnostic rendering
   native_api.h         C host boundary for the compiled PSL modules
   host/
     source.c, source.h temporary file reads, path resolution, and source traversal
@@ -197,8 +198,13 @@ uses these records directly instead of parsing declarations again. It accepts th
 headers and bodies of the complete native core. Dedicated component harnesses
 compare byte emission, arena, integer parsing, scanning, syntax parsing, and
 include decoding with Stage 0.
-The driver first collects all signatures, then compiles bodies and patches
-relative calls. This permits forward calls and recursion. It is a
+The PSL unit driver first collects all signatures, then predeclares functions,
+compiles bodies, patches relative calls, and invokes the ELF call writer.
+`native_compile_unit` exposes this pipeline on caller-owned source/arenas,
+with a failure phase and AST/signature location. The temporary C driver
+allocates and initializes those arenas, supplies file I/O, and renders the
+returned failure location. It contains no signature/body compilation loops.
+This permits forward calls and recursion. It is a
 restricted source-to-object proof, not Stage 1: general symbol interpretation,
 macro expansion, full semantic analysis, generic optimization and effects,
 general function calls,

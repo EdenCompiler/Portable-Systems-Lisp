@@ -46,6 +46,14 @@ fi
   "$project_root/bootstrap/host/source.c" \
   "$work_dir/native-core.o" -o "$work_dir/pslcc-native-slice$host_suffix"
 "$host_compiler" -Wall -Wextra -Werror \
+  "$project_root/tests/harness_bootstrap_unit.c" \
+  "$work_dir/native-core.o" -o "$work_dir/unit-api$host_suffix"
+run_host "$work_dir/unit-api$host_suffix" "$work_dir/unit-api.o"
+readelf -r "$work_dir/unit-api.o" | grep -q 'R_X86_64_PLT32.*unit_c - 4'
+cc -Wall -Wextra -Werror "$project_root/tests/harness_bootstrap_unit_output.c" \
+  "$work_dir/unit-api.o" -o "$work_dir/unit-api-output"
+"$work_dir/unit-api-output"
+"$host_compiler" -Wall -Wextra -Werror \
   "$project_root/tests/harness_bootstrap_hir.c" \
   "$work_dir/native-core.o" -o "$work_dir/hir-verifier$host_suffix"
 run_host "$work_dir/hir-verifier$host_suffix"

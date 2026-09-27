@@ -269,6 +269,14 @@ qualifiers, and import effect annotations remain unsupported. Allocation-effect
 certification still needs a native port; imports do not carry a native
 allocation-free guarantee.
 
+`bootstrap/driver.lisp` exposes `native_compile_unit` for in-memory compilation
+using freshly initialized caller-owned contexts and arenas. It collects layouts
+and signatures, predeclares functions, compiles bodies through the verified
+pipeline, patches calls, and writes the ELF object. Failures return zero with
+a phase and AST/signature location in `native_unit_result`. The temporary C
+wrapper still owns buffer allocation/initialization, file I/O, and diagnostic
+rendering. This API does not yet accept Stage 0's CLI options or targets.
+
 Top-level lowercase `(include "relative-file.lisp")` now splices source into
 the same unit. A native PSL parser identifies include forms and decodes their
 filenames; the temporary C host loader resolves canonical paths, reads files,

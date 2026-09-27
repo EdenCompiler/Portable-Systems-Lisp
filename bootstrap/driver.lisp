@@ -1,0 +1,137 @@
+(include "compile_scalar.lisp")
+
+;; Caller-owned state for one compilation unit. On failure, phase identifies
+;; the pass, form identifies an AST node, and index identifies a signature.
+;; Contexts and arenas must be freshly initialized for each invocation.
+(defcstruct native_unit_result
+  (phase usize)
+  (form usize)
+  (index usize))
+
+(defun native_unit_fail (result phase)
+  (declare (type (ptr native_unit_result) result) (type usize phase)
+           (returns c-int))
+  (store (field-pointer result 'phase) phase)
+  0)
+
+(defun native_collect_form (context result)
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_unit_result) result) (returns c-int))
+  (let ((signatures (deref (field-pointer context 'signatures)))
+        (form (deref (field-pointer result 'form))))
+    (let ((layouts (deref (field-pointer signatures 'layouts))))
+      (cond
+        ((= (native_layout_form_p layouts form) 1)
+         (if (= (native_register_layout layouts form) 1) 1
+             (native_unit_fail result 1)))
+        ((= (native_import_form_p signatures form) 1)
+         (if (= (native_parse_import signatures form) 1) 1
+             (native_unit_fail result 2)))
+        (t
+         (if (= (native_parse_signature signatures form) 1) 1
+             (native_unit_fail result 3)))))))
+
+(defun native_collect_unit (context result)
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_unit_result) result) (returns c-int))
+  (let ((parser (deref (field-pointer context 'parser))))
+    (store (field-pointer result 'form) (parser_next parser))
+    (while (if (= (deref (field-pointer result 'phase)) 0)
+               (< 0 (deref (field-pointer result 'form))) nil)
+      (if (= (native_collect_form context result) 1)
+          (store (field-pointer result 'form) (parser_next parser))
+          (wrap-cast usize 0)))
+    (if (= (deref (field-pointer result 'phase)) 0)
+        (let ((signatures (deref (field-pointer context 'signatures))))
+          (let ((layouts (deref (field-pointer signatures 'layouts))))
+            (if (= (deref (field-pointer parser 'error)) 0)
+                (if (= (deref (field-pointer layouts 'error)) 0)
+                    (if (< 0 (deref (field-pointer signatures 'signature_count)))
+                        1 (native_unit_fail result 4))
+                    (native_unit_fail result 4))
+                (native_unit_fail result 4))))
+        0)))
+
+(defun native_unit_signature (context result)
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_unit_result) result)
+           (returns (ptr native_signature)))
+  (let ((signatures (deref (field-pointer context 'signatures))))
+    (pointer+ (deref (field-pointer signatures 'signatures))
+              (wrap-cast isize (deref (field-pointer result 'index))))))
+
+(defun native_unit_function (context result)
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_unit_result) result)
+           (returns (ptr native_function)))
+  (native_function_at (deref (field-pointer context 'functions))
+                      (deref (field-pointer result 'index))))
+
+(defun native_next_signature (result)
+  (declare (type (ptr native_unit_result) result) (returns usize))
+  (store (field-pointer result 'index)
+         (wrap+ (deref (field-pointer result 'index)) 1)))
+
+(defun native_unit_pending_p (result count)
+  (declare (type (ptr native_unit_result) result) (type usize count)
+           (returns c-int))
+  (if (= (deref (field-pointer result 'phase)) 0)
+      (if (< (deref (field-pointer result 'index)) count) 1 0) 0))
+
+(defun native_predeclare_unit (context result count)
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_unit_result) result) (type usize count)
+           (returns c-int))
+  (store (field-pointer result 'index) 0)
+  (while (= (native_unit_pending_p result count) 1)
+    (if (= (predeclare_scalar_form context
+                                   (native_unit_signature context result)
+                                   (native_unit_function context result)) 1)
+        (progn (native_next_signature result) (wrap-cast c-int 1))
+        (native_unit_fail result 5)))
+  (if (= (deref (field-pointer result 'phase)) 0) 1 0))
+
+(defun native_compile_unit_bodies (context result count)
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_unit_result) result) (type usize count)
+           (returns c-int))
+  (store (field-pointer result 'index) 0)
+  (store (field-pointer context 'prior_count) count)
+  (while (= (native_unit_pending_p result count) 1)
+    (let ((signature (native_unit_signature context result)))
+      (if (= (deref (field-pointer signature 'imported)) 1)
+          (progn (native_next_signature result) (wrap-cast c-int 1))
+          (if (= (compile_scalar_form context signature
+                                      (native_unit_function context result)) 1)
+              (progn (native_next_signature result) (wrap-cast c-int 1))
+              (native_unit_fail result 6)))))
+  (if (= (deref (field-pointer result 'phase)) 0) 1 0))
+
+(defun native_finish_unit (context result count object)
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_unit_result) result) (type usize count)
+           (type (ptr byte_buffer) object) (returns c-int))
+  (let ((code (deref (field-pointer context 'code)))
+        (functions (deref (field-pointer context 'functions)))
+        (fixups (deref (field-pointer context 'fixups))))
+    (if (= (patch_call_fixups code functions count fixups) 0)
+        (native_unit_fail result 7)
+        (if (= (write_elf64_calls (deref (field-pointer code 'data))
+                                  (deref (field-pointer code 'length))
+                                  functions count fixups object) 1)
+            1 (native_unit_fail result 8)))))
+
+(defun native_compile_unit (context object result)
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr byte_buffer) object)
+           (type (ptr native_unit_result) result)
+           (returns c-int) (c-export :c))
+  (store (field-pointer result 'phase) 0)
+  (store (field-pointer result 'form) 0)
+  (store (field-pointer result 'index) 0)
+  (if (= (native_collect_unit context result) 0) 0
+      (let ((signatures (deref (field-pointer context 'signatures))))
+        (let ((count (deref (field-pointer signatures 'signature_count))))
+          (if (= (native_predeclare_unit context result count) 0) 0
+              (if (= (native_compile_unit_bodies context result count) 0) 0
+                  (native_finish_unit context result count object)))))))
