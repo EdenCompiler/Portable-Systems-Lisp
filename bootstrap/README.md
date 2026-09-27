@@ -248,8 +248,9 @@ nested/repeated/symlink include fixtures on the supported hosts.
 
 The compiler controller is also its own PSL unit. `native_run_compiler(source,
 output)` returns 0 for success, 1 for rejected source, or 2 for usage/host/
-allocation failure. `native_compiler_main(argc, argv)` validates the two-path
-CLI contract before reading argv. It owns state creation, source loading,
+allocation failure. `native_run_compiler_options(source, output, level)` selects
+0 or 1; the default is 1. `native_compiler_main(argc, argv)` validates the
+`[-O0|-O1] SOURCE.lisp OUTPUT.o` contract before reading argv. It owns state creation, source loading,
 storage preparation, compilation, diagnostic phase/location selection, output,
 and cleanup. C provides only the entry trampoline and primitive host adapters.
 An independent provider fixture verifies all statuses, failure phase locations,
@@ -258,8 +259,26 @@ process checks cover usage, unreadable input, rejected source, and an unwritable
 output path. The previous C driver and the new PSL driver also produced identical
 diagnostics for 58 rejected fixtures plus usage/I/O failures on Linux.
 
+Native `-O1` folds constants in SSA: wrapping add/subtract/multiply, bitwise
+AND, U64 shifts with counts modulo 64, signed/unsigned comparisons, integer
+casts, equal integer/Boolean PHIs, and machine integer/pointer truth. Narrow
+signed results retain their sign-extended word representation. PHI rewrites
+preserve the verified prefix. The pass reaches a fixed point, updates the type
+catalog, and verifies both its input and output. `-O0` skips folding. Calls,
+loads, stores, and CFG edges are retained; CFG simplification, inlining, and
+dead-value removal remain open. The optimizer itself is compiled by every
+native generation with no core runtime imports.
+
+The optimizer fixture runs through Stage 0 and native `-O0`/`-O1`, compares C
+observable results for width/signedness, large shift counts, equal joins,
+zero/null truth with effectful imports, void calls, and loops, and checks that
+the native `-O1` object is smaller. Both native modes also run the existing
+stack-call, pointer/memory, mixed-integer, foreign-call, and void-call harnesses.
+Repeat objects and generation snapshots are compared. IR mutation checks reject
+malformed SSA at the optimizer's public entry point before rewriting it.
+
 The remaining bootstrap work is general symbol and string interpretation,
-macro execution, the broader Stage 0 source/interop corpus, generic optimization
+macro execution, the broader Stage 0 source/interop corpus, the remaining optimization passes
 and effects, remaining target backends and object features, and the remaining
 file/diagnostic/path adapter services. Full Stage 1–3 builds and their corpus comparisons remain
 the M8 gate.

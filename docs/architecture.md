@@ -84,6 +84,8 @@ bootstrap/
     integer_types.lisp integer width and representation rules
     ir_types.lisp, ir_verify_*.lisp
                        scalar operation contract and shared type checks
+    ssa_fold_scalar.lisp  target integer representation and constant arithmetic
+    ssa_fold.lisp, ssa_optimize.lisp  SSA folding, catalog updates, and verification
     ssa.lisp, ssa_lower*.lisp, ssa_verify*.lisp
                        typed CFG/SSA, PHI joins, and dominance verification
     lir.lisp, lir_lower.lisp, lir_verify*.lisp
@@ -267,7 +269,15 @@ definition on every incoming path. Shared scalar checks live under `ir/` and
 use a type catalog rather than frontend trees. The x86-64 encoder reads LIR,
 virtual-register types, symbols, and its own fixups; it does not read HIR or
 SSA instructions. The earlier HIR-to-machine encoders have been removed.
-Native generic optimization, effects, remaining ABI/backend features, and the
+The native optimizer now sits between SSA construction and LIR lowering. It
+verifies its input, folds integer/Boolean values to a fixed point, updates the
+shared type catalog, and verifies again. Pure arithmetic lives in
+`ssa_fold_scalar.lisp`; representation rewrites live in `ssa_fold.lisp`; mode
+selection/iteration/verification live in `ssa_optimize.lisp`. It does not change
+CFG edges or remove calls/loads/stores. The driver accepts native `-O0`/`-O1` and
+passes the chosen level through the compilation context. Context scratch fields
+hold scan progress without adding a core allocator/runtime dependency.
+Native CFG simplification, inlining, dead-value removal, effects, remaining ABI/backend features, and the
 full Stage 1–3 comparison remain pending M8 work. The x86-64 Linux
 `bootstrap_self_core.sh` gate now compiles the complete native core through
 three native generations and runs the full native subset suite on each. Both

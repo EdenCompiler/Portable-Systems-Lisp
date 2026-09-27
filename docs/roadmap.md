@@ -461,6 +461,21 @@ usage/I/O failures. The generation gate now rebuilds this driver with the
 other PSL units and compares its objects and behavior. This advances subgate 4;
 broader CLI/target support and the full Stage 1–3 corpus remain open.
 
+Native constant folding now runs on verified SSA before LIR lowering. Small
+helpers normalize target word values, fold wrapping arithmetic/AND/U64 shifts,
+compare signed or unsigned constants, fold integer casts and equal constant
+joins, and preserve Lisp integer/pointer truth. Rewrites update the type catalog
+and preserve PHI prefixes; verification runs again afterward. Calls, memory
+operations, and CFG edges remain in place. Native `-O0` disables the pass and
+`-O1` enables it by default, through an explicit context field and options API.
+The C fixture compares Stage 0 and native behavior at both levels for widths,
+signedness, modulo-64 shifts, joins, and effectful zero/null truth; the optimized
+native object is smaller. Both native modes also run stack, memory, mixed-type,
+foreign, and void interop harnesses. Mutation tests reject invalid SSA before
+optimizer mutation, and the generation gate compiles/reproduces the pass itself.
+This advances subgate 2; CFG simplification, inlining, dead-value removal, effects,
+and the rest of the M8 gate remain open.
+
 The native compiler now compiles every module included by its own
 `bootstrap/native-core.lisp`. `sh tests/bootstrap_self_core.sh` builds three
 successive native core generations on x86-64 Linux, compiles the full core
@@ -473,8 +488,8 @@ Each generation also compiles its hosted storage, source loader, and driver
 units;
 successive hosted objects match byte for byte. The same temporary C
 file/path/diagnostic adapter is linked to each generation.
-This is a core reproduction gate; the broader Stage 0 corpus, native optimizer
-and effects, remaining target/ABI/object features, and the remaining PSL
+This is a core reproduction gate; the broader Stage 0 corpus, the remaining
+native optimizer passes and effects, remaining target/ABI/object features, and the remaining PSL
 CLI/target selection and primitive file/path/error services are still open. Full Stage 1, Stage 2, and Stage 3 compiler builds remain open,
 as does the M8 gate.
 The scalar source path accepts lowercase hyphenated internal function and local

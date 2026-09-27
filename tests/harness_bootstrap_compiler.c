@@ -11,6 +11,7 @@ static enum scenario scenario;
 static struct event events[2];
 static size_t event_count, reads, prepares, compiles, writes, releases;
 static uintptr_t phase;
+static uint32_t expected_optimization = 1;
 static struct psl_ast_node nodes[3];
 static struct native_signature signatures[2];
 static struct native_function functions[2];
@@ -73,6 +74,7 @@ int native_compile_unit(struct native_compile_context *context, struct byte_buff
                         struct native_unit_result *result) {
     ++compiles;
     assert(context->parser->nodes == nodes && context->source);
+    assert(context->optimization == expected_optimization);
     assert(object->data == object_bytes && object->length == sizeof object_bytes);
     assert(!result->phase && !result->form && !result->index);
     if (scenario != COMPILE_FAILURE) return 1;
@@ -146,7 +148,7 @@ static void check_compilation_errors(void) {
 }
 
 static void check_arguments(void) {
-    int invalid[] = {-1, 0, 1, 2, 4};
+    int invalid[] = {-1, 0, 1, 2, 5};
     char *argv[] = {"pslcc-native", "source.lisp", "result.o", NULL};
     size_t i;
     for (i = 0; i < sizeof invalid / sizeof *invalid; ++i) {
@@ -158,6 +160,24 @@ static void check_arguments(void) {
     reset(SUCCESS);
     assert(native_compiler_main(3, argv) == 0);
     assert(reads == 1 && writes == 1 && releases == 1 && !event_count);
+    for (uint32_t level = 0; level < 2; ++level) {
+        char *options[] = {"pslcc-native", level ? "-O1" : "-O0", "source.lisp", "result.o", NULL};
+        expected_optimization = level;
+        reset(SUCCESS);
+        assert(native_compiler_main(4, options) == 0);
+        assert(reads == 1 && writes == 1 && releases == 1 && !event_count);
+    }
+    const char *bad[] = {"", "-", "-O", "-O2", "-O00", "-o0"};
+    for (i = 0; i < sizeof bad / sizeof *bad; ++i) {
+        char *options[] = {"pslcc-native", (char *)bad[i], "source.lisp", "result.o", NULL};
+        reset(SUCCESS);
+        assert(native_compiler_main(4, options) == 2);
+        assert(event_count == 1 && events[0].kind == NATIVE_HOST_USAGE && !reads && !releases);
+    }
+    reset(SUCCESS);
+    assert(native_run_compiler_options("source.lisp", "result.o", 2) == 2);
+    assert(event_count == 1 && events[0].kind == NATIVE_HOST_USAGE && !reads && !releases);
+    expected_optimization = 1;
 }
 
 int main(void) {

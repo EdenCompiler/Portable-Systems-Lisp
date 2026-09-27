@@ -49,7 +49,7 @@ static int compile_source(struct fixture *f, const uint8_t *source) {
     f->context = (struct native_compile_context){
         &f->parser, source, &f->integer, &f->hir, &f->code,
         &f->call_fixups, f->functions, &f->signature_context, 1, 0, NULL,
-        0, 0, 0, 0, &f->ssa, f->bindings, &f->lir, f->labels, &f->jump_fixups
+        0, 0, 0, 0, &f->ssa, f->bindings, &f->lir, f->labels, &f->jump_fixups, 0, 0, 0
     };
     uintptr_t root = parser_next(&f->parser);
     return root && native_parse_signature(&f->signature_context, root) &&
@@ -116,6 +116,10 @@ static int check_ssa_mutations(struct fixture *f) {
     f->ssa_values[phi - 1] = saved;
     f->ssa_values[phi - 1].left = f->ssa.value_count + 1;
     if (ssa_verify_function(&f->context)) return 4;
+    f->context.optimization = 1;
+    if (ssa_optimize_function(&f->context)) return 9;
+    if (f->ssa_values[phi - 1].left != f->ssa.value_count + 1) return 10;
+    f->context.optimization = 0;
     f->ssa_values[phi - 1] = saved;
     f->ssa_values[phi - 1].scalar_code = 3;
     f->types[phi - 1].scalar_code = 3;

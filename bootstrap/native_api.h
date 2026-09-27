@@ -158,6 +158,9 @@ struct native_compile_context {
     struct native_lir_arena *lir;
     uintptr_t *labels;
     struct native_fixup_arena *jumps;
+    uint32_t optimization;
+    uintptr_t fold_cursor;
+    int32_t fold_changed;
 };
 
 struct native_type_shape {
@@ -285,10 +288,12 @@ struct native_unit_result {
     uintptr_t phase, form, index;
 };
 
-/* Native subset CLI: SOURCE.lisp OUTPUT.o. Status: 0 success, 1 rejected
+/* Native subset CLI: [-O0|-O1] SOURCE.lisp OUTPUT.o. Status: 0 success, 1 rejected
    source, 2 usage/host/allocation failure. Run calls may be repeated. */
 extern int native_compiler_main(int argc, char **argv);
 extern int native_run_compiler(const char *source_path, const char *output_path);
+extern int native_run_compiler_options(const char *source_path, const char *output_path,
+                                        uint32_t optimization);
 
 /* Fresh contexts/arenas and live caller-owned buffers are required. */
 extern int native_compile_unit(struct native_compile_context *, struct byte_buffer *,
@@ -326,6 +331,7 @@ extern int native_parse_signature(struct native_signature_context *context,
                                    uintptr_t root);
 
 
+extern int ssa_optimize_function(struct native_compile_context *context);
 extern int ssa_verify_function(struct native_compile_context *context);
 extern int lir_verify_function(struct native_compile_context *context);
 extern int hir_verify_root(struct native_hir_arena *arena, uintptr_t root,

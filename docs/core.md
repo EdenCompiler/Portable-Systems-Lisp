@@ -311,8 +311,8 @@ imports `calloc` and `free`; the native core remains free of unresolved symbols.
 `bootstrap/host/compiler.lisp` exposes `native_run_compiler(source, output)`
 and `native_compiler_main(argc, argv)`. It owns source loading, preparation,
 unit compilation, output selection, and cleanup, and maps failing phases to
-diagnostic locations. The native subset CLI still takes `SOURCE.lisp OUTPUT.o`;
-it does not yet accept Stage 0's options or target selection. Status is 0 on
+diagnostic locations. The native subset CLI takes `[-O0|-O1] SOURCE.lisp OUTPUT.o`;
+it does not yet accept Stage 0's other options or target selection. Status is 0 on
 success, 1 for rejected language input, and 2 for usage, I/O, or allocation
 failure. Arguments are inspected only for the expected count. Repeated run
 calls allocate independent state and release it on every return. The temporary
@@ -334,7 +334,18 @@ translation unit using the core parser/include exports through their C ABI.
 It does not yet support packages, general host macro execution, qualifiers,
 floating accesses, or structure values. Its
 implemented subset now passes verified HIR, typed CFG/SSA, and flat LIR; the
-backend consumes virtual registers and explicit labels. Generic optimization
+backend consumes virtual registers and explicit labels. Native `-O1` (the
+default) now folds wrapping arithmetic, bitwise AND, masked U64 shifts, signed/
+unsigned comparisons, integer casts, equal constant integer/Boolean joins,
+and integer/raw-pointer truth through SSA. It normalizes narrow signed values
+into the word representation and updates the type catalog with each rewrite.
+SSA is verified before and after folding; LIR is verified before encoding.
+Folding reaches a fixed point and preserves PHI prefix ordering. It retains
+calls, memory operations, and CFG edges. Native `-O0` skips these rewrites.
+`native_run_compiler_options(source, output, level)` selects 0 or 1; other levels
+return a usage failure. In-memory callers set `context.optimization` to 0 or 1;
+`native_prepare_driver` initializes it to 1. The exported optimizer rejects
+invalid SSA before mutation. CFG simplification, inlining, dead-value removal,
 and allocation-effect analysis still need native ports. It directly compiles
 its full native core, including frontend, IR verification, x86-64 encoding,
 and ELF writing. Successive native core generations reproduce identical

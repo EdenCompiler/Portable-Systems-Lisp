@@ -186,6 +186,9 @@
     (store (field-pointer record 'lir) (field-pointer driver 'lir))
     (store (field-pointer record 'labels) (deref (field-pointer (field-pointer driver 'storage) 'labels)))
     (store (field-pointer record 'jumps) (field-pointer driver 'jumps))
+    (store (field-pointer record 'optimization) 1)
+    (store (field-pointer record 'fold_cursor) 0)
+    (store (field-pointer record 'fold_changed) 0)
     1))
 
 (defun native_initialize_driver (driver capacity)

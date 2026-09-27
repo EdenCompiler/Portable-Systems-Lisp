@@ -29,4 +29,7 @@
   (bindings (ptr usize))
   (lir (ptr native_lir_arena))
   (labels (ptr usize))
-  (jumps (ptr native_fixup_arena)))
+  (jumps (ptr native_fixup_arena))
+  (optimization u32)
+  (fold_cursor usize)
+  (fold_changed c-int))

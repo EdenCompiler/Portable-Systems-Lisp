@@ -3,4 +3,5 @@
 
 (defcstruct native_compiler_state
   (driver native_driver)
-  (result native_unit_result))
+  (result native_unit_result)
+  (optimization u32))

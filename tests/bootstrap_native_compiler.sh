@@ -108,6 +108,41 @@ test ! -e "$work_dir/cli-rejected.o"
 mkdir "$work_dir/output-directory"
 check_cli_failure 2 "$project_root/tests/bootstrap_answer.lisp" "$work_dir/output-directory"
 grep -q 'cannot write object' "$work_dir/cli.err"
+for level in 0 1; do
+  run_host "$work_dir/pslcc-native-slice$host_suffix" "-O$level" \
+    "$project_root/tests/bootstrap_optimizer.lisp" "$work_dir/optimizer-$level.o"
+  cc -Wall -Wextra -Werror "$project_root/tests/harness_bootstrap_optimizer.c" \
+    "$work_dir/optimizer-$level.o" -o "$work_dir/optimizer-$level"
+  "$work_dir/optimizer-$level"
+  run_host "$work_dir/pslcc-native-slice$host_suffix" "-O$level" \
+    "$project_root/tests/bootstrap_optimizer.lisp" "$work_dir/optimizer-$level-repeat.o"
+  cmp "$work_dir/optimizer-$level.o" "$work_dir/optimizer-$level-repeat.o"
+  "$project_root/pslcc" "-O$level" -c "$project_root/tests/bootstrap_optimizer.lisp" \
+    -o "$work_dir/optimizer-stage0-$level.o"
+  cc -Wall -Wextra -Werror "$project_root/tests/harness_bootstrap_optimizer.c" \
+    "$work_dir/optimizer-stage0-$level.o" -o "$work_dir/optimizer-stage0-$level"
+  "$work_dir/optimizer-stage0-$level"
+done
+test "$(wc -c < "$work_dir/optimizer-1.o")" -lt "$(wc -c < "$work_dir/optimizer-0.o")"
+for level in 0 1; do
+  for fixture in bootstrap_stack_arguments bootstrap_pointers bootstrap_mixed_integers \
+      bootstrap_foreign_calls bootstrap_void_calls; do
+    run_host "$work_dir/pslcc-native-slice$host_suffix" "-O$level" \
+      "$project_root/tests/$fixture.lisp" "$work_dir/$fixture-native-level-$level.o"
+    case $fixture in
+      bootstrap_stack_arguments) harness=harness_bootstrap_stack_arguments; extra= ;;
+      bootstrap_pointers) harness=harness_bootstrap_pointers; extra= ;;
+      bootstrap_mixed_integers) harness=harness_bootstrap_mixed_integers; extra= ;;
+      bootstrap_foreign_calls) harness=harness_bootstrap_foreign_calls; extra="$project_root/tests/bootstrap_foreign_calls.c" ;;
+      bootstrap_void_calls) harness=harness_bootstrap_void_calls; extra= ;;
+    esac
+    cc -Wall -Wextra -Werror "$project_root/tests/$harness.c" $extra \
+      "$work_dir/$fixture-native-level-$level.o" -o "$work_dir/$fixture-native-level-$level"
+    "$work_dir/$fixture-native-level-$level"
+  done
+done
+check_cli_failure 2 -O2 "$project_root/tests/bootstrap_answer.lisp" "$work_dir/cli-rejected.o"
+grep -q 'usage: pslcc-native-slice' "$work_dir/cli.err"
 run_host "$work_dir/pslcc-native-slice$host_suffix" \
   "$project_root/bootstrap/host/driver.lisp" "$work_dir/native-host-native.o"
 run_host "$work_dir/pslcc-native-slice$host_suffix" \

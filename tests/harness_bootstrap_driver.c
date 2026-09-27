@@ -120,6 +120,7 @@ static void check_initialized(struct native_driver *d) {
     assert(!d->context.current_signature && !d->context.expected_type);
     assert(!d->context.active_binding && !d->context.local_count);
     assert(!d->context.expected_pointee);
+    assert(d->context.optimization == 1 && !d->context.fold_cursor && !d->context.fold_changed);
 }
 
 static void check_released(struct native_driver *driver) {
