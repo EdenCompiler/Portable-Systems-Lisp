@@ -9,7 +9,7 @@
    contain test allocators or depend on this harness. */
 void *__real_calloc(size_t, size_t);
 void __real_free(void *);
-static void *allocations[18], *owned_source;
+static void *allocations[19], *owned_source;
 static size_t allocation_count, fail_at, live_count, source_frees;
 static size_t capacity;
 static const size_t item_sizes[] = {
@@ -19,18 +19,18 @@ static const size_t item_sizes[] = {
     sizeof(struct native_hir_node), sizeof(struct native_ssa_value),
     sizeof(struct native_ssa_block), sizeof(struct native_ir_type),
     sizeof(uintptr_t), sizeof(struct native_lir_instruction),
-    sizeof(struct native_lir_block), sizeof(struct native_call_fixup),
+    sizeof(struct native_lir_block), sizeof(struct native_ssa_value), sizeof(struct native_call_fixup),
     sizeof(struct native_call_fixup), sizeof(uintptr_t), 1, 1
 };
 
 void *__wrap_calloc(size_t count, size_t size) {
     size_t index = allocation_count++;
     size_t expected = capacity;
-    assert(index < 18);
+    assert(index < 19);
     if (index == 11) expected *= 6;
-    if (index == 12 || index == 14 || index == 15) expected *= 3;
-    if (index == 16) expected = 1048576;
-    if (index == 17) expected = 1200000;
+    if (index == 12 || index == 15 || index == 16) expected *= 3;
+    if (index == 17) expected = 1048576;
+    if (index == 18) expected = 1200000;
     assert(count == expected && size == item_sizes[index]);
     if (allocation_count == fail_at) return NULL;
     allocations[index] = __real_calloc(count, size);
@@ -46,13 +46,13 @@ void __wrap_free(void *memory) {
         ++source_frees;
         owned_source = NULL;
     } else {
-        for (i = 0; i < 18; ++i) {
+        for (i = 0; i < 19; ++i) {
             if (allocations[i] != memory) continue;
             allocations[i] = NULL;
             --live_count;
             break;
         }
-        assert(i < 18);
+        assert(i < 19);
     }
     __real_free(memory);
 }
@@ -122,6 +122,9 @@ static void check_initialized(struct native_driver *d) {
     assert(!d->context.expected_pointee);
     assert(d->context.optimization == 1 && !d->context.fold_cursor && !d->context.fold_changed);
     assert(!d->context.effects_changed);
+    assert(d->context.inline_values == d->storage.inline_values);
+    assert(d->context.inline_capacity == cap);
+    assert(!d->context.inline_count && !d->context.inline_cursor);
 }
 
 static void check_released(struct native_driver *driver) {
@@ -170,7 +173,7 @@ static void test_invalid_capacity(void) {
 #ifdef PSL_TEST_ALLOCATOR_FAULTS
 static void test_partial_allocations(void) {
     struct native_driver driver = {0};
-    for (fail_at = 1; fail_at <= 18; ++fail_at) {
+    for (fail_at = 1; fail_at <= 19; ++fail_at) {
         set_source(&driver);
         assert(!native_prepare_driver(&driver));
         check_released(&driver);

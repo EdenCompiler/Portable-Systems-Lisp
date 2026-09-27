@@ -166,6 +166,8 @@ struct native_compile_context {
     uintptr_t fold_cursor;
     int32_t fold_changed;
     int32_t effects_changed;
+    struct native_ssa_value *inline_values;
+    uintptr_t inline_count, inline_capacity, inline_cursor;
 };
 
 struct native_type_shape {
@@ -222,6 +224,7 @@ struct native_signature {
     uint8_t exported;
     uint8_t imported;
     uint8_t allocation_free, effect_ready;
+    uintptr_t inline_base, inline_count, inline_result;
 };
 
 struct native_signature_context {
@@ -251,6 +254,7 @@ struct native_storage {
     struct native_call_fixup *calls, *jumps;
     uintptr_t *bindings, *labels;
     uint8_t *code, *object;
+    struct native_ssa_value *inline_values;
 };
 
 struct native_driver {

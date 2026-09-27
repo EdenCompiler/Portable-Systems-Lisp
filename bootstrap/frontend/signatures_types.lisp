@@ -18,7 +18,10 @@
   (exported u8)
   (imported u8)
   (allocation_free u8)
-  (effect_ready u8))
+  (effect_ready u8)
+  (inline_base usize)
+  (inline_count usize)
+  (inline_result usize))
 
 (defcstruct native_signature_context
   (layouts (ptr native_layout_context))

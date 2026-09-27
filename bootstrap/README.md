@@ -276,8 +276,8 @@ loads, and stores, then follows their value dependencies, including argument
 links and PHIs. Only live definitions and PHI edge copies reach LIR. Stable SSA
 IDs and type records remain available for verification; a liveness verifier
 rejects omitted roots/dependencies before lowering. Loads are retained
-conservatively until native memory qualifiers and memory effects are ported. Inlining
-remains open. The optimizer itself is compiled by every
+conservatively until native memory qualifiers and memory effects are ported. Small
+pure functions are inlined before folding. The optimizer itself is compiled by every
 native generation with no core runtime imports.
 
 The optimizer fixture runs through Stage 0 and native `-O0`/`-O1`, compares C
@@ -298,6 +298,30 @@ false loops. It compiles an infinite cycle without executing it, checks that
 unreachable imports disappear from `-O1` objects, and compares repeat objects.
 SSA mutations reject bad copy operands/types/predecessors and stale targets;
 the cycle fixture verifies both an eliminated body and an eliminated exit.
+
+Native `-O1` also inlines direct calls to verified one-block functions containing
+at most twelve SSA values. Templates permit parameters, constants, wrapping
+integer operations, comparisons, integer/pointer casts, and copies. Calls,
+memory access, loops, and conditional joins exclude a callee. The unit driver
+collects templates before compiling callers, so forward calls are eligible.
+Clones map parameter uses to already-evaluated call arguments; repeated uses do
+not repeat evaluation, and unused arguments retain their observable effects.
+The call becomes a typed copy. Arena insertion preserves topological value IDs,
+block instruction lists, PHI operands, and terminator references, then verifies
+SSA before constant folding and liveness. Recursion is never expanded.
+
+The hosted driver owns one additional template buffer, for nineteen allocations
+in total, with partial cleanup covered by fault injection. The core adds no
+allocator or external runtime import. In-memory callers may omit the cache by
+leaving its pointer and capacity zero. A full cache or full caller SSA arena
+keeps calls intact. Cached template bounds, operand shapes, and parameter
+positions are checked before rewriting a caller. C mutation tests reject invalid
+templates without changing the SSA values and verify capacity fallback. The
+interop fixture compares both optimization levels with Stage 0, including
+signed widths, pointer identities, seven arguments, branches, loop bodies,
+recursion, and unused effectful arguments. Object inspection confirms eligible
+calls disappear and memory-reading calls remain. Native generations compare
+the inliner and its generated fixture objects.
 
 Native allocation certification runs before SSA optimization. The lowercase
 `without-allocation` form returns its last body value, like `progn`, and may
@@ -328,7 +352,7 @@ diagnostics. Managed allocation, GC, and indirect closures remain outside the
 native source subset; their runtime/effect ports are still pending M8 work.
 
 The remaining bootstrap work is general symbol and string interpretation,
-macro execution, the broader Stage 0 source/interop corpus, the remaining optimization passes
+macro execution, the broader Stage 0 source/interop corpus, optimization for broader types
 and managed/indirect effects, remaining target backends and object features, and the remaining
 file/diagnostic/path adapter services. Full Stage 1–3 builds and their corpus comparisons remain
 the M8 gate.

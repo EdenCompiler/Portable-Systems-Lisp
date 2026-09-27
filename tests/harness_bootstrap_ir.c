@@ -50,7 +50,8 @@ static int compile_source_options(struct fixture *f, const uint8_t *source, uint
     f->context = (struct native_compile_context){
         &f->parser, source, &f->integer, &f->hir, &f->code,
         &f->call_fixups, f->functions, &f->signature_context, 1, 0, NULL,
-        0, 0, 0, 0, &f->ssa, f->bindings, &f->lir, f->labels, &f->jump_fixups, 0, 0, 0, 0
+        0, 0, 0, 0, &f->ssa, f->bindings, &f->lir, f->labels, &f->jump_fixups, 0, 0, 0, 0,
+        NULL, 0, 0, 0
     };
     f->context.optimization = level;
     uintptr_t root = parser_next(&f->parser);

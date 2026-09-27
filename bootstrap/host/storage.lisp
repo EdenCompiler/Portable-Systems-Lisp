@@ -69,6 +69,8 @@
          (ptr-cast (ptr native_lir_instruction) (ffi:call calloc (wrap* capacity 6) (sizeof 'native_lir_instruction))))
   (store (field-pointer storage 'lir_blocks)
          (ptr-cast (ptr native_lir_block) (ffi:call calloc (wrap* capacity 3) (sizeof 'native_lir_block))))
+  (store (field-pointer storage 'inline_values)
+         (ptr-cast (ptr native_ssa_value) (ffi:call calloc capacity (sizeof 'native_ssa_value))))
   (cond
     ((= (ptr-address (deref (field-pointer storage 'hir))) 0) 0)
     ((= (ptr-address (deref (field-pointer storage 'ssa))) 0) 0)
@@ -77,6 +79,7 @@
     ((= (ptr-address (deref (field-pointer storage 'bindings))) 0) 0)
     ((= (ptr-address (deref (field-pointer storage 'lir))) 0) 0)
     ((= (ptr-address (deref (field-pointer storage 'lir_blocks))) 0) 0)
+    ((= (ptr-address (deref (field-pointer storage 'inline_values))) 0) 0)
     (t 1)))
 
 (defun native_release_ir (storage)
@@ -95,6 +98,8 @@
   (store (field-pointer storage 'lir) (ptr-from-address (ptr native_lir_instruction) 0))
   (ffi:call free (ptr-cast (ptr void) (deref (field-pointer storage 'lir_blocks))))
   (store (field-pointer storage 'lir_blocks) (ptr-from-address (ptr native_lir_block) 0))
+  (ffi:call free (ptr-cast (ptr void) (deref (field-pointer storage 'inline_values))))
+  (store (field-pointer storage 'inline_values) (ptr-from-address (ptr native_ssa_value) 0))
   1)
 
 (defun native_allocate_output (storage capacity)

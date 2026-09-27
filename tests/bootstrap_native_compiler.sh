@@ -151,6 +151,30 @@ fi
 test "$(wc -c < "$work_dir/cfg-1.o")" -lt "$(wc -c < "$work_dir/cfg-0.o")"
 for level in 0 1; do
   run_host "$work_dir/pslcc-native-slice$host_suffix" "-O$level" \
+    "$project_root/tests/bootstrap_inline.lisp" "$work_dir/inline-$level.o"
+  cc -Wall -Wextra -Werror "$project_root/tests/harness_bootstrap_inline.c" \
+    "$work_dir/inline-$level.o" -o "$work_dir/inline-$level"
+  "$work_dir/inline-$level"
+  run_host "$work_dir/pslcc-native-slice$host_suffix" "-O$level" \
+    "$project_root/tests/bootstrap_inline.lisp" "$work_dir/inline-$level-repeat.o"
+  cmp "$work_dir/inline-$level.o" "$work_dir/inline-$level-repeat.o"
+  "$project_root/pslcc" "-O$level" -c "$project_root/tests/bootstrap_inline.lisp" \
+    -o "$work_dir/inline-stage0-$level.o"
+  cc -Wall -Wextra -Werror "$project_root/tests/harness_bootstrap_inline.c" \
+    "$work_dir/inline-stage0-$level.o" -o "$work_dir/inline-stage0-$level"
+  "$work_dir/inline-stage0-$level"
+done
+objdump -d "$work_dir/inline-0.o" | grep -q 'call.*<inline_pair>'
+if objdump -d "$work_dir/inline-1.o" | grep -q 'call.*<inline_pair>'; then
+  echo 'native inliner retained an eligible direct call' >&2
+  exit 1
+fi
+objdump -d "$work_dir/inline-1.o" | grep -q 'call.*<inline_load>'
+"$host_compiler" -Wall -Wextra -Werror "$project_root/tests/harness_bootstrap_inline_api.c" \
+  "$work_dir/native-core.o" "$work_dir/native-host.o" -o "$work_dir/inline-api$host_suffix"
+run_host "$work_dir/inline-api$host_suffix"
+for level in 0 1; do
+  run_host "$work_dir/pslcc-native-slice$host_suffix" "-O$level" \
     "$project_root/tests/bootstrap_effects.lisp" "$work_dir/effects-$level.o"
   cc -Wall -Wextra -Werror "$project_root/tests/harness_bootstrap_effects.c" \
     "$work_dir/effects-$level.o" -o "$work_dir/effects-$level"

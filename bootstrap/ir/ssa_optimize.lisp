@@ -1,6 +1,7 @@
 (include "ssa_fold.lisp")
 (include "ssa_live.lisp")
 (include "ssa_compact.lisp")
+(include "ssa_inline.lisp")
 
 (defun ssa_fold_scan (context)
   (declare (type (ptr native_compile_context) context) (returns c-int))
@@ -36,11 +37,12 @@
 
 (defun ssa_optimize_values (context)
   (declare (type (ptr native_compile_context) context) (returns c-int))
-  (if (= (ssa_fold_constants context) 0) 0
-      (if (= (ssa_verify_function context) 0) 0
-          (progn
-            (ssa_eliminate_dead_values context)
-            (ssa_verify_liveness context)))))
+  (if (= (ssa_inline_function context) 0) 0
+      (if (= (ssa_fold_constants context) 0) 0
+          (if (= (ssa_verify_function context) 0) 0
+              (progn
+                (ssa_eliminate_dead_values context)
+                (ssa_verify_liveness context))))))
 
 (defun ssa_optimize_function (context)
   (declare (type (ptr native_compile_context) context) (returns c-int) (c-export :c))

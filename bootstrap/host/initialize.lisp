@@ -189,7 +189,11 @@
     (store (field-pointer record 'optimization) 1)
     (store (field-pointer record 'fold_cursor) 0)
     (store (field-pointer record 'fold_changed) 0)
-    (store (field-pointer record 'effects_changed) 0)
+  (store (field-pointer record 'effects_changed) 0)
+  (store (field-pointer record 'inline_values) (deref (field-pointer (field-pointer driver 'storage) 'inline_values)))
+  (store (field-pointer record 'inline_count) 0)
+  (store (field-pointer record 'inline_capacity) capacity)
+  (store (field-pointer record 'inline_cursor) 0)
     1))
 
 (defun native_initialize_driver (driver capacity)

@@ -319,6 +319,9 @@
   (store (field-pointer signature 'imported) 0)
   (store (field-pointer signature 'allocation_free) 1)
   (store (field-pointer signature 'effect_ready) 0)
+  (store (field-pointer signature 'inline_base) 0)
+  (store (field-pointer signature 'inline_count) 0)
+  (store (field-pointer signature 'inline_result) 0)
   (store (field-pointer signature 'body)
          (signature_next context declaration))
   (if (= (signature_add_parameters context signature

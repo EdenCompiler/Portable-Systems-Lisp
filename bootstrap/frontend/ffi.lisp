@@ -80,6 +80,9 @@
   (store (field-pointer signature 'imported) 1)
   (store (field-pointer signature 'allocation_free) 0)
   (store (field-pointer signature 'effect_ready) 1)
+  (store (field-pointer signature 'inline_base) 0)
+  (store (field-pointer signature 'inline_count) 0)
+  (store (field-pointer signature 'inline_result) 0)
   (if (= (import_parameters context signature (signature_first context parameters)) 0) 0
       (import_result context signature result)))
 

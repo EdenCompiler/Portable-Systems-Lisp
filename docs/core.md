@@ -352,6 +352,18 @@ IDs/catalog records and verifies every retained dependency. Conditions,
 returns, calls, stores, and all loads are roots; loads are conservatively
 retained pending native memory qualifiers/effects. Native `-O0` skips both
 passes and marks all definitions live.
+
+Native `-O1` first inlines direct calls to verified one-block pure functions of
+at most twelve SSA values. Parameters map to evaluated caller arguments;
+unused arguments retain their observable effects. Constants, integer operations,
+comparisons, casts, and copies are eligible; calls, memory operations, and CFG
+joins exclude a callee. Typed copies replace calls, and SSA is verified after
+insertion. The unit API collects templates before compiling bodies, including
+forward callees. Templates use explicit caller-owned storage; a missing/full
+cache or insufficient SSA capacity retains the original call. `-O0` skips
+template collection and inlining. This is the bounded native subset port of
+simple-function inlining; broader managed and ABI types remain pending.
+
 Native `without-allocation` certifies direct calls before optimization. The
 unit pipeline infers allocation-free summaries to a fixed point, including
 forward calls and pure recursive groups. Unannotated C imports are unknown;
@@ -369,8 +381,8 @@ call. HIR checks region metadata before certification and lowering.
 `native_run_compiler_options(source, output, level)` selects 0 or 1; other levels
 return a usage failure. In-memory callers set `context.optimization` to 0 or 1;
 `native_prepare_driver` initializes it to 1. The exported optimizer rejects
-invalid SSA before mutation. Inlining
-and managed/indirect effect support still need native ports. It directly compiles
+invalid SSA before mutation. Managed/indirect effect support still needs a native
+port. It directly compiles
 its full native core, including frontend, IR verification, x86-64 encoding,
 and ELF writing. Successive native core generations reproduce identical
 objects and pass the native subset suite. The broader Stage 0 corpus, remaining

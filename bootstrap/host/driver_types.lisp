@@ -19,7 +19,8 @@
   (bindings (ptr usize))
   (labels (ptr usize))
   (code (ptr u8))
-  (object (ptr u8)))
+  (object (ptr u8))
+  (inline_values (ptr native_ssa_value)))
 
 (defcstruct native_driver
   (source (ptr u8))

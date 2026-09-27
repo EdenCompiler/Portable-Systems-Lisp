@@ -48,6 +48,7 @@ linker/
 bootstrap/
   native-core.lisp      source unit including the ported compiler components
   driver_effects.lisp  unit fixed-point inference and allocation certification
+  driver_inline.lisp   verified pure SSA template collection for a source unit
   binary.lisp          caller-owned byte emission and patching
   arena.lisp           caller-owned aligned allocation
   compile_scalar.lisp  native analysis, verification, and lowering coordinator
@@ -93,6 +94,9 @@ bootstrap/
     ssa_branch.lisp    Boolean branch folding, reachability, and PHI repair
     ssa_remap.lisp     dense maps and surviving reference rewrites
     ssa_compact.lisp   arena record movement, catalog rebuild, and verification
+    ssa_inline_templates.lisp  bounded pure callee snapshots and cache validation
+    ssa_inline_insert.lisp  topological ID insertion and reference rewrites
+    ssa_inline.lisp    argument substitution, clones, and typed call replacement
     ssa.lisp, ssa_lower*.lisp, ssa_verify*.lisp
                        typed CFG/SSA, PHI joins, and dominance verification
     lir.lisp, lir_lower.lisp, lir_verify*.lisp
@@ -307,7 +311,16 @@ of effect inference. Region markers have a metadata verifier. Signature flags
 separate allocation-free candidates from finalized summaries; imported promises
 are trusted explicitly. Error phase 9 selects the unsafe callee name, rendered
 by the temporary host primitive. Optimizer call/load/store roots are unchanged.
-Native inlining, managed/indirect effects, remaining ABI/backend features, and the
+`driver_inline.lisp` collects bounded, verified one-block SSA snapshots into
+caller-owned storage before body compilation. `ir/ssa_inline.lisp` maps callee
+parameters to evaluated caller arguments, clones only pure scalar instructions,
+and replaces calls with typed copies. `ssa_inline_insert.lisp` shifts records
+upward and rewrites value/list/terminator references while preserving block IDs.
+Template validation runs before caller mutation; SSA verification follows
+insertion, then folding and liveness run as before. Missing/full template
+storage and insufficient caller capacity preserve valid calls. The hosted
+storage unit owns/reclaims the extra cache; the native core has no new imports.
+Managed/indirect effects, remaining ABI/backend features, and the
 full Stage 1–3 comparison remain pending M8 work. The x86-64 Linux
 `bootstrap_self_core.sh` gate now compiles the complete native core through
 three native generations and runs the full native subset suite on each. Both

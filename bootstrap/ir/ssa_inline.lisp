@@ -1,0 +1,118 @@
+(include "ssa_inline_templates.lisp")
+(include "ssa_inline_insert.lisp")
+
+(defun ssa_inline_argument (arena chain remaining position)
+  (declare (type (ptr native_ssa_arena) arena) (type usize chain remaining position) (returns usize))
+  (let ((link (ssa_value_at arena chain)))
+    (if (= remaining position) (deref (field-pointer link 'left))
+        (ssa_inline_argument arena (deref (field-pointer link 'right)) (wrap- remaining 1) position))))
+
+(defun ssa_inline_mapped_value (context signature reference)
+  (declare (type (ptr native_compile_context) context) (type (ptr native_signature) signature)
+           (type usize reference) (returns usize))
+  (if (= reference 0) 0
+      (deref (field-pointer (ssa_inline_template_at context signature reference) 'remap))))
+
+(defun ssa_inline_clone_count (context signature index)
+  (declare (type (ptr native_compile_context) context) (type (ptr native_signature) signature)
+           (type usize index) (returns usize))
+  (if (< (deref (field-pointer signature 'inline_count)) index) 0
+      (wrap+ (if (= (deref (field-pointer (ssa_inline_template_at context signature index) 'kind)) 2)
+                  (wrap-cast usize 0) (wrap-cast usize 1))
+             (ssa_inline_clone_count context signature (wrap+ index 1)))))
+
+(defun ssa_inline_clone_value (context signature template destination call)
+  (declare (type (ptr native_compile_context) context) (type (ptr native_signature) signature)
+           (type (ptr native_ssa_value) template call) (type usize destination) (returns c-int))
+  (let ((arena (deref (field-pointer context 'ssa))))
+    (let ((value (ssa_value_at arena destination)))
+      (ssa_move_record (ptr-cast (ptr u8) value) (ptr-cast (ptr u8) template) (sizeof 'native_ssa_value))
+      (store (field-pointer value 'left)
+             (ssa_inline_mapped_value context signature (deref (field-pointer template 'left))))
+      (store (field-pointer value 'right)
+             (ssa_inline_mapped_value context signature (deref (field-pointer template 'right))))
+      (store (field-pointer value 'source) (deref (field-pointer call 'source)))
+      (store (field-pointer value 'block) (deref (field-pointer call 'block)))
+      (store (field-pointer value 'next) (wrap+ destination 1))
+      (store (field-pointer value 'live) 1)
+      (store (field-pointer value 'remap) 0)
+      (ssa_record_type arena destination value)
+      (store (field-pointer template 'remap) destination)
+      1)))
+
+(defun ssa_inline_clone_values (context signature index destination call)
+  (declare (type (ptr native_compile_context) context) (type (ptr native_signature) signature)
+           (type usize index destination) (type (ptr native_ssa_value) call) (returns c-int))
+  (if (< (deref (field-pointer signature 'inline_count)) index) 1
+      (let ((template (ssa_inline_template_at context signature index)))
+        (if (= (deref (field-pointer template 'kind)) 2)
+            (progn
+              (store (field-pointer template 'remap)
+                     (ssa_inline_argument (deref (field-pointer context 'ssa))
+                       (deref (field-pointer call 'left)) (deref (field-pointer signature 'arity))
+                       (wrap-cast usize (deref (field-pointer template 'value)))))
+              (ssa_inline_clone_values context signature (wrap+ index 1) destination call))
+            (progn
+              (ssa_inline_clone_value context signature template destination call)
+              (ssa_inline_clone_values context signature (wrap+ index 1) (wrap+ destination 1) call))))))
+
+(defun ssa_inline_replace_call (context signature reference)
+  (declare (type (ptr native_compile_context) context) (type (ptr native_signature) signature)
+           (type usize reference) (returns c-int))
+  (let ((arena (deref (field-pointer context 'ssa))))
+    (let ((call (ssa_value_at arena reference)))
+      (store (field-pointer call 'kind) 31)
+      (store (field-pointer call 'value) 0)
+      (store (field-pointer call 'left)
+             (ssa_inline_mapped_value context signature (deref (field-pointer signature 'inline_result))))
+      (store (field-pointer call 'right) 0)
+      (store (field-pointer call 'target) 0)
+      (ssa_record_type arena reference call))))
+
+(defun ssa_inline_call (context signature reference)
+  (declare (type (ptr native_compile_context) context) (type (ptr native_signature) signature)
+           (type usize reference) (returns usize))
+  (let ((arena (deref (field-pointer context 'ssa))))
+    (let ((amount (ssa_inline_clone_count context signature 1)))
+      (if (< (wrap- (deref (field-pointer arena 'value_capacity))
+                     (deref (field-pointer arena 'value_count))) amount) 0
+          (progn
+            (ssa_inline_reserve_values arena reference amount)
+            (ssa_inline_clone_values context signature 1 reference (ssa_value_at arena (wrap+ reference amount)))
+            (ssa_inline_replace_call context signature (wrap+ reference amount))
+            amount)))))
+
+(defun ssa_inline_check_calls (context index)
+  (declare (type (ptr native_compile_context) context) (type usize index) (returns c-int))
+  (let ((arena (deref (field-pointer context 'ssa))))
+    (if (< (deref (field-pointer arena 'value_count)) index) 1
+        (let ((value (ssa_value_at arena index)))
+          (if (= (deref (field-pointer value 'kind)) 7)
+              (let ((signature (native_signature_at (deref (field-pointer context 'signatures))
+                                (wrap- (deref (field-pointer value 'target)) 1))))
+                (if (= (deref (field-pointer signature 'inline_count)) 0)
+                    (ssa_inline_check_calls context (wrap+ index 1))
+                    (if (= (ssa_inline_template_p context signature) 0) 0
+                        (ssa_inline_check_calls context (wrap+ index 1)))))
+              (ssa_inline_check_calls context (wrap+ index 1)))))))
+
+(defun ssa_inline_step (context reference)
+  (declare (type (ptr native_compile_context) context) (type usize reference) (returns usize))
+  (let ((value (ssa_value_at (deref (field-pointer context 'ssa)) reference)))
+    (if (= (deref (field-pointer value 'kind)) 7)
+        (let ((signature (native_signature_at (deref (field-pointer context 'signatures))
+                          (wrap- (deref (field-pointer value 'target)) 1))))
+          (if (= (deref (field-pointer signature 'inline_count)) 0) 0
+              (ssa_inline_call context signature reference))) 0)))
+
+(defun ssa_inline_function (context)
+  (declare (type (ptr native_compile_context) context) (returns c-int))
+  (if (= (ssa_inline_check_calls context 1) 0) 0
+      (progn
+        (store (field-pointer context 'inline_cursor) 1)
+        (while (< (deref (field-pointer context 'inline_cursor))
+                  (wrap+ (deref (field-pointer (deref (field-pointer context 'ssa)) 'value_count)) 1))
+          (store (field-pointer context 'inline_cursor)
+                 (wrap+ (deref (field-pointer context 'inline_cursor))
+                        (wrap+ (ssa_inline_step context (deref (field-pointer context 'inline_cursor))) 1))))
+        (ssa_verify_function context))))
