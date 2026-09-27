@@ -39,6 +39,26 @@ an executable; compiling with `-c` needs no C compiler. See the
 [native examples](examples/README.md#native-lisp-programs) for recursion,
 macros, and packed layout programs.
 
+## Build from source
+
+Stage 0 runs directly with SBCL through `./pslcc`. To build the current native
+compiler subset on x86-64 Linux, install SBCL, Make, and a C compiler, then run:
+
+```sh
+make
+build/pslcc-native examples/basic/standalone.lisp build/standalone.o
+make example
+make test
+```
+
+`make` compiles the PSL native core into `build/native-core.o` and links it with
+the temporary host wrapper. `build/pslcc-native SOURCE OUTPUT.o` accepts the
+[documented bootstrap subset](bootstrap/README.md); it is not yet the complete
+Stage 0 compiler. `make example` uses Stage 0 to build and run a pure Lisp
+program. Use `make help` for native generation checks, cross-target tests,
+cleanup, and build variables. For example, `make PSLFLAGS=-O0` selects
+unoptimized compilation on a fresh build; `make clean` removes generated files.
+
 ## Source and C interop
 
 PSL extensions such as `u64`, `returns`, and `wrap+` are available without a
