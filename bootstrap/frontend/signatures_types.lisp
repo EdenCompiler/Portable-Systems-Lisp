@@ -16,7 +16,9 @@
   (result_kind u32)
   (body usize)
   (exported u8)
-  (imported u8))
+  (imported u8)
+  (allocation_free u8)
+  (effect_ready u8))
 
 (defcstruct native_signature_context
   (layouts (ptr native_layout_context))

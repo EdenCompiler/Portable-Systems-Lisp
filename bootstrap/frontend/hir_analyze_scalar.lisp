@@ -6,6 +6,7 @@
 (include "hir_analyze_cond.lisp")
 (include "hir_analyze_memory.lisp")
 (include "hir_analyze_layout.lisp")
+(include "effects_syntax.lisp")
 
 (defun comparison_kind (parser source head)
   (declare (type (ptr psl_parser) parser)
@@ -85,6 +86,8 @@
         (source (deref (field-pointer context 'source))))
     (let ((head (ast_first parser body)))
       (cond
+        ((= (allocation_region_word_p parser source head) 1)
+         (analyze_allocation_region context body depth))
         ((= (ast_word_p parser source head #x6c6c61633a696666 8) 1)
          (hir_from_foreign_call context body depth))
         ((= (ast_word_p parser source head #x6669 2) 1)

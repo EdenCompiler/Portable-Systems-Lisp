@@ -187,6 +187,19 @@
             0
             (hir_verify_scalar_kind context node depth)))))
 
+(defun hir_verify_region_metadata (context index)
+  (declare (type (ptr native_compile_context) context) (type usize index) (returns c-int) (c-export :c))
+  (let ((arena (deref (field-pointer context 'hir)))
+        (parser (deref (field-pointer context 'parser))))
+    (if (< (deref (field-pointer arena 'count)) index) 1
+        (let ((region (deref (field-pointer (hir_node_at arena index) 'allocation_region))))
+          (if (= region 0) (hir_verify_region_metadata context (wrap+ index 1))
+              (if (< (deref (field-pointer parser 'count)) region) 0
+                  (if (= (ast_list_p parser region) 0) 0
+                      (if (= (allocation_region_word_p parser (deref (field-pointer context 'source))
+                                                      (ast_first parser region)) 0) 0
+                          (hir_verify_region_metadata context (wrap+ index 1))))))))))
+
 (defun hir_verify_typed_function (context root)
   (declare (type (ptr native_compile_context) context)
            (type usize root) (returns c-int))
@@ -203,4 +216,5 @@
                 (scalar_signature_result_pointee
                  context (deref (field-pointer context 'current_signature)))) 0)
             0
-            (hir_verify_scalar_tree context root 0)))))
+            (if (= (hir_verify_region_metadata context 1) 0) 0
+                (hir_verify_scalar_tree context root 0))))))

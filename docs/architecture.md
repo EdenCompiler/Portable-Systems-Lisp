@@ -47,6 +47,7 @@ linker/
   x86_64-linux-user.ld  static x86-64 Linux user-mode layout
 bootstrap/
   native-core.lisp      source unit including the ported compiler components
+  driver_effects.lisp  unit fixed-point inference and allocation certification
   binary.lisp          caller-owned byte emission and patching
   arena.lisp           caller-owned aligned allocation
   compile_scalar.lisp  native analysis, verification, and lowering coordinator
@@ -78,6 +79,8 @@ bootstrap/
     scalar_syntax.lisp, scalar_types.lisp, scalar_resolve.lisp, pointer_types.lisp
                        source navigation, type equality, and symbol lookup
     hir_analyze_*.lisp integer, pointer, layout query, call, control, and lexical analysis
+    effects_syntax.lisp region recognition and HIR source markers
+    effects.lisp      direct-call allocation summaries and region traversal
   ir/
     hir.lisp, hir_verify_*.lisp
                        typed HIR and structural, scope, and source checks
@@ -252,7 +255,8 @@ paths, and render the driver's selected messages. They contain no compilation
 control or phase/location selection.
 This permits forward calls and recursion. It is a
 restricted source-to-object proof, not Stage 1: general symbol interpretation,
-macro expansion, full semantic analysis, generic optimization and effects,
+macro expansion, full semantic analysis, remaining generic optimization and
+managed/indirect effects,
 general function calls,
 relocations, data, and COFF still run in SBCL. The standalone native writer
 also reproduces one-function AArch64 and RISC-V64 ELF objects from supplied
@@ -293,7 +297,17 @@ closure, and flag validity before lowering. Loads stay roots until native
 memory qualifiers/effects are available. The driver accepts native `-O0`/`-O1` and
 passes the chosen level through the compilation context. Context scratch fields
 hold scan progress without adding a core allocator/runtime dependency.
-Native inlining, effects, remaining ABI/backend features, and the
+Native allocation certification precedes SSA construction and optimization.
+`frontend/effects_syntax.lisp` marks region roots without changing executable
+HIR kinds. `frontend/effects.lisp` traverses region children and call signatures;
+`driver_effects.lisp` computes a greatest fixed point in signature records
+and validates all regions before emission. It rebuilds verified HIR in the
+existing scratch arena, keeping function bodies and target encoding independent
+of effect inference. Region markers have a metadata verifier. Signature flags
+separate allocation-free candidates from finalized summaries; imported promises
+are trusted explicitly. Error phase 9 selects the unsafe callee name, rendered
+by the temporary host primitive. Optimizer call/load/store roots are unchanged.
+Native inlining, managed/indirect effects, remaining ABI/backend features, and the
 full Stage 1–3 comparison remain pending M8 work. The x86-64 Linux
 `bootstrap_self_core.sh` gate now compiles the complete native core through
 three native generations and runs the full native subset suite on each. Both

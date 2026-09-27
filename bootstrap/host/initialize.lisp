@@ -189,6 +189,7 @@
     (store (field-pointer record 'optimization) 1)
     (store (field-pointer record 'fold_cursor) 0)
     (store (field-pointer record 'fold_changed) 0)
+    (store (field-pointer record 'effects_changed) 0)
     1))
 
 (defun native_initialize_driver (driver capacity)

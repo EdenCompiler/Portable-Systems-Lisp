@@ -70,6 +70,7 @@ struct native_hir_node {
     uintptr_t source;
     uint32_t scalar_code;
     uintptr_t pointee;
+    uintptr_t allocation_region;
 };
 
 struct native_hir_arena {
@@ -164,6 +165,7 @@ struct native_compile_context {
     uint32_t optimization;
     uintptr_t fold_cursor;
     int32_t fold_changed;
+    int32_t effects_changed;
 };
 
 struct native_type_shape {
@@ -219,6 +221,7 @@ struct native_signature {
     uintptr_t body;
     uint8_t exported;
     uint8_t imported;
+    uint8_t allocation_free, effect_ready;
 };
 
 struct native_signature_context {
@@ -285,7 +288,8 @@ enum native_unit_phase {
     NATIVE_UNIT_PREDECLARE,
     NATIVE_UNIT_BODY,
     NATIVE_UNIT_CALL_FIXUPS,
-    NATIVE_UNIT_OBJECT
+    NATIVE_UNIT_OBJECT,
+    NATIVE_UNIT_ALLOCATION_EFFECT
 };
 struct native_unit_result {
     uintptr_t phase, form, index;
@@ -335,6 +339,7 @@ extern int native_parse_signature(struct native_signature_context *context,
 
 
 extern int ssa_optimize_function(struct native_compile_context *context);
+extern int hir_verify_region_metadata(struct native_compile_context *context, uintptr_t index);
 extern int ssa_verify_liveness(struct native_compile_context *context);
 extern int ssa_verify_function(struct native_compile_context *context);
 extern int lir_verify_function(struct native_compile_context *context);

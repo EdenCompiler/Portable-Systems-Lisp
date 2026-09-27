@@ -56,6 +56,8 @@ int native_prepare_driver(struct native_driver *driver) {
     assert(!driver->context.source && !driver->parser.nodes);
     if (scenario == PREPARE_FAILURE) return 0;
     nodes[1].start = 33;
+    nodes[0].start = 0;
+    nodes[0].length = 3;
     nodes[2].start = 77;
     signatures[1].name = 3;
     functions[1].name = (const uint8_t *)"broken";
@@ -80,6 +82,7 @@ int native_compile_unit(struct native_compile_context *context, struct byte_buff
     if (scenario != COMPILE_FAILURE) return 1;
     result->phase = phase;
     result->form = 2;
+    if (phase == 9) result->form = 1;
     result->index = 1;
     return 0;
 }
@@ -133,7 +136,7 @@ static void check_run(enum scenario next, int expected) {
 }
 
 static void check_compilation_errors(void) {
-    static const uint32_t kinds[] = {0, 6, 7, 8, 0, 9, 10, 0, 0};
+    static const uint32_t kinds[] = {0, 6, 7, 8, 0, 9, 10, 0, 0, 11};
     for (phase = 0; phase < sizeof kinds / sizeof *kinds; ++phase) {
         check_run(COMPILE_FAILURE, 1);
         assert(event_count == (size_t)(kinds[phase] ? 2 : 1));
@@ -144,6 +147,7 @@ static void check_compilation_errors(void) {
         if (phase <= 3) assert(events[0].position == 33);
         if (phase == 5) assert(events[0].position == 77);
         if (phase == 6) assert(events[0].length == 6 && strcmp(events[0].text, "broken") == 0);
+        if (phase == 9) assert(events[0].length == 3 && strcmp(events[0].text, "raw") == 0);
     }
 }
 

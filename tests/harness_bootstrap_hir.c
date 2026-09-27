@@ -2,26 +2,26 @@
 
 int main(void) {
     struct native_hir_node nodes[3] = {
-        {1, 1, 20, 0, 0, 0, 1, 1, 0},
-        {1, 1, 22, 0, 0, 0, 2, 1, 0},
-        {4, 1, 0, 1, 2, 0, 3, 1, 0},
+        {1, 1, 20, 0, 0, 0, 1, 1, 0, 0},
+        {1, 1, 22, 0, 0, 0, 2, 1, 0, 0},
+        {4, 1, 0, 1, 2, 0, 3, 1, 0, 0},
     };
     struct native_hir_arena arena = {nodes, 3, 3, 0};
     struct native_function functions[1] = {{0}};
     struct native_hir_node control_nodes[5] = {
-        {1, 1, 4, 0, 0, 0, 1, 1, 0},
-        {1, 1, 5, 0, 0, 0, 2, 1, 0},
-        {9, 2, 0, 1, 2, 0, 3, 0, 0},
-        {1, 1, 42, 0, 0, 0, 4, 1, 0},
-        {10, 1, 0, 3, 4, 1, 5, 1, 0},
+        {1, 1, 4, 0, 0, 0, 1, 1, 0, 0},
+        {1, 1, 5, 0, 0, 0, 2, 1, 0, 0},
+        {9, 2, 0, 1, 2, 0, 3, 0, 0, 0},
+        {1, 1, 42, 0, 0, 0, 4, 1, 0, 0},
+        {10, 1, 0, 3, 4, 1, 5, 1, 0, 0},
     };
     struct native_hir_arena control = {control_nodes, 5, 5, 0};
     struct native_hir_node lexical_nodes[5] = {
-        {1, 1, 42, 0, 0, 0, 1, 1, 0},
-        {14, 1, 1, 1, 0, 0, 2, 1, 0},
-        {15, 1, 0, 0, 0, 2, 3, 1, 0},
-        {16, 1, 0, 2, 3, 0, 4, 1, 0},
-        {13, 1, 0, 4, 3, 0, 5, 1, 0},
+        {1, 1, 42, 0, 0, 0, 1, 1, 0, 0},
+        {14, 1, 1, 1, 0, 0, 2, 1, 0, 0},
+        {15, 1, 0, 0, 0, 2, 3, 1, 0, 0},
+        {16, 1, 0, 2, 3, 0, 4, 1, 0, 0},
+        {13, 1, 0, 4, 3, 0, 5, 1, 0, 0},
     };
     struct native_hir_arena lexical = {lexical_nodes, 5, 5, 0};
 
@@ -46,13 +46,13 @@ int main(void) {
     if (!hir_verify_root(&arena, 3, functions, 0, 2)) return 6;
     nodes[0].kind = 1;
     nodes[0].value = 20;
-    nodes[2] = (struct native_hir_node){7, 1, 0, 0, 0, 1, 3, 1, 0};
+    nodes[2] = (struct native_hir_node){7, 1, 0, 0, 0, 1, 3, 1, 0, 0};
     if (hir_verify_root(&arena, 3, functions, 0, 0)) return 7;
     if (!hir_verify_root(&arena, 3, functions, 1, 0)) return 8;
     nodes[2].left = 1;
     if (hir_verify_root(&arena, 3, functions, 1, 0)) return 9;
     functions[0].arity = 1;
-    nodes[1] = (struct native_hir_node){17, 1, 0, 1, 0, 0, 2, 1, 0};
+    nodes[1] = (struct native_hir_node){17, 1, 0, 1, 0, 0, 2, 1, 0, 0};
     nodes[2].left = 2;
     if (!hir_verify_root(&arena, 3, functions, 1, 0)) return 19;
     nodes[1].right = 1;
@@ -78,9 +78,9 @@ int main(void) {
 
     struct native_compile_context typed = {0};
     typed.hir = &arena;
-    nodes[0] = (struct native_hir_node){1, 1, 20, 0, 0, 0, 1, 3, 0};
-    nodes[1] = (struct native_hir_node){1, 1, 22, 0, 0, 0, 2, 3, 0};
-    nodes[2] = (struct native_hir_node){4, 1, 0, 1, 2, 0, 3, 3, 0};
+    nodes[0] = (struct native_hir_node){1, 1, 20, 0, 0, 0, 1, 3, 0, 0};
+    nodes[1] = (struct native_hir_node){1, 1, 22, 0, 0, 0, 2, 3, 0, 0};
+    nodes[2] = (struct native_hir_node){4, 1, 0, 1, 2, 0, 3, 3, 0, 0};
     if (!hir_verify_root(&arena, 3, functions, 0, 0)) return 23;
     if (!hir_verify_scalar_tree(&typed, 3, 0)) return 24;
     nodes[1].scalar_code = 1;
@@ -89,7 +89,7 @@ int main(void) {
     nodes[1].value = 256;
     if (hir_verify_scalar_tree(&typed, 3, 0)) return 26;
     nodes[1].value = 22;
-    nodes[2] = (struct native_hir_node){18, 1, 0, 1, 0, 0, 3, 6, 0};
+    nodes[2] = (struct native_hir_node){18, 1, 0, 1, 0, 0, 3, 6, 0, 0};
     if (!hir_verify_root(&arena, 3, functions, 0, 0)) return 27;
     if (!hir_verify_scalar_tree(&typed, 3, 0)) return 28;
     nodes[2].scalar_code = 0;

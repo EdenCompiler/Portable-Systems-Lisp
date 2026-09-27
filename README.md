@@ -151,7 +151,9 @@ modules and reproduces identical objects across successive native generations.
 Its compilation-unit pipeline is written in PSL and exposed as an in-memory
 API. Native `-O1` folds integer constants, prunes unreachable branches, and removes
 unused pure computations through verified SSA; `-O0` keeps the baseline lowering. Allocation, initialization, cleanup, include traversal, argument
-validation, compilation control, and diagnostic selection are in PSL.
+validation, compilation control, diagnostic selection, and allocation-effect
+checks are in PSL. Native `without-allocation` verifies direct call graphs;
+C imports require explicit `:no-allocation` annotations within these regions.
 File I/O, path canonicalization, and diagnostic rendering still use a temporary
 C adapter; the broader language and target corpus remains to be ported,
 so full self hosting is still in progress.

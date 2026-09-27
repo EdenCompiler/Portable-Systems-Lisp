@@ -110,6 +110,7 @@
 (include "frontend/hir_analyze_scalar.lisp")
 (include "frontend/hir_analyze_lexical.lisp")
 (include "ir/hir_verify_types.lisp")
+(include "frontend/effects.lisp")
 (include "ir/ssa_lower.lisp")
 (include "ir/ssa_lower_control.lisp")
 (include "ir/ssa_verify.lisp")
@@ -136,6 +137,12 @@
   (let ((body (deref (field-pointer signature 'body))))
     (analyze_scalar_sequence_from context body 0 body 0)))
 
+(defun analyze_verified_scalar_function (context signature)
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_signature) signature) (returns usize))
+  (let ((root (analyze_scalar_function context signature)))
+    (if (= root 0) 0 (if (= (hir_verify_typed_function context root) 0) 0 root))))
+
 (defun lower_scalar_function (context expression)
   (declare (type (ptr native_compile_context) context)
            (type usize expression) (returns c-int))
@@ -143,6 +150,14 @@
       (if (= (ssa_optimize_function context) 0) 0
           (if (= (lir_lower_function context) 0) 0
               (lir_verify_function context)))))
+
+(defun compile_verified_scalar_function (context expression start function)
+  (declare (type (ptr native_compile_context) context) (type usize expression start)
+           (type (ptr native_function) function) (returns c-int))
+  (if (= (hir_regions_unsafe_call context 1) 0)
+      (if (= (lower_scalar_function context expression) 0) 0
+          (if (= (emit_lir_x86_function context) 0) 0
+              (finish_scalar_function context start function))) 0))
 
 (defun compile_scalar_form (context signature function)
   (declare (type (ptr native_compile_context) context)
@@ -153,11 +168,7 @@
       0
       (let ((start (deref (field-pointer
                            (deref (field-pointer context 'code)) 'length))))
-        (let ((expression (analyze_scalar_function context signature)))
+        (let ((expression (analyze_verified_scalar_function context signature)))
           (if (= expression 0)
               0
-              (if (= (hir_verify_typed_function context expression) 0)
-                  0
-                  (if (= (lower_scalar_function context expression) 0) 0
-                      (if (= (emit_lir_x86_function context) 0) 0
-                          (finish_scalar_function context start function)))))))))
+              (compile_verified_scalar_function context expression start function))))))

@@ -1,0 +1,5 @@
+(ffi:import-function "unknown" () -> u64)
+(defun bad () (declare (returns u64)) (without-allocation (left 2)))
+(defun left (n) (declare (type u64 n) (returns u64)) (right n))
+(defun right (n) (declare (type u64 n) (returns u64))
+  (if (= n 0) (ffi:call unknown) (left (wrap- n 1))))

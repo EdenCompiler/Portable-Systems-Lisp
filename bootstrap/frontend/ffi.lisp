@@ -78,8 +78,20 @@
   (store (field-pointer signature 'body) 0)
   (store (field-pointer signature 'exported) 0)
   (store (field-pointer signature 'imported) 1)
+  (store (field-pointer signature 'allocation_free) 0)
+  (store (field-pointer signature 'effect_ready) 1)
   (if (= (import_parameters context signature (signature_first context parameters)) 0) 0
       (import_result context signature result)))
+
+(defun import_effect (context signature annotation)
+  (declare (type (ptr native_signature_context) context)
+           (type (ptr native_signature) signature) (type usize annotation) (returns c-int))
+  (if (= annotation 0) 1
+      (if (= (signature_next context annotation) 0)
+          (if (= (ast_long_word_p (signature_parser context)
+                   (deref (field-pointer (deref (field-pointer context 'layouts)) 'source))
+                   annotation #x6f6c6c612d6f6e3a #x6e6f69746163 14) 1)
+              (progn (store (field-pointer signature 'allocation_free) 1) 1) 0) 0)))
 
 (defun import_header (context signature root)
   (declare (type (ptr native_signature_context) context)
@@ -95,8 +107,8 @@
                   (if (= (signature_list_p context parameters) 0) 0
                       (if (= (signature_word_p context arrow #x3e2d 2) 0) 0
                           (if (= result 0) 0
-                              (if (= (signature_next context result) 0)
-                                  (import_initialize context signature name parameters result) 0)))))))))))
+                              (if (= (import_initialize context signature name parameters result) 0) 0
+                                  (import_effect context signature (signature_next context result)))))))))))))
 
 (defun native_parse_import (context root)
   (declare (type (ptr native_signature_context) context)

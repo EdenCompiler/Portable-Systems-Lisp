@@ -32,4 +32,5 @@
   (jumps (ptr native_fixup_arena))
   (optimization u32)
   (fold_cursor usize)
-  (fold_changed c-int))
+  (fold_changed c-int)
+  (effects_changed c-int))

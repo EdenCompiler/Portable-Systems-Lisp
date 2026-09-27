@@ -115,6 +115,8 @@
                                   functions count fixups object) 1)
             1 (native_unit_fail result 8)))))
 
+(include "driver_effects.lisp")
+
 (defun native_compile_unit (context object result)
   (declare (type (ptr native_compile_context) context)
            (type (ptr byte_buffer) object)
@@ -127,5 +129,6 @@
       (let ((signatures (deref (field-pointer context 'signatures))))
         (let ((count (deref (field-pointer signatures 'signature_count))))
           (if (= (native_predeclare_unit context result count) 0) 0
-              (if (= (native_compile_unit_bodies context result count) 0) 0
-                  (native_finish_unit context result count object)))))))
+              (if (= (native_certify_effects context result count) 0) 0
+                  (if (= (native_compile_unit_bodies context result count) 0) 0
+                      (native_finish_unit context result count object))))))))

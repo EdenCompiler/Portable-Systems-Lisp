@@ -46,6 +46,7 @@
             (store (field-pointer node 'scalar_code)
                    (if (= kind 8) 0 (if (= kind 9) 0 1)))
             (store (field-pointer node 'pointee) 0)
+            (store (field-pointer node 'allocation_region) 0)
             (store (field-pointer arena 'count) reference)
             reference))
         (progn

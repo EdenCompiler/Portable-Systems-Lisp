@@ -38,6 +38,11 @@ void native_host_report_error(uint32_t kind, const uint8_t *text,
         fwrite(text, 1, length, stderr);
         fputc('\n', stderr);
         break;
+    case NATIVE_HOST_ALLOCATION_EFFECT:
+        fputs("WITHOUT-ALLOCATION cannot certify call to ", stderr);
+        fwrite(text, 1, length, stderr);
+        fputc('\n', stderr);
+        break;
     default: break;
     }
 }

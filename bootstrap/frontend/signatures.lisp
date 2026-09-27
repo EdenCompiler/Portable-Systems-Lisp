@@ -317,6 +317,8 @@
   (store (field-pointer signature 'result_type) 0)
   (store (field-pointer signature 'exported) 0)
   (store (field-pointer signature 'imported) 0)
+  (store (field-pointer signature 'allocation_free) 1)
+  (store (field-pointer signature 'effect_ready) 0)
   (store (field-pointer signature 'body)
          (signature_next context declaration))
   (if (= (signature_add_parameters context signature

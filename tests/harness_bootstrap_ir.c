@@ -50,7 +50,7 @@ static int compile_source_options(struct fixture *f, const uint8_t *source, uint
     f->context = (struct native_compile_context){
         &f->parser, source, &f->integer, &f->hir, &f->code,
         &f->call_fixups, f->functions, &f->signature_context, 1, 0, NULL,
-        0, 0, 0, 0, &f->ssa, f->bindings, &f->lir, f->labels, &f->jump_fixups, 0, 0, 0
+        0, 0, 0, 0, &f->ssa, f->bindings, &f->lir, f->labels, &f->jump_fixups, 0, 0, 0, 0
     };
     f->context.optimization = level;
     uintptr_t root = parser_next(&f->parser);
@@ -270,6 +270,12 @@ static int check_lir_mutations(struct fixture *f) {
 int main(void) {
     struct fixture fixture = {0};
     if (!compile_fixture(&fixture)) return 1;
+    fixture.hir_nodes[0].allocation_region = fixture.parser.count + 1;
+    if (hir_verify_region_metadata(&fixture.context, 1)) return 9;
+    fixture.hir_nodes[0].allocation_region = 1;
+    if (hir_verify_region_metadata(&fixture.context, 1)) return 10;
+    fixture.hir_nodes[0].allocation_region = 0;
+    if (!hir_verify_region_metadata(&fixture.context, 1)) return 11;
     if (!ssa_verify_function(&fixture.context) || !lir_verify_function(&fixture.context)) return 2;
     if (check_ssa_mutations(&fixture)) return 3;
     if (check_lir_mutations(&fixture)) return 4;

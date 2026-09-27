@@ -352,11 +352,25 @@ IDs/catalog records and verifies every retained dependency. Conditions,
 returns, calls, stores, and all loads are roots; loads are conservatively
 retained pending native memory qualifiers/effects. Native `-O0` skips both
 passes and marks all definitions live.
+Native `without-allocation` certifies direct calls before optimization. The
+unit pipeline infers allocation-free summaries to a fixed point, including
+forward calls and pure recursive groups. Unannotated C imports are unknown;
+exactly one trailing `:no-allocation` declares a trusted promise. All region
+calls, arguments, lexical initializers, loop bodies, and conditional arms are
+checked, including dead arms. Outer lexical reads exclude earlier initializers.
+Regions return their last typed body value, including void. Effect annotations
+do not make calls pure for dead-value removal. Foreign promises remain the
+caller's responsibility; managed/GC/indirect facilities are not native yet.
+Use `native_compile_unit` for complete-unit summaries; `compile_scalar_form`
+rejects region calls whose internal summaries are unfinished. Failure phase 9
+identifies the caller index and unsafe callee name AST; diagnostics name the
+call. HIR checks region metadata before certification and lowering.
+
 `native_run_compiler_options(source, output, level)` selects 0 or 1; other levels
 return a usage failure. In-memory callers set `context.optimization` to 0 or 1;
 `native_prepare_driver` initializes it to 1. The exported optimizer rejects
 invalid SSA before mutation. Inlining
-and allocation-effect analysis still need native ports. It directly compiles
+and managed/indirect effect support still need native ports. It directly compiles
 its full native core, including frontend, IR verification, x86-64 encoding,
 and ELF writing. Successive native core generations reproduce identical
 objects and pass the native subset suite. The broader Stage 0 corpus, remaining

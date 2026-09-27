@@ -8,7 +8,7 @@ enum native_host_error_kind {
     NATIVE_HOST_READ = 1, NATIVE_HOST_ALLOCATE, NATIVE_HOST_UNSUPPORTED,
     NATIVE_HOST_WRITE, NATIVE_HOST_USAGE, NATIVE_HOST_LAYOUT,
     NATIVE_HOST_IMPORT, NATIVE_HOST_DECLARATION, NATIVE_HOST_PREDECLARATION,
-    NATIVE_HOST_BODY
+    NATIVE_HOST_BODY, NATIVE_HOST_ALLOCATION_EFFECT
 };
 int native_host_write_object(const uint8_t *path, const struct byte_buffer *object);
 void native_host_report_error(uint32_t kind, const uint8_t *text,

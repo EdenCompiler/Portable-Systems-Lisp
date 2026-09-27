@@ -276,7 +276,7 @@ loads, and stores, then follows their value dependencies, including argument
 links and PHIs. Only live definitions and PHI edge copies reach LIR. Stable SSA
 IDs and type records remain available for verification; a liveness verifier
 rejects omitted roots/dependencies before lowering. Loads are retained
-conservatively until native memory qualifiers and effects are ported. Inlining
+conservatively until native memory qualifiers and memory effects are ported. Inlining
 remains open. The optimizer itself is compiled by every
 native generation with no core runtime imports.
 
@@ -299,8 +299,36 @@ unreachable imports disappear from `-O1` objects, and compares repeat objects.
 SSA mutations reject bad copy operands/types/predecessors and stale targets;
 the cycle fixture verifies both an eliminated body and an eliminated exit.
 
+Native allocation certification runs before SSA optimization. The lowercase
+`without-allocation` form returns its last body value, like `progn`, and may
+return an integer, Boolean, pointer, or void. HIR retains region source markers;
+metadata verification checks their parser references. Unit analysis computes
+allocation summaries to a greatest fixed point: pure recursive groups remain
+safe, and any function reaching an unannotated C import becomes unsafe. A C
+import may end with exactly one `:no-allocation` annotation as a trusted promise.
+This certifies allocation behavior; calls still remain optimizer effect roots.
+The unit driver reuses scratch HIR storage while inferring summaries, then
+checks all regions against finalized summaries before emitting any code.
+Checks include call arguments, lexical initializers, loops, and both conditional
+arms, including constant-dead arms. Reads of outer lexical bindings do not
+recheck their earlier initializers. Standalone `compile_scalar_form` does not
+trust unfinished internal summaries; use `native_compile_unit` to certify a
+complete unit. Certification failures return phase 9, caller signature index,
+and the unsafe callee's name AST reference in `result.form`; the CLI names the
+uncertifiable call. Foreign annotation correctness is the caller's obligation.
+
+C fixtures compare Stage 0/native behavior at both levels for forward calls,
+pure mutual recursion, nested/void/pointer regions, outer lexical bindings,
+loops, and retained foreign side effects. Rejections cover unknown/transitive/
+recursive calls, dead arms, initializers, conditions, arguments, malformed
+annotations, and empty regions. Unit API and diagnostic-provider fixtures check
+failure phase/name selection and no output; metadata mutations reject invalid
+region references. Native generations compare accepted objects and rejection
+diagnostics. Managed allocation, GC, and indirect closures remain outside the
+native source subset; their runtime/effect ports are still pending M8 work.
+
 The remaining bootstrap work is general symbol and string interpretation,
 macro execution, the broader Stage 0 source/interop corpus, the remaining optimization passes
-and effects, remaining target backends and object features, and the remaining
+and managed/indirect effects, remaining target backends and object features, and the remaining
 file/diagnostic/path adapter services. Full Stage 1–3 builds and their corpus comparisons remain
 the M8 gate.

@@ -150,6 +150,35 @@ if nm -u "$work_dir/cfg-1.o" | grep -q 'cfg_dead'; then
 fi
 test "$(wc -c < "$work_dir/cfg-1.o")" -lt "$(wc -c < "$work_dir/cfg-0.o")"
 for level in 0 1; do
+  run_host "$work_dir/pslcc-native-slice$host_suffix" "-O$level" \
+    "$project_root/tests/bootstrap_effects.lisp" "$work_dir/effects-$level.o"
+  cc -Wall -Wextra -Werror "$project_root/tests/harness_bootstrap_effects.c" \
+    "$work_dir/effects-$level.o" -o "$work_dir/effects-$level"
+  "$work_dir/effects-$level"
+  run_host "$work_dir/pslcc-native-slice$host_suffix" "-O$level" \
+    "$project_root/tests/bootstrap_effects.lisp" "$work_dir/effects-$level-repeat.o"
+  cmp "$work_dir/effects-$level.o" "$work_dir/effects-$level-repeat.o"
+  "$project_root/pslcc" "-O$level" -c "$project_root/tests/bootstrap_effects.lisp" \
+    -o "$work_dir/effects-stage0-$level.o"
+  cc -Wall -Wextra -Werror "$project_root/tests/harness_bootstrap_effects.c" \
+    "$work_dir/effects-stage0-$level.o" -o "$work_dir/effects-stage0-$level"
+  "$work_dir/effects-stage0-$level"
+  for source in "$project_root"/tests/bootstrap_effect_errors/*.lisp; do
+    check_cli_failure 1 "-O$level" "$source" "$work_dir/effect-rejected.o"
+    test ! -e "$work_dir/effect-rejected.o"
+    case ${source##*/} in
+      annotation.lisp|empty.lisp) ;;
+      *) grep -q 'WITHOUT-ALLOCATION cannot certify call to' "$work_dir/cli.err" ;;
+    esac
+    if "$project_root/pslcc" "-O$level" -c "$source" -o "$work_dir/effect-rejected.o" \
+        >"$work_dir/effect-stage0.out" 2>"$work_dir/effect-stage0.err"; then
+      echo 'Stage 0 accepted an invalid allocation region' >&2
+      exit 1
+    fi
+    test ! -e "$work_dir/effect-rejected.o"
+  done
+done
+for level in 0 1; do
   for fixture in bootstrap_stack_arguments bootstrap_pointers bootstrap_mixed_integers \
       bootstrap_foreign_calls bootstrap_void_calls; do
     run_host "$work_dir/pslcc-native-slice$host_suffix" "-O$level" \

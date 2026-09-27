@@ -39,6 +39,16 @@
                 (deref (field-pointer function 'name_length)) 0)
       1)))
 
+(defun compiler_report_effect (driver result)
+  (declare (type (ptr native_driver) driver) (type (ptr native_unit_result) result) (returns c-int))
+  (let ((node (pointer+ (deref (field-pointer (field-pointer driver 'parser) 'nodes))
+                        (wrap-cast isize (wrap- (deref (field-pointer result 'form)) 1)))))
+    (let ((start (deref (field-pointer node 'start))))
+      (ffi:call native_host_report_error 11
+        (pointer+ (deref (field-pointer driver 'source)) (wrap-cast isize start))
+        (deref (field-pointer node 'length)) start)
+      1)))
+
 (defun compiler_report_unit_error (driver result)
   (declare (type (ptr native_driver) driver) (type (ptr native_unit_result) result)
            (returns c-int))
@@ -49,4 +59,5 @@
       ((= phase 3) (compiler_report_form driver result 8))
       ((= phase 5) (compiler_report_predeclaration driver result))
       ((= phase 6) (compiler_report_body driver result))
+      ((= phase 9) (compiler_report_effect driver result))
       (t 1))))

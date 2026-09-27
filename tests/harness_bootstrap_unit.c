@@ -67,7 +67,7 @@ static int check_failure(const char *source, uintptr_t phase, uintptr_t index) {
     if (compile_memory(source, sizeof storage.object, &object, &result)) return 0;
     if (object.length || result.phase != phase) return 0;
     if (phase <= NATIVE_UNIT_SIGNATURE && !result.form) return 0;
-    if ((phase == NATIVE_UNIT_PREDECLARE || phase == NATIVE_UNIT_BODY) &&
+    if ((phase == NATIVE_UNIT_PREDECLARE || phase == NATIVE_UNIT_BODY || phase == NATIVE_UNIT_ALLOCATION_EFFECT) &&
         result.index != index) return 0;
     return 1;
 }
@@ -88,6 +88,9 @@ static int check_failures(void) {
          "(defun broken () (declare (returns f32)) 1.0)", NATIVE_UNIT_PREDECLARE, 1},
         {"(defun first () (declare (returns u64)) 42)"
          "(defun broken () (declare (returns u64)) (unknown))", NATIVE_UNIT_BODY, 1},
+        {"(ffi:import-function \"unknown\" () -> u64)"
+         "(defun broken () (declare (returns u64)) (without-allocation (ffi:call unknown)))",
+         NATIVE_UNIT_ALLOCATION_EFFECT, 1},
     };
     for (size_t i = 0; i < sizeof cases / sizeof cases[0]; ++i) {
         if (!check_failure(cases[i].source, cases[i].phase, cases[i].index)) {

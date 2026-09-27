@@ -357,7 +357,7 @@ x86-64 backend consumes only LIR, its type catalog, and encoded symbol/fixup
 metadata; the old HIR-to-machine encoders have been removed. C mutation tests
 reject wrong PHI edges, non-dominating uses, malformed targets, omitted copies,
 and undefined registers. Native modules now follow `frontend/`, `ir/`,
-`backend/`, and `object/` ownership. Generic optimization and effects, the full
+`backend/`, and `object/` ownership. Remaining generic optimization and managed/indirect effects, the full
 source corpus, remaining ABI/backend/object features, and Stage 1–3 remain
 open; this is progress on subgate 2, not completion of M8.
 
@@ -381,7 +381,7 @@ and shared C links. It inspects relocations/symbols and excludes unused imports.
 An object API mutation harness rejects malformed call fixups and import
 metadata before output. The core-generation gate includes these fixtures and
 foreign-source rejection diagnostics. Native `ffi:source`, data symbols,
-floating/aggregate signatures, and import effects still need ports. This adds
+floating/aggregate signatures, and managed/indirect effects still need ports. This adds
 part of the subgate 3 object/ABI path needed by a PSL driver; it does not close
 M8.
 
@@ -473,7 +473,7 @@ signedness, modulo-64 shifts, joins, and effectful zero/null truth; the optimize
 native object is smaller. Both native modes also run stack, memory, mixed-type,
 foreign, and void interop harnesses. Mutation tests reject invalid SSA before
 optimizer mutation, and the generation gate compiles/reproduces the pass itself.
-This advances subgate 2; inlining, effects,
+This advances subgate 2; inlining, managed/indirect effects,
 and the rest of the M8 gate remain open.
 
 Native dead-value removal now follows folding. A PSL liveness pass roots every
@@ -488,7 +488,7 @@ discarded joins, stores, loads, and void results preserve observable behavior.
 Mutation fixtures reject omitted roots/argument links and confirm dead PHIs have
 no LIR definitions. The generation gate rebuilds and reproduces this pass.
 This ports dead pure-value removal for the native subset;
-inlining, effects, the full source/target ports, and complete M8 gates remain open.
+inlining, managed/indirect effects, the full source/target ports, and complete M8 gates remain open.
 
 Native CFG simplification now folds Boolean constant branches to jumps and
 removes unreachable blocks/values. Single-input PHIs become typed copies;
@@ -502,8 +502,24 @@ copies, and false loops at both levels. Object inspection excludes imports used
 only on unreachable paths; repeat/generation objects are compared. A compile-only
 infinite loop removes its exit/return while retaining a verified cycle. SSA
 mutations reject bad copies and stale targets after pruning. This advances the
-generic optimizer port; inlining, effects, broader source/target support, and
+generic optimizer port; inlining, managed/indirect effects, broader source/target support, and
 complete Stage 1–3 comparisons remain open.
+
+Native allocation-effect analysis now precedes SSA optimization. HIR records
+`without-allocation` roots; a verifier checks region source references. The
+unit driver infers direct-call summaries to a greatest fixed point, certifying
+pure recursive groups and propagating unannotated foreign calls as unsafe.
+Explicit trailing `:no-allocation` import promises are trusted; annotations do
+not remove call side effects. Scratch HIR is reused across inference passes,
+then regions are checked before any code emission, including arguments,
+initializers, loops, and dead conditional arms. Outer lexical reads exclude
+allocation performed before the region. C fixtures compare forward/recursive
+calls, nested/void/pointer regions, and effects at both levels with Stage 0.
+Negative fixtures, unit API, and diagnostic-provider tests check certification,
+phase/name selection, and no output; metadata mutations reject invalid region
+references. Native generations reproduce the new passes and compare rejection
+diagnostics. This advances subgate 2; managed/GC/indirect effects, inlining,
+broader language/target ports, and the complete M8 Stage 1–3 gate remain open.
 
 The native compiler now compiles every module included by its own
 `bootstrap/native-core.lisp`. `sh tests/bootstrap_self_core.sh` builds three
@@ -518,7 +534,7 @@ units;
 successive hosted objects match byte for byte. The same temporary C
 file/path/diagnostic adapter is linked to each generation.
 This is a core reproduction gate; the broader Stage 0 corpus, the remaining
-native optimizer passes and effects, remaining target/ABI/object features, and the remaining PSL
+native optimizer passes and managed/indirect effects, remaining target/ABI/object features, and the remaining PSL
 CLI/target selection and primitive file/path/error services are still open. Full Stage 1, Stage 2, and Stage 3 compiler builds remain open,
 as does the M8 gate.
 The scalar source path accepts lowercase hyphenated internal function and local

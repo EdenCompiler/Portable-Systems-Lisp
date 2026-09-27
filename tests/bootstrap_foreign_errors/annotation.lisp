@@ -1,1 +1,1 @@
-(ffi:import-function "helper" () -> u64 :no-allocation)
+(ffi:import-function "helper" () -> u64 :unknown-effect)

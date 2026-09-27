@@ -9,7 +9,8 @@
   (target usize)
   (source usize)
   (scalar_code u32)
-  (pointee usize))
+  (pointee usize)
+  (allocation_region usize))
 
 (defcstruct native_hir_arena
   (nodes (ptr native_hir_node))
