@@ -308,7 +308,16 @@ owned by the driver. Release frees partial/full storage and the source, clears
 the owning pointers, and may be repeated; release before preparing again.
 Compilation contexts become invalid on release. This hosted module explicitly
 imports `calloc` and `free`; the native core remains free of unresolved symbols.
-The temporary C wrapper supplies file I/O and diagnostic rendering. This API does not yet accept Stage 0's CLI options or targets.
+`bootstrap/host/compiler.lisp` exposes `native_run_compiler(source, output)`
+and `native_compiler_main(argc, argv)`. It owns source loading, preparation,
+unit compilation, output selection, and cleanup, and maps failing phases to
+diagnostic locations. The native subset CLI still takes `SOURCE.lisp OUTPUT.o`;
+it does not yet accept Stage 0's options or target selection. Status is 0 on
+success, 1 for rejected language input, and 2 for usage, I/O, or allocation
+failure. Arguments are inspected only for the expected count. Repeated run
+calls allocate independent state and release it on every return. The temporary
+C adapter writes objects and renders messages selected by the PSL driver.
+`bootstrap/driver.c` is only a `main` trampoline.
 
 Top-level lowercase `(include "relative-file.lisp")` now splices source into
 the same unit. A native PSL parser identifies include forms and decodes their

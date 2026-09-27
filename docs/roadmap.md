@@ -422,8 +422,8 @@ The hosted driver now uses these primitives for allocation and initialization.
 initializers and allocation/release helpers. Declaration-only layout modules
 are shared with the core without linking its algorithms into the hosted unit.
 This unit explicitly imports `calloc`/`free`; the native core still has no
-unresolved symbols. The C wrapper handles argv, file I/O, canonical paths,
-and diagnostic rendering; source traversal has since moved into PSL. A C harness checks allocation sizes and context links,
+unresolved symbols. The C adapters handle file I/O, canonical paths, and
+diagnostic rendering; argument validation and compilation flow are now in PSL; source traversal has since moved into PSL. A C harness checks allocation sizes and context links,
 rejects overflowing capacities before allocation, compiles in memory, and checks
 repeated cleanup and driver reuse. Linux linker fault injection fails each of
 its 18 allocations and verifies that partial buffers and the source are freed.
@@ -447,6 +447,20 @@ the core and storage objects, with no external tool lookup during compilation.
 This advances source/runtime services in subgate 4; complete file/diagnostic
 services, the broader compiler ports, and Stage 1–3 remain open.
 
+The hosted compilation controller and native entry point now live in
+`bootstrap/host/compiler.lisp`. Small helpers select failure diagnostics and
+source/function locations, coordinate source loading/preparation/compilation,
+write through the host primitive, and release state on every outcome. The C
+main only forwards argc/argv; host adapters render messages and provide I/O.
+The native two-path CLI remains restricted to its existing subset. A provider
+fixture checks exit codes, all unit failure phases/locations, invalid argument
+counts without argv access, and cleanup including state-allocation failure.
+Real process gates check usage, unreadable input, rejected source, and failed
+output. An old/new binary comparison matched 58 rejection diagnostics and
+usage/I/O failures. The generation gate now rebuilds this driver with the
+other PSL units and compares its objects and behavior. This advances subgate 4;
+broader CLI/target support and the full Stage 1–3 corpus remain open.
+
 The native compiler now compiles every module included by its own
 `bootstrap/native-core.lisp`. `sh tests/bootstrap_self_core.sh` builds three
 successive native core generations on x86-64 Linux, compiles the full core
@@ -455,12 +469,13 @@ generation, and compares their native-generated core and fixture objects byte
 for byte. Core objects have no unresolved symbols; rejected-source diagnostics
 match exactly across generations. Signature/layout tables no longer have
 the old 256-entry ceiling, and the ELF writer permits the complete core.
-Each generation also compiles its hosted storage and source loader units;
+Each generation also compiles its hosted storage, source loader, and driver
+units;
 successive hosted objects match byte for byte. The same temporary C
 file/path/diagnostic adapter is linked to each generation.
 This is a core reproduction gate; the broader Stage 0 corpus, native optimizer
 and effects, remaining target/ABI/object features, and the remaining PSL
-driver/file/path/error services are still open. Full Stage 1, Stage 2, and Stage 3 compiler builds remain open,
+CLI/target selection and primitive file/path/error services are still open. Full Stage 1, Stage 2, and Stage 3 compiler builds remain open,
 as does the M8 gate.
 The scalar source path accepts lowercase hyphenated internal function and local
 names; C exports still require C-compatible names. Its deterministic object

@@ -51,10 +51,15 @@ bootstrap/
   arena.lisp           caller-owned aligned allocation
   compile_scalar.lisp  native analysis, verification, and lowering coordinator
   driver.lisp          native compilation-unit pipeline and failure locations
-  driver.c             temporary host file-I/O, argv, and diagnostic rendering
+  driver.c             main trampoline into the compiled PSL entry point
+  unit_types.lisp      caller-owned compilation-unit result schema
   native_api.h         C host boundary for the compiled PSL modules
   *_types.lisp         shared record layouts, without compiler algorithms
   host/
+    compiler.lisp      CLI argument validation and compilation flow
+    compiler_diagnostics.lisp  failure phase and source-location selection
+    compiler_types.lisp, compiler_imports.lisp  state and typed module/host ABI
+    compiler.c, compiler.h  temporary object output and diagnostic rendering
     driver.lisp         owned storage preparation and initialization coordinator
     driver_types.lisp   driver and storage record layouts
     storage.lisp        explicit calloc/free imports and partial cleanup
@@ -234,7 +239,11 @@ hosted driver allocates, initializes, and releases those arenas. Record layouts
 are factored into declaration-only modules in their owning directories; the
 hosted driver includes them without bringing in compiler algorithms. Its only
 foreign imports are `calloc` and `free`; these stay out of `native-core.lisp`.
-The temporary C driver supplies file I/O and renders the failure location. It contains no signature/body compilation loops.
+The PSL hosted compiler driver selects source/output handling, compilation
+control, cleanup, and failure locations. Its entry point receives argc/argv
+from a C `main` trampoline. Temporary C adapters read/write files, canonicalize
+paths, and render the driver's selected messages. They contain no compilation
+control or phase/location selection.
 This permits forward calls and recursion. It is a
 restricted source-to-object proof, not Stage 1: general symbol interpretation,
 macro expansion, full semantic analysis, generic optimization and effects,
@@ -262,8 +271,11 @@ Native generic optimization, effects, remaining ABI/backend features, and the
 full Stage 1–3 comparison remain pending M8 work. The x86-64 Linux
 `bootstrap_self_core.sh` gate now compiles the complete native core through
 three native generations and runs the full native subset suite on each. Both
-the core, hosted storage, and source loader objects match byte for byte. A C harness compares
+the core, hosted storage, source loader, and compiler driver objects match byte
+for byte. A C harness compares
 arena sizes and context links, injects failure at every allocation on Linux,
-and checks overflow rejection, idempotent cleanup, and reuse. Their C driver
-and file/path/error adapter are shared
+and checks overflow rejection, idempotent cleanup, and reuse. A separate mock
+provider checks driver statuses, every diagnostic phase/location, valid/invalid
+argument counts, state-allocation failure, and cleanup after all outcomes.
+Their C entry trampoline and file/path/error adapters are shared
 temporary host code, so this does not establish full self hosting.

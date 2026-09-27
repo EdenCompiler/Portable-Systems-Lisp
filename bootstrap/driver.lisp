@@ -1,12 +1,6 @@
 (include "compile_scalar.lisp")
 
-;; Caller-owned state for one compilation unit. On failure, phase identifies
-;; the pass, form identifies an AST node, and index identifies a signature.
-;; Contexts and arenas must be freshly initialized for each invocation.
-(defcstruct native_unit_result
-  (phase usize)
-  (form usize)
-  (index usize))
+(include "unit_types.lisp")
 
 (defun native_unit_fail (result phase)
   (declare (type (ptr native_unit_result) result) (type usize phase)

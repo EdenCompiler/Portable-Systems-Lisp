@@ -6,7 +6,8 @@ use ordinary Lisp calls. Stage 0 builds the initial core. The resulting native
 compiler can now compile every module included by `native-core.lisp`, including
 its frontend, IR verifiers, x86-64 encoder, and ELF writer. A temporary C
 adapter still supplies file I/O, canonical paths, and diagnostic rendering.
-Allocation, initialization, cleanup, and source traversal live in PSL, with
+Allocation, initialization, cleanup, source traversal, argument validation,
+compilation flow, and diagnostic selection live in PSL, with
 explicit libc imports; this is
 **not yet a complete Stage 1 compiler**.
 
@@ -117,8 +118,8 @@ The native modules currently implement:
   Stage 0 also cross-compiles the combined native unit to AArch64 and RISC-V64
   objects; the test script supports execution on those hosts when their cross
   compilers and runners are available. `driver.c` and `host/source.c` supply
-  file I/O, canonical paths, argv, and diagnostic rendering until those services
-  move into PSL. Hosted memory and traversal are already compiled PSL modules.
+  file I/O, canonical paths, and diagnostic rendering. The C main forwards
+  argc/argv to the compiled PSL driver. Hosted memory and traversal are already compiled PSL modules.
 
 `driver.lisp` now owns the compilation-unit pipeline, exposed as
 `native_compile_unit(context, object, result)`. Callers supply freshly
@@ -139,8 +140,9 @@ and output buffers. It returns one on success and zero on failure. The
 
 Only the failing phase's location is valid. Arenas may contain partial work
 after failure; the host writes the object file only after successful completion.
-The C wrapper renders these locations and provides file/path services. The separately
-compiled PSL hosted driver provides storage.
+The PSL compiler driver maps these phases to source/function locations and
+selects the exit status. The C adapter renders its selected message and provides
+file/path services. The separately compiled PSL storage driver owns arenas.
 An independent C API caller compiles a unit from memory, checks declaration,
 reader, signature, body, and output-capacity failures, and links/runs the emitted
 object with a forward Lisp call and a C import. It runs with each core generation.
@@ -226,12 +228,10 @@ the tests through `native_api.h`.
 
 `sh tests/bootstrap_self_core.sh` bootstraps three successive native core
 generations on x86-64 Linux. Each generation compiles `native-core.lisp` with
-no external tool lookup path, then compiles the hosted storage and source
-loader modules and runs
-the same full native subset suite.
-The native-generated core, hosted storage, source loader, and fixture objects
-are byte-identical across
-generations, core objects have no unresolved symbols, and rejected-source
+no external tool lookup path, then compiles the hosted storage, source loader,
+and compiler driver modules and runs the same full native subset suite.
+The native-generated core, hosted storage, source loader, compiler driver, and
+fixture objects are byte-identical across generations, core objects have no unresolved symbols, and rejected-source
 diagnostics match exactly. The same C host wrapper is linked to each core;
 these are core generations, not complete Stage 1–3 compilers.
 
@@ -245,6 +245,18 @@ POSIX/Windows path rules, and reuse after failure. On Linux it injects failure
 at every malloc/calloc/realloc in both ordinary and empty loads and verifies
 complete cleanup. The real OS adapter is exercised by the native compiler's
 nested/repeated/symlink include fixtures on the supported hosts.
+
+The compiler controller is also its own PSL unit. `native_run_compiler(source,
+output)` returns 0 for success, 1 for rejected source, or 2 for usage/host/
+allocation failure. `native_compiler_main(argc, argv)` validates the two-path
+CLI contract before reading argv. It owns state creation, source loading,
+storage preparation, compilation, diagnostic phase/location selection, output,
+and cleanup. C provides only the entry trampoline and primitive host adapters.
+An independent provider fixture verifies all statuses, failure phase locations,
+argument bounds, and cleanup, including failed state allocation on Linux. Real
+process checks cover usage, unreadable input, rejected source, and an unwritable
+output path. The previous C driver and the new PSL driver also produced identical
+diagnostics for 58 rejected fixtures plus usage/I/O failures on Linux.
 
 The remaining bootstrap work is general symbol and string interpretation,
 macro execution, the broader Stage 0 source/interop corpus, generic optimization

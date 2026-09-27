@@ -285,6 +285,11 @@ struct native_unit_result {
     uintptr_t phase, form, index;
 };
 
+/* Native subset CLI: SOURCE.lisp OUTPUT.o. Status: 0 success, 1 rejected
+   source, 2 usage/host/allocation failure. Run calls may be repeated. */
+extern int native_compiler_main(int argc, char **argv);
+extern int native_run_compiler(const char *source_path, const char *output_path);
+
 /* Fresh contexts/arenas and live caller-owned buffers are required. */
 extern int native_compile_unit(struct native_compile_context *, struct byte_buffer *,
                                struct native_unit_result *);
