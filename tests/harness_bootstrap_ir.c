@@ -109,6 +109,55 @@ static int check_dead_values(struct fixture *f) {
     return 0;
 }
 
+static int check_cfg_copy(struct fixture *f) {
+    static const uint8_t source[] =
+        "(defun choice (input) (declare (type u64 input) (returns u64))"
+        " (let ((picked (if t input 0)))"
+        "  (if (= picked 1) (wrap+ picked 42) (wrap* input 2))))";
+    if (!compile_source_options(f, source, 0)) return 1;
+    uintptr_t blocks = f->ssa.block_count, values = f->ssa.value_count;
+    if (!compile_source_options(f, source, 1)) return 2;
+    if (f->ssa.block_count >= blocks || f->ssa.value_count >= values) return 3;
+    uintptr_t copy = 0;
+    for (uintptr_t i = 0; i < f->ssa.value_count; ++i)
+        if (f->ssa_values[i].kind == 31) copy = i + 1;
+    if (!copy || !ssa_verify_liveness(&f->context)) return 4;
+    struct native_ssa_value saved = f->ssa_values[copy - 1];
+    f->ssa_values[copy - 1].left = copy;
+    if (ssa_verify_function(&f->context)) return 5;
+    f->ssa_values[copy - 1] = saved;
+    f->ssa_values[copy - 1].right = saved.left;
+    if (ssa_verify_function(&f->context)) return 6;
+    f->ssa_values[copy - 1] = saved;
+    f->ssa_values[copy - 1].predecessor_left = 1;
+    if (ssa_verify_function(&f->context)) return 7;
+    f->ssa_values[copy - 1] = saved;
+    f->ssa_values[copy - 1].scalar_code = 3;
+    f->types[copy - 1].scalar_code = 3;
+    if (ssa_verify_function(&f->context)) return 9;
+    f->ssa_values[copy - 1] = saved;
+    f->types[copy - 1].scalar_code = saved.scalar_code;
+    f->ssa_blocks[0].target_left = blocks;
+    if (ssa_verify_function(&f->context)) return 8;
+    return 0;
+}
+
+static int check_cfg_cycles(struct fixture *f) {
+    static const uint8_t finite[] =
+        "(defun choice (input) (declare (type u64 input) (returns u64))"
+        " (while nil (choice input)) input)";
+    static const uint8_t infinite[] =
+        "(defun choice (input) (declare (type u64 input) (returns void))"
+        " (while t (choice input)) (choice 0))";
+    if (!compile_source_options(f, finite, 1)) return 1;
+    for (uintptr_t i = 0; i < f->lir.count; ++i)
+        if (f->lir_instructions[i].kind == 7 || f->lir_instructions[i].kind == 102) return 2;
+    if (!compile_source_options(f, infinite, 1)) return 3;
+    for (uintptr_t i = 0; i < f->lir.count; ++i)
+        if (f->lir_instructions[i].kind == 103 || f->lir_instructions[i].kind == 102) return 4;
+    return ssa_verify_liveness(&f->context) && lir_verify_function(&f->context) ? 0 : 5;
+}
+
 static int compile_fixture(struct fixture *f) {
     static const uint8_t source[] =
         "(defun choice (input)"
@@ -229,6 +278,16 @@ int main(void) {
     if (dead_status) {
         fprintf(stderr, "dead-value verification failed: %d\n", dead_status);
         return 6;
+    }
+    int cfg_status = check_cfg_copy(&fixture);
+    if (cfg_status) {
+        fprintf(stderr, "CFG copy verification failed: %d\n", cfg_status);
+        return 7;
+    }
+    cfg_status = check_cfg_cycles(&fixture);
+    if (cfg_status) {
+        fprintf(stderr, "CFG cycle verification failed: %d\n", cfg_status);
+        return 8;
     }
     return 0;
 }

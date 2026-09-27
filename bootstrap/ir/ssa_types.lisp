@@ -14,7 +14,8 @@
   (next usize)
   (predecessor_left usize)
   (predecessor_right usize)
-  (live c-int))
+  (live c-int)
+  (remap usize))
 
 (defcstruct native_ssa_block
   (first usize)
@@ -24,7 +25,8 @@
   (target_left usize)
   (target_right usize)
   (result usize)
-  (visit u8))
+  (visit u8)
+  (remap usize))
 
 (defcstruct native_ssa_arena
   (values (ptr native_ssa_value))

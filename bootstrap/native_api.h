@@ -102,12 +102,14 @@ struct native_ssa_value {
     uintptr_t left, right, target, source, block, next;
     uintptr_t predecessor_left, predecessor_right;
     int32_t live;
+    uintptr_t remap;
 };
 struct native_ssa_block {
     uintptr_t first, last;
     uint32_t terminator;
     uintptr_t condition, target_left, target_right, result;
     uint8_t visit;
+    uintptr_t remap;
 };
 struct native_ssa_arena {
     struct native_ssa_value *values;

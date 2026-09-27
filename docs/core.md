@@ -341,7 +341,12 @@ and integer/raw-pointer truth through SSA. It normalizes narrow signed values
 into the word representation and updates the type catalog with each rewrite.
 SSA is verified before and after folding; LIR is verified before encoding.
 Folding reaches a fixed point and preserves PHI prefix ordering. It retains
-calls, memory operations, and CFG edges. A subsequent liveness pass omits
+calls and memory operations on reachable paths. Boolean constant branches
+become jumps; unreachable blocks/values are removed. Joins with one surviving
+input become typed copies, including pointer/Boolean copies. Dense maps remap
+operands, call links, block lists, terminators, and PHI predecessors in caller
+storage; the type catalog is rebuilt and SSA is verified after compaction.
+Folding and pruning iterate together until stable. A subsequent liveness pass omits
 unused pure definitions and unused PHI copies from LIR. It keeps stable SSA
 IDs/catalog records and verifies every retained dependency. Conditions,
 returns, calls, stores, and all loads are roots; loads are conservatively
@@ -350,7 +355,7 @@ passes and marks all definitions live.
 `native_run_compiler_options(source, output, level)` selects 0 or 1; other levels
 return a usage failure. In-memory callers set `context.optimization` to 0 or 1;
 `native_prepare_driver` initializes it to 1. The exported optimizer rejects
-invalid SSA before mutation. CFG simplification, inlining,
+invalid SSA before mutation. Inlining
 and allocation-effect analysis still need native ports. It directly compiles
 its full native core, including frontend, IR verification, x86-64 encoding,
 and ELF writing. Successive native core generations reproduce identical

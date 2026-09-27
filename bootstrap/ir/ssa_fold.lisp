@@ -48,6 +48,13 @@
           (fold_scalar_word (deref (field-pointer value 'scalar_code))
                             (deref (field-pointer child 'value)))))))
 
+(defun ssa_fold_copy (arena reference value)
+  (declare (type (ptr native_ssa_arena) arena) (type usize reference)
+           (type (ptr native_ssa_value) value) (returns c-int))
+  (let ((child (ssa_value_at arena (deref (field-pointer value 'left)))))
+    (if (= (ssa_constant_p child) 0) 0
+        (ssa_replace_constant arena reference value (deref (field-pointer child 'value))))))
+
 ;; Only fold the last PHI in a verified prefix, preserving prefix ordering.
 (defun ssa_last_phi_p (arena value)
   (declare (type (ptr native_ssa_arena) arena) (type (ptr native_ssa_value) value)
@@ -75,6 +82,7 @@
       (cond
         ((= (ssa_fold_binary_kind_p kind) 1) (ssa_fold_binary arena reference value))
         ((= kind 18) (ssa_fold_cast arena reference value))
+        ((= kind 31) (ssa_fold_copy arena reference value))
         ((= kind 28) (ssa_fold_phi arena reference value))
         ;; Every integer/raw pointer is true in Lisp, including zero/null.
         ((= kind 20)

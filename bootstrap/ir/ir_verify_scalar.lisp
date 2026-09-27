@@ -104,6 +104,9 @@
           ((= kind 21) (ir_verify_unary_type context types op))
           ((= kind 22) (ir_verify_unary_type context types op))
           ((= kind 30) (ir_verify_unary_type context types op))
+          ((= kind 31)
+           (if (= code 12) 0
+               (ir_operand_matches_op_p context types (deref (field-pointer op 'left)) op)))
           ((< 22 kind) (ir_verify_memory_type context types op))
           (t (ir_verify_integer_binary context types op)))))))
 

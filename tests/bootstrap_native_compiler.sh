@@ -129,6 +129,27 @@ dead_size0=$(nm -S --radix=d "$work_dir/optimizer-0.o" | awk '$4 == "dead_arithm
 dead_size1=$(nm -S --radix=d "$work_dir/optimizer-1.o" | awk '$4 == "dead_arithmetic" {print $2}')
 test "$dead_size1" -lt "$dead_size0"
 for level in 0 1; do
+  run_host "$work_dir/pslcc-native-slice$host_suffix" "-O$level" \
+    "$project_root/tests/bootstrap_cfg_optimizer.lisp" "$work_dir/cfg-$level.o"
+  cc -Wall -Wextra -Werror "$project_root/tests/harness_bootstrap_cfg_optimizer.c" \
+    "$work_dir/cfg-$level.o" -o "$work_dir/cfg-$level"
+  "$work_dir/cfg-$level"
+  run_host "$work_dir/pslcc-native-slice$host_suffix" "-O$level" \
+    "$project_root/tests/bootstrap_cfg_optimizer.lisp" "$work_dir/cfg-$level-repeat.o"
+  cmp "$work_dir/cfg-$level.o" "$work_dir/cfg-$level-repeat.o"
+  "$project_root/pslcc" "-O$level" -c "$project_root/tests/bootstrap_cfg_optimizer.lisp" \
+    -o "$work_dir/cfg-stage0-$level.o"
+  cc -Wall -Wextra -Werror "$project_root/tests/harness_bootstrap_cfg_optimizer.c" \
+    "$work_dir/cfg-stage0-$level.o" -o "$work_dir/cfg-stage0-$level"
+  "$work_dir/cfg-stage0-$level"
+done
+nm -u "$work_dir/cfg-0.o" | grep -q 'cfg_dead'
+if nm -u "$work_dir/cfg-1.o" | grep -q 'cfg_dead'; then
+  echo 'native CFG optimization retained an unreachable import' >&2
+  exit 1
+fi
+test "$(wc -c < "$work_dir/cfg-1.o")" -lt "$(wc -c < "$work_dir/cfg-0.o")"
+for level in 0 1; do
   for fixture in bootstrap_stack_arguments bootstrap_pointers bootstrap_mixed_integers \
       bootstrap_foreign_calls bootstrap_void_calls; do
     run_host "$work_dir/pslcc-native-slice$host_suffix" "-O$level" \

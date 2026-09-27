@@ -473,7 +473,7 @@ signedness, modulo-64 shifts, joins, and effectful zero/null truth; the optimize
 native object is smaller. Both native modes also run stack, memory, mixed-type,
 foreign, and void interop harnesses. Mutation tests reject invalid SSA before
 optimizer mutation, and the generation gate compiles/reproduces the pass itself.
-This advances subgate 2; CFG simplification, inlining, effects,
+This advances subgate 2; inlining, effects,
 and the rest of the M8 gate remain open.
 
 Native dead-value removal now follows folding. A PSL liveness pass roots every
@@ -487,8 +487,23 @@ unused expression shrinks independently of folding, and C fixtures verify that
 discarded joins, stores, loads, and void results preserve observable behavior.
 Mutation fixtures reject omitted roots/argument links and confirm dead PHIs have
 no LIR definitions. The generation gate rebuilds and reproduces this pass.
-This ports dead pure-value removal for the native subset; CFG simplification,
+This ports dead pure-value removal for the native subset;
 inlining, effects, the full source/target ports, and complete M8 gates remain open.
+
+Native CFG simplification now folds Boolean constant branches to jumps and
+removes unreachable blocks/values. Single-input PHIs become typed copies;
+integer, Boolean, and pointer joins retain their types. Per-record dense maps
+rewrite all surviving operands, call links, block lists, terminators, and PHI
+predecessors before in-place movement. The type catalog is rebuilt and SSA is
+verified after compaction, then folding/pruning continue to a joint fixed point.
+The pass uses caller storage and adds no core runtime imports. Stage 0 and
+native C fixtures compare nested branches, selected effects, pointer/Boolean
+copies, and false loops at both levels. Object inspection excludes imports used
+only on unreachable paths; repeat/generation objects are compared. A compile-only
+infinite loop removes its exit/return while retaining a verified cycle. SSA
+mutations reject bad copies and stale targets after pruning. This advances the
+generic optimizer port; inlining, effects, broader source/target support, and
+complete Stage 1–3 comparisons remain open.
 
 The native compiler now compiles every module included by its own
 `bootstrap/native-core.lisp`. `sh tests/bootstrap_self_core.sh` builds three

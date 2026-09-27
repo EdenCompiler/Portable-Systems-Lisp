@@ -149,8 +149,8 @@ linker script. Other bare-metal boards need their own startup and memory map.
 The [native bootstrap core](bootstrap/README.md) now compiles its own PSL
 modules and reproduces identical objects across successive native generations.
 Its compilation-unit pipeline is written in PSL and exposed as an in-memory
-API. Native `-O1` folds integer constants and removes unused pure computations
-through verified SSA; `-O0` keeps the baseline lowering. Allocation, initialization, cleanup, include traversal, argument
+API. Native `-O1` folds integer constants, prunes unreachable branches, and removes
+unused pure computations through verified SSA; `-O0` keeps the baseline lowering. Allocation, initialization, cleanup, include traversal, argument
 validation, compilation control, and diagnostic selection are in PSL.
 File I/O, path canonicalization, and diagnostic rendering still use a temporary
 C adapter; the broader language and target corpus remains to be ported,
