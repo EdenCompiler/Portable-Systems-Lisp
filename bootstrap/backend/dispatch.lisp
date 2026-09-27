@@ -1,5 +1,6 @@
 (include "../target.lisp")
 (include "lir_emit_x86.lisp")
+(include "lir_emit_win64.lisp")
 (include "lir_emit_aarch64.lisp")
 (include "lir_emit_riscv64.lisp")
 

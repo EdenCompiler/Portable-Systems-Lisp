@@ -2,15 +2,14 @@
 
 ;; Unsigned comparisons and branch displacements for verified scalar HIR.
 
-(defun x86_compare_integer (code kind signed)
+(defun x86_compare_registers (code kind signed)
   (declare (type (ptr byte_buffer) code)
            (type u32 kind)
            (type c-int signed)
            (returns c-int))
-  (if (= (room_for code 10) 0)
+  (if (= (room_for code 9) 0)
       0
       (progn
-        (emit_byte_unchecked code #x59) ; pop rcx: left operand
         (emit_integer code #xc13948 3) ; cmp rcx, rax
         (if (= kind 8)
             (emit_integer code #xc0940f 3) ; sete al
@@ -18,6 +17,13 @@
                 (emit_integer code #xc09c0f 3) ; setl al
                 (emit_integer code #xc0920f 3))) ; setb al
         (emit_integer code #xc0b60f 3)))) ; movzx eax, al
+
+(defun x86_compare_integer (code kind signed)
+  (declare (type (ptr byte_buffer) code) (type u32 kind)
+           (type c-int signed) (returns c-int))
+  (if (= (room_for code 10) 0) 0
+      (if (= (emit_byte code #x59) 0) 0
+          (x86_compare_registers code kind signed))))
 
 (defun x86_jump_if_zero_placeholder (code)
   (declare (type (ptr byte_buffer) code) (returns usize))

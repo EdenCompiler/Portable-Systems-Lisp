@@ -115,12 +115,15 @@ bootstrap/
     riscv64_branches.lisp  RV64IM words, LP64D frames, byte memory, paired branches
     lir_emit_x86.lisp, lir_emit_aarch64.lisp, lir_emit_riscv64.lisp
                        verified LIR machine encoding
+    win64_frame.lisp, win64_probe.lisp, win64_arguments.lisp,
+    lir_emit_win64.lisp  native Microsoft x64 frame and LIR encoding
     dispatch.lisp       explicit target/ABI selection for LIR and call patching
   object/
     elf64.lisp         first native cross-target ELF64 writer slice
     elf64_multi.lisp   native ELF64 symbol table for multiple functions
     elf64_calls.lisp   imported-call symbols and validated relocation output
     elf64_target_calls.lisp  PLT32/CALL26/CALL_PLT fields and AArch64 mapping symbols
+    win64_unwind.lisp  native Microsoft x64 unwind-code encoding
 runtime/
   psl_runtime.h         versioned hosted value and root ABI
   gc.c                  mark-and-sweep collector

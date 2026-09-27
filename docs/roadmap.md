@@ -655,3 +655,26 @@ comparisons on RISC-V and x86-64 output. `make test-native-aarch64` uses the sam
 runner; each target has a small wrapper. Native COFF, broader ABI/data/runtime
 features, general source packages/macros, remaining host services, and complete
 Stage 1–3 corpus gates remain open. This advances M8; it does not complete it.
+
+### M8 native Windows body ABI preparation
+
+The native core now contains Microsoft x64 frame, argument, and verified LIR
+encoders. Its RSP stays fixed and sixteen-byte aligned after a described
+prologue; the frame reserves the 32-byte caller shadow area, outgoing stack
+arguments, incoming register saves, virtual-register slots, and one expression
+scratch word. Large frames probe every crossed page before allocation without
+an imported `__chkstk` service. The unwind encoder describes the push,
+allocation, and frame-register operations with small and large allocation
+forms. Frame and prologue sizes are carried with encoded functions for an
+eventual COFF writer.
+
+`make test-native-win64-frame` builds these PSL modules for Linux and Windows,
+then executes generated Microsoft x64 code through C callers on both systems.
+Under Wine, the harness registers generated unwind records and checks
+`RtlVirtualUnwind` at partial prologues and in function bodies, including a
+probed large frame. A second harness feeds verified LIR through the native
+Windows encoder and runs a five-argument conditional function.
+
+The native compilation-unit target selector and object writer still support
+only Linux ELF. Native Windows COFF output, Windows-targeted compiler
+generations, broader ABI features, and full Stage 1–3 remain required for M8.

@@ -8,4 +8,6 @@
   (arity usize)
   (exported usize)
   (imported usize)
-  (referenced usize))
+  (referenced usize)
+  (frame_size usize)
+  (prologue_size usize))

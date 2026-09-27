@@ -38,4 +38,7 @@
   (inline_count usize)
   (inline_capacity usize)
   (inline_cursor usize)
-  (target u32))
+  (target u32)
+  (backend_frame_size usize)
+  (backend_outgoing_size usize)
+  (backend_prologue_size usize))

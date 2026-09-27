@@ -58,6 +58,8 @@ struct native_function {
     uintptr_t exported;
     uintptr_t imported;
     uintptr_t referenced;
+    uintptr_t frame_size;
+    uintptr_t prologue_size;
 };
 
 struct native_hir_node {
@@ -169,6 +171,7 @@ struct native_compile_context {
     struct native_ssa_value *inline_values;
     uintptr_t inline_count, inline_capacity, inline_cursor;
     uint32_t target;
+    uintptr_t backend_frame_size, backend_outgoing_size, backend_prologue_size;
 };
 
 struct native_type_shape {
