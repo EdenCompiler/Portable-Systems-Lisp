@@ -1,4 +1,5 @@
 (include "compiler_diagnostics.lisp")
+(include "../target.lisp")
 
 (defun compiler_emit_object (state source_path output_path)
   (declare (type (ptr native_compiler_state) state) (type (ptr u8) source_path output_path)
@@ -29,26 +30,35 @@
             (progn
               (store (field-pointer (field-pointer driver 'context) 'optimization)
                      (deref (field-pointer state 'optimization)))
+              (store (field-pointer (field-pointer driver 'context) 'target)
+                     (deref (field-pointer state 'target)))
               (compiler_emit_object state source_path output_path))))))
 
-(defun compiler_run_options (source_path output_path optimization)
-  (declare (type (ptr u8) source_path output_path) (type u32 optimization) (returns c-int))
+(defun compiler_run_target (source_path output_path optimization target)
+  (declare (type (ptr u8) source_path output_path) (type u32 optimization target) (returns c-int))
   (let ((state (ptr-cast (ptr native_compiler_state)
                 (ffi:call calloc 1 (sizeof 'native_compiler_state)))))
     (if (= (ptr-address state) 0)
         (compiler_path_error 2 (ptr-from-address (ptr u8) 0))
         (progn
           (store (field-pointer state 'optimization) optimization)
+          (store (field-pointer state 'target) target)
           (let ((status (compiler_load_and_prepare state source_path output_path)))
             (ffi:call native_release_driver (field-pointer state 'driver))
             (ffi:call free (ptr-cast (ptr void) state))
             status)))))
 
+(defun native_run_compiler_target (source_path output_path optimization target)
+  (declare (type (ptr u8) source_path output_path) (type u32 optimization target)
+           (returns c-int) (c-export :c))
+  (if (< 1 optimization) (compiler_path_error 5 (ptr-from-address (ptr u8) 0))
+      (if (= (native_target_valid_p target) 0) (compiler_path_error 5 (ptr-from-address (ptr u8) 0))
+          (compiler_run_target source_path output_path optimization target))))
+
 (defun native_run_compiler_options (source_path output_path optimization)
   (declare (type (ptr u8) source_path output_path) (type u32 optimization)
            (returns c-int) (c-export :c))
-  (if (< 1 optimization) (compiler_path_error 5 (ptr-from-address (ptr u8) 0))
-      (compiler_run_options source_path output_path optimization)))
+  (native_run_compiler_target source_path output_path optimization 0))
 
 (defun native_run_compiler (source_path output_path)
   (declare (type (ptr u8) source_path output_path) (returns c-int) (c-export :c))
@@ -69,14 +79,22 @@
 (defun compiler_main_options (argv)
   (declare (type (ptr (ptr u8)) argv) (returns c-int))
   (let ((level (compiler_parse_optimization (deref (pointer+ argv 1)))))
-    (if (< level 0) (compiler_path_error 5 (ptr-from-address (ptr u8) 0))
+    (if (< level 0)
+        (let ((target (compiler_parse_target (deref (pointer+ argv 1)))))
+          (if (< target 0) (compiler_path_error 5 (ptr-from-address (ptr u8) 0))
+              (native_run_compiler_target (deref (pointer+ argv 2))
+                                          (deref (pointer+ argv 3)) 1 (wrap-cast u32 target))))
         (native_run_compiler_options (deref (pointer+ argv 2))
                                     (deref (pointer+ argv 3)) (wrap-cast u32 level)))))
+
+(include "compiler_target_options.lisp")
 
 (defun native_compiler_main (argc argv)
   (declare (type c-int argc) (type (ptr (ptr u8)) argv)
            (returns c-int) (c-export :c))
-  (cond
-    ((= argc 3) (native_run_compiler (deref (pointer+ argv 1)) (deref (pointer+ argv 2))))
-    ((= argc 4) (compiler_main_options argv))
-    (t (compiler_path_error 5 (ptr-from-address (ptr u8) 0)))))
+  (if (= (ptr-address argv) 0) (compiler_path_error 5 (ptr-from-address (ptr u8) 0))
+      (cond
+        ((= argc 3) (native_run_compiler (deref (pointer+ argv 1)) (deref (pointer+ argv 2))))
+        ((= argc 4) (compiler_main_options argv))
+        ((= argc 5) (compiler_main_two_options argv))
+        (t (compiler_path_error 5 (ptr-from-address (ptr u8) 0))))))

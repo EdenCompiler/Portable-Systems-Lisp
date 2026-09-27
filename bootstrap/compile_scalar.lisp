@@ -1,4 +1,5 @@
 (include "compile_scalar_types.lisp")
+(include "target.lisp")
 (include "frontend/parser.lisp")
 (include "frontend/atoms.lisp")
 (include "object/elf64_multi.lisp")
@@ -117,7 +118,7 @@
 (include "ir/ssa_optimize.lisp")
 (include "ir/lir_lower.lisp")
 (include "ir/lir_verify.lisp")
-(include "backend/lir_emit_x86.lisp")
+(include "backend/dispatch.lisp")
 
 (defun reset_scalar_function (context signature)
   (declare (type (ptr native_compile_context) context)
@@ -156,7 +157,7 @@
            (type (ptr native_function) function) (returns c-int))
   (if (= (hir_regions_unsafe_call context 1) 0)
       (if (= (lower_scalar_function context expression) 0) 0
-          (if (= (emit_lir_x86_function context) 0) 0
+          (if (= (native_emit_lir_function context) 0) 0
               (finish_scalar_function context start function))) 0))
 
 (defun compile_scalar_form (context signature function)

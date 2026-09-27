@@ -194,6 +194,7 @@
   (store (field-pointer record 'inline_count) 0)
   (store (field-pointer record 'inline_capacity) capacity)
   (store (field-pointer record 'inline_cursor) 0)
+  (store (field-pointer record 'target) 0)
     1))
 
 (defun native_initialize_driver (driver capacity)

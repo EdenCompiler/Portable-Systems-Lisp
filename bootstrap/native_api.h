@@ -168,6 +168,7 @@ struct native_compile_context {
     int32_t effects_changed;
     struct native_ssa_value *inline_values;
     uintptr_t inline_count, inline_capacity, inline_cursor;
+    uint32_t target;
 };
 
 struct native_type_shape {
@@ -293,7 +294,8 @@ enum native_unit_phase {
     NATIVE_UNIT_BODY,
     NATIVE_UNIT_CALL_FIXUPS,
     NATIVE_UNIT_OBJECT,
-    NATIVE_UNIT_ALLOCATION_EFFECT
+    NATIVE_UNIT_ALLOCATION_EFFECT,
+    NATIVE_UNIT_TARGET
 };
 struct native_unit_result {
     uintptr_t phase, form, index;
@@ -343,6 +345,13 @@ extern int native_parse_signature(struct native_signature_context *context,
 
 
 extern int ssa_optimize_function(struct native_compile_context *context);
+/* Native output targets, independent of the architecture hosting the compiler. */
+enum native_target_id { NATIVE_TARGET_X86_64_LINUX = 0, NATIVE_TARGET_AARCH64_LINUX = 1 };
+extern int native_run_compiler_target(const char *source, const char *output,
+                                      uint32_t optimization, uint32_t target);
+extern int write_elf64_calls_target(uint32_t target, const uint8_t *code, uintptr_t code_size,
+                                  const struct native_function *functions, uintptr_t count,
+                                  struct native_fixup_arena *fixups, struct byte_buffer *buffer);
 extern int hir_verify_region_metadata(struct native_compile_context *context, uintptr_t index);
 extern int ssa_verify_liveness(struct native_compile_context *context);
 extern int ssa_verify_function(struct native_compile_context *context);

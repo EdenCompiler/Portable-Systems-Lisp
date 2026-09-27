@@ -53,12 +53,18 @@ make test
 
 `make` compiles the PSL native core, hosted storage, source loader, and driver
 into `build/native-core.o`, `build/native-host.o`, `build/native-source.o`, and
-`build/native-driver.o`, then links the temporary OS and diagnostic adapter. `build/pslcc-native [-O0|-O1] SOURCE OUTPUT.o` accepts the
+`build/native-driver.o`, then links the temporary OS and diagnostic adapter. `build/pslcc-native [-O0|-O1] [--target=TARGET] SOURCE OUTPUT.o` accepts the
 [documented bootstrap subset](bootstrap/README.md); it is not yet the complete
 Stage 0 compiler. `make example` uses Stage 0 to build and run a pure Lisp
 program. Use `make help` for native generation checks, cross-target tests,
 cleanup, and build variables. For example, `make PSLFLAGS=-O0` selects
 unoptimized compilation on a fresh build; `make clean` removes generated files.
+
+The native subset compiler emits x86-64 Linux ELF by default. Select
+`--target=aarch64-linux-gnu` for AAPCS64 ELF output. Its instruction encoders
+and object writer are implemented in PSL. Run `make test-native-aarch64` with
+the AArch64 C toolchain and QEMU to check C calls and successive native subset
+generations on AArch64. Full self hosting remains in progress.
 
 ## Source and C interop
 

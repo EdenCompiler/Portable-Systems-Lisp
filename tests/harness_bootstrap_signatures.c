@@ -122,7 +122,7 @@ static int rejected(const char *source) {
 
 int main(int argc, char **argv) {
     if (argc != 5 ||
-        !check_module(argv[1], 8, 1, "emit_byte", 2, 4, 1, 1, 1, 1) ||
+        !check_module(argv[1], 9, 1, "emit_byte", 2, 4, 1, 1, 1, 1) ||
         !check_module(argv[2], 3, 1, "arena_alloc", 3, 8, 2, 1, 8, 1) ||
         !check_module(argv[3], 8, 1, "parse_integer_token", 4, 4, 1, 1,
                       8, 2) ||

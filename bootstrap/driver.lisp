@@ -108,9 +108,9 @@
   (let ((code (deref (field-pointer context 'code)))
         (functions (deref (field-pointer context 'functions)))
         (fixups (deref (field-pointer context 'fixups))))
-    (if (= (patch_call_fixups code functions count fixups) 0)
+    (if (= (native_patch_unit_calls context count) 0)
         (native_unit_fail result 7)
-        (if (= (write_elf64_calls (deref (field-pointer code 'data))
+        (if (= (write_elf64_calls_target (deref (field-pointer context 'target)) (deref (field-pointer code 'data))
                                   (deref (field-pointer code 'length))
                                   functions count fixups object) 1)
             1 (native_unit_fail result 8)))))
@@ -126,11 +126,13 @@
   (store (field-pointer result 'phase) 0)
   (store (field-pointer result 'form) 0)
   (store (field-pointer result 'index) 0)
-  (if (= (native_collect_unit context result) 0) 0
-      (let ((signatures (deref (field-pointer context 'signatures))))
-        (let ((count (deref (field-pointer signatures 'signature_count))))
-          (if (= (native_predeclare_unit context result count) 0) 0
-              (if (= (native_certify_effects context result count) 0) 0
-                  (if (= (native_prepare_inline_unit context result count) 0) 0
-                      (if (= (native_compile_unit_bodies context result count) 0) 0
-                          (native_finish_unit context result count object)))))))))
+  (if (= (native_target_valid_p (deref (field-pointer context 'target))) 0)
+      (native_unit_fail result 10)
+      (if (= (native_collect_unit context result) 0) 0
+          (let ((signatures (deref (field-pointer context 'signatures))))
+            (let ((count (deref (field-pointer signatures 'signature_count))))
+              (if (= (native_predeclare_unit context result count) 0) 0
+                  (if (= (native_certify_effects context result count) 0) 0
+                      (if (= (native_prepare_inline_unit context result count) 0) 0
+                          (if (= (native_compile_unit_bodies context result count) 0) 0
+                              (native_finish_unit context result count object))))))))))

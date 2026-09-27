@@ -92,3 +92,11 @@
            (returns u64)
            (c-export :c))
   (bits-and value 255))
+
+;; Consumers validate the four-byte source span before reading an object word.
+(defun read_u32_le (data)
+  (declare (type (ptr u8) data) (returns u64))
+  (wrap+ (wrap-cast u64 (deref data))
+    (wrap+ (wrap* (wrap-cast u64 (deref (pointer+ data 1))) 256)
+      (wrap+ (wrap* (wrap-cast u64 (deref (pointer+ data 2))) 65536)
+             (wrap* (wrap-cast u64 (deref (pointer+ data 3))) #x1000000)))))

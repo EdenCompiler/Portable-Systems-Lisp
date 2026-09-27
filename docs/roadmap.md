@@ -602,3 +602,29 @@ work. Deliver these as separately gated projects, not one release switch.
 Each target or capability graduates only with its own executable tests,
 support-matrix entry, and documented limitations. No empty backend or runtime
 directory is a milestone deliverable.
+
+### M8 native AArch64 output slice
+
+The native compiler now selects x86-64 Linux SysV or AArch64 Linux AAPCS64
+output through an explicit target contract. Shared typed analysis, effect
+certification, HIR/SSA/LIR verification, and optimization feed PSL-owned machine
+encoders and the ELF writer. AArch64 covers the existing integer/pointer/void
+subset, register and stack arguments, signed/unsigned memory widths, direct
+calls, conditionals/loops, FP/LR preservation and aligned frames. ELF output uses
+CALL26 imports and a local `$x` mapping symbol; unsupported targets fail before
+source processing. There is no assembler, LLVM, or backend library dependency.
+
+`sh tests/bootstrap_native_aarch64.sh` checks O0/O1 behavior against Stage 0
+with C-built programs under QEMU, deterministic output, ELF headers/relocations,
+shared-library calls, three successive AArch64 native subset generations of all
+four compiler units, fixture artifact comparisons, and unchanged x86-64 output
+from an AArch64 compiler host. An eleven-argument C↔PSL test checks narrow values and pointers beyond the
+eight register arguments, callback calls, and evaluation order. It exposed and
+fixed Stage 0 normalization of narrow incoming stack arguments; large stack
+adjustments also preserve sixteen-byte alignment between chunks. The target
+selector, driver, and ELF writer have negative argument/API/encoding checks. Use `make test-native-aarch64` from a fresh native build.
+
+This advances subgates 3 and 5 for the documented native subset. M8 remains
+in progress: the complete compiler language/runtime, macros/packages, remaining
+ABI/data/object/target ports, OS adapter port, full corpus, and complete Stage
+1–3 comparisons remain required.

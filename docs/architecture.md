@@ -49,6 +49,7 @@ bootstrap/
   native-core.lisp      source unit including the ported compiler components
   driver_effects.lisp  unit fixed-point inference and allocation certification
   driver_inline.lisp   verified pure SSA template collection for a source unit
+  target.lisp          native architecture/ABI/OS/object selectors
   binary.lisp          caller-owned byte emission and patching
   arena.lisp           caller-owned aligned allocation
   compile_scalar.lisp  native analysis, verification, and lowering coordinator
@@ -106,11 +107,16 @@ bootstrap/
     x86_expr.lisp, x86_memory.lisp, x86_control.lisp, x86_calls.lisp
     x86_stack.lisp
                        native x86-64 instruction and fixup encoders
-    lir_emit_x86.lisp   verified flat LIR to x86-64 machine code
+    fixup_types.lisp, fixups.lisp  target-independent deferred call records
+    aarch64_encode.lisp, aarch64_frame.lisp, aarch64_branches.lisp
+                       instruction words, frame/argument locations, branch patching
+    lir_emit_x86.lisp, lir_emit_aarch64.lisp  verified LIR machine encoding
+    dispatch.lisp       explicit target/ABI selection for LIR and call patching
   object/
     elf64.lisp         first native cross-target ELF64 writer slice
     elf64_multi.lisp   native ELF64 symbol table for multiple functions
-    elf64_calls.lisp   x86-64 imported-call symbols and PLT32 relocations
+    elf64_calls.lisp   imported-call symbols and validated relocation output
+    elf64_target_calls.lisp  PLT32/CALL26 fields and AArch64 mapping symbols
 runtime/
   psl_runtime.h         versioned hosted value and root ABI
   gc.c                  mark-and-sweep collector
@@ -332,3 +338,11 @@ provider checks driver statuses, every diagnostic phase/location, valid/invalid
 argument counts, state-allocation failure, and cleanup after all outcomes.
 Their C entry trampoline and file/path/error adapters are shared
 temporary host code, so this does not establish full self hosting.
+
+The native output target is selected in the compilation context. Backend
+`dispatch.lisp` chooses x86-64 SysV or AArch64 AAPCS64; the frontend, optimizers,
+and IR verifiers are shared. Deferred call arenas are target-independent.
+`elf64_target_calls.lisp` owns call field validation, relocation types/addends,
+AArch64 alignment and mapping symbols, while CPU instruction construction stays
+in `backend/`. The two current output targets are 64-bit little-endian Linux
+ELF; native COFF/RISC-V and broader ABI/data/runtime ports remain pending.

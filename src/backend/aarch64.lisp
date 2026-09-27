@@ -73,7 +73,7 @@
 
 (defun adjust-stack (buffer size subtract-p)
   (loop while (plusp size)
-        for chunk = (min size 4095)
+        for chunk = (min size 4080)
         do (word buffer (logior (if subtract-p #xd1000000 #x91000000)
                                 (ash chunk 10) (ash 31 5) 31))
            (decf size chunk)))
@@ -169,13 +169,16 @@
                  (load-slot-part buffer 9 slot offset width)
                  (general-to-float buffer register 9 type)))))
 
-(defun move-stack-argument (buffer slot location inbound-p)
+(defun move-stack-argument (buffer slot type location inbound-p)
   (destructuring-bind (kind offset size) location
     (declare (ignore kind))
     (loop for part below (ceiling size 8)
           for byte-offset = (+ offset (* part 8))
           do (if inbound-p
                  (progn (load-stack buffer 9 byte-offset t)
+                        (unless (or (float-type-p type)
+                                    (and (consp type) (eq (first type) :struct)))
+                          (normalize buffer 9 type))
                         (store-slot buffer 9 slot (* part 8)))
                  (progn (load-slot buffer 9 slot (* part 8))
                         (store-stack buffer 9 byte-offset))))))
@@ -201,7 +204,7 @@
     (:hfa
      (move-hfa buffer slot (second location) (third location)
                (fourth location) inbound-p))
-    (:stack (move-stack-argument buffer slot location inbound-p))))
+    (:stack (move-stack-argument buffer slot type location inbound-p))))
 
 (defun emit-argument (emitter instruction)
   (let* ((signature (emitter-signature emitter))

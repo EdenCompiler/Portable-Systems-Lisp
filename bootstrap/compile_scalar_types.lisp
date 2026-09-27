@@ -37,4 +37,5 @@
   (inline_values (ptr native_ssa_value))
   (inline_count usize)
   (inline_capacity usize)
-  (inline_cursor usize))
+  (inline_cursor usize)
+  (target u32))

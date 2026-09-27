@@ -243,9 +243,9 @@ remain on the [roadmap](roadmap.md).
 ## Native bootstrap subset
 
 The native executable built by `tests/bootstrap_native_compiler.sh` has a
-separate, narrower source contract than Stage 0. It emits x86-64 SysV ELF
-objects for integer and raw pointer functions. The first six arguments use
-System V integer registers; later arguments use eight-byte stack slots, with
+separate, narrower source contract than Stage 0. It emits x86-64 SysV or AArch64 AAPCS64 ELF
+objects for integer and raw pointer functions. The first six (x86-64) or eight
+(AArch64) arguments use integer registers; later arguments use eight-byte stack slots, with
 padding after the final argument to preserve call alignment. Narrow values
 are normalized on entry. Arguments are evaluated in source order before their
 saved values are placed in ABI locations; nested and recursive calls work.
@@ -311,8 +311,9 @@ imports `calloc` and `free`; the native core remains free of unresolved symbols.
 `bootstrap/host/compiler.lisp` exposes `native_run_compiler(source, output)`
 and `native_compiler_main(argc, argv)`. It owns source loading, preparation,
 unit compilation, output selection, and cleanup, and maps failing phases to
-diagnostic locations. The native subset CLI takes `[-O0|-O1] SOURCE.lisp OUTPUT.o`;
-it does not yet accept Stage 0's other options or target selection. Status is 0 on
+diagnostic locations. The native subset CLI takes `[-O0|-O1] [--target=TARGET] SOURCE.lisp OUTPUT.o`;
+it does not yet accept Stage 0's other options. Supported native targets are
+`x86_64-linux-gnu` and `aarch64-linux-gnu`. Status is 0 on
 success, 1 for rejected language input, and 2 for usage, I/O, or allocation
 failure. Arguments are inspected only for the expected count. Repeated run
 calls allocate independent state and release it on every return. The temporary
@@ -383,9 +384,29 @@ return a usage failure. In-memory callers set `context.optimization` to 0 or 1;
 `native_prepare_driver` initializes it to 1. The exported optimizer rejects
 invalid SSA before mutation. Managed/indirect effect support still needs a native
 port. It directly compiles
-its full native core, including frontend, IR verification, x86-64 encoding,
+its full native core, including frontend, IR verification, x86-64/AArch64 encoding,
 and ELF writing. Successive native core generations reproduce identical
 objects and pass the native subset suite. The broader Stage 0 corpus, remaining
 targets and ABI/object features, and the remaining C file/diagnostic/path adapter ports remain
 open, so it is still an M8 development slice. See [the bootstrap contract](../bootstrap/README.md)
 for its tests and remaining gate.
+
+### Native output target selection
+
+The native subset uses target IDs 0 (x86-64 Linux / SysV / ELF64, default) and
+1 (AArch64 Linux / AAPCS64 / ELF64). `context.target` selects the output target;
+`native_prepare_driver` initializes it to 0. An unsupported ID fails with phase
+10 before source collection. `native_run_compiler_target(source, output, level,
+target)` validates level and target before any source read or allocation.
+The CLI accepts either supported `--target=...`, optionally together with
+`-O0`/`-O1` in either order, before `SOURCE OUTPUT.o`.
+
+Both output targets cover the current native integer/pointer/Boolean/void
+subset with the same frontend and HIR/SSA/LIR verification. AArch64 uses eight
+integer argument registers, 8-byte stack argument slots, aligned frames with
+saved FP/LR, direct internal calls, and `R_AARCH64_CALL26` imports. The native
+writer emits machine 183 and a local `$x` mapping symbol. Its existing ELF call
+API defaults to x86-64; `write_elf64_calls_target` selects explicitly. Backend
+and ELF validation reject unaligned AArch64 call/function spans and malformed
+import placeholders. This does not add native floating-point, aggregate, data,
+or general dynamic-language support.

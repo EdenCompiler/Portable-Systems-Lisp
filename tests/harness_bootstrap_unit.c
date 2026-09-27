@@ -23,7 +23,7 @@ struct unit_storage {
 };
 static struct unit_storage storage;
 
-static int compile_memory(const char *source, uintptr_t object_capacity,
+static int compile_memory_target(const char *source, uint32_t target, uintptr_t object_capacity,
                            struct byte_buffer *object,
                            struct native_unit_result *result) {
     memset(&storage, 0, sizeof storage);
@@ -56,9 +56,22 @@ static int compile_memory(const char *source, uintptr_t object_capacity,
         .parser = &parser, .source = (const uint8_t *)source, .integer = &integer,
         .hir = &hir, .code = &code, .fixups = &calls, .functions = storage.functions,
         .signatures = &signatures, .ssa = &ssa, .bindings = storage.bindings,
-        .lir = &lir, .labels = storage.labels, .jumps = &jumps
+        .lir = &lir, .labels = storage.labels, .jumps = &jumps, .target = target
     };
     return native_compile_unit(&context, object, result);
+}
+
+static int compile_memory(const char *source, uintptr_t object_capacity,
+                          struct byte_buffer *object, struct native_unit_result *result) {
+    return compile_memory_target(source, NATIVE_TARGET_X86_64_LINUX,
+                                 object_capacity, object, result);
+}
+
+static int check_target_failure(void) {
+    struct byte_buffer object;
+    struct native_unit_result result = {99, 99, 99};
+    if (compile_memory_target("(defun", UINT32_MAX, sizeof storage.object, &object, &result)) return 0;
+    return !object.length && result.phase == NATIVE_UNIT_TARGET && !result.form && !result.index;
 }
 
 static int check_failure(const char *source, uintptr_t phase, uintptr_t index) {
@@ -118,7 +131,7 @@ int main(int argc, char **argv) {
         "(defun forty () (declare (returns u64)) 40)\n";
     struct native_unit_result result = {99, 99, 99};
     struct byte_buffer object;
-    if (argc != 2 || !check_failures()) return 1;
+    if (argc != 2 || !check_failures() || !check_target_failure()) return 1;
     if (compile_memory(source, 1, &object, &result)) return 2;
     if (result.phase != NATIVE_UNIT_OBJECT || object.length) return 3;
     if (!compile_memory(source, sizeof storage.object, &object, &result)) return 4;

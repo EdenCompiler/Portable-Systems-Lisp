@@ -4,7 +4,7 @@
 includes separate source modules in one translation unit so their functions
 use ordinary Lisp calls. Stage 0 builds the initial core. The resulting native
 compiler can now compile every module included by `native-core.lisp`, including
-its frontend, IR verifiers, x86-64 encoder, and ELF writer. A temporary C
+its frontend, IR verifiers, x86-64 and AArch64 encoders, and ELF writer. A temporary C
 adapter still supplies file I/O, canonical paths, and diagnostic rendering.
 Allocation, initialization, cleanup, source traversal, argument validation,
 compilation flow, and diagnostic selection live in PSL, with
@@ -81,13 +81,15 @@ The native modules currently implement:
   `strlen`, integer-zero/null-pointer Lisp truth, register/stack calls and
   alignment, and static/shared consumption.
   `ffi:source`, data imports, floating/aggregate signatures, pointer
-  qualifiers, and allocation-effect annotations still need native ports.
+  qualifiers still need native ports; allocation-effect annotations use the
+  native certification pass described below.
   It accepts `t`, `nil`, `if`, lexical `let`, `progn`, and test-and-body `cond`
   clauses. Integer zero is true in a condition; only Boolean `nil` is false.
   Test-only `cond` clauses remain unsupported. Binding initializers use
   parallel `let` scope, and local values occupy stack slots. Recursive calls
   work. Calls pass the first six integer or pointer arguments through the
-  System V integer registers; further arguments use eight-byte stack slots.
+  System V registers on x86-64, or the first eight through AAPCS64 registers
+  on AArch64; further arguments use eight-byte stack slots.
   SSA evaluates arguments in source order and the LIR backend loads their
   saved values for calls, preserving stack alignment. C tests cover seven,
   eight, and nine parameters, signed narrow values and pointers on the stack,
@@ -112,7 +114,7 @@ The native modules currently implement:
   their value and evaluate the address before the value. A Boolean `while`
   reevaluates its condition before each iteration and returns `nil`. Raw
   pointer zero remains true in `if`, as in the Stage 0 machine subset.
-  Its x86-64 instruction encoder and ELF writers are in PSL;
+  Its x86-64/AArch64 instruction encoders and ELF writers are in PSL;
   they invoke neither LLVM nor an assembler. The updated native slice runs
   on x86-64 Linux and Windows/Wine hosts and produces byte-identical objects.
   Stage 0 also cross-compiles the combined native unit to AArch64 and RISC-V64
@@ -208,7 +210,7 @@ confirming that the native source-to-object path needs no external tools.
 The integer reader checks radices, signs, token bounds, and overflow.
 
 Calls within the native object are resolved to relative x86-64 displacements
-after all function offsets are known;
+or AArch64 BL immediates after all function offsets are known;
 the object has no unresolved symbols or linker relocations for these calls.
 
 The component tests run `-O0` and `-O1`, compare byte emission with Stage 0,
@@ -356,3 +358,47 @@ macro execution, the broader Stage 0 source/interop corpus, optimization for bro
 and managed/indirect effects, remaining target backends and object features, and the remaining
 file/diagnostic/path adapter services. Full Stage 1–3 builds and their corpus comparisons remain
 the M8 gate.
+
+## Native AArch64 output
+
+The native compiler accepts `--target=x86_64-linux-gnu` (default) and
+`--target=aarch64-linux-gnu`. Either target option can precede or follow `-O0`
+or `-O1`, before the source and output paths. Unknown targets and duplicate
+options fail before reading source or allocating compiler storage.
+
+```sh
+make
+build/pslcc-native --target=aarch64-linux-gnu tests/bootstrap_stack_arguments.lisp build/stack-aarch64.o
+make test-native-aarch64
+```
+
+The AArch64 backend covers the same integer, pointer, Boolean, void, direct-call,
+control-flow, and memory subset as the native x86-64 backend. AAPCS64 uses
+x0–x7 for integer/pointer arguments and x0 for results; later arguments occupy
+8-byte stack slots. Frames preserve x29/x30 and keep SP aligned to 16 bytes.
+Narrow signed/unsigned parameters, results, and memory accesses preserve their
+declared representation. The encoder uses caller-saved temporary registers,
+without x18 or callee-saved x19–x28. Internal calls are patched directly;
+imported BL instructions use ELF `R_AARCH64_CALL26` relocations with zero addends.
+A local `$x` mapping symbol marks the text as AArch64 instructions.
+
+`native_compile_context.target` selects native target ID 0 (x86-64 Linux) or
+1 (AArch64 Linux). Preparation initializes it to 0. Unsupported IDs produce
+`NATIVE_UNIT_TARGET` (phase 10) before source collection. Existing compiler and
+ELF APIs retain their default target; `native_run_compiler_target` and
+`write_elf64_calls_target` expose explicit selection. Architecture, ABI, OS,
+and object-format selectors live in `target.lisp`; frontend and generic IR
+passes are shared.
+
+The output gate runs existing independent C harnesses under QEMU at both
+optimization levels, compares behavior against Stage 0, inspects ELF/relocations,
+links a shared library, and rebuilds all four PSL compiler units across three
+AArch64 native subset generations. It compares those units and fixture objects,
+and confirms an AArch64 compiler host still produces identical x86-64 output.
+The native core has no undefined runtime imports. The same temporary C OS
+adapters remain linked at each generation. Floating-point/aggregate ABIs, data
+symbols, COFF/RISC-V native output, general packages/macros, and the complete
+Stage 0 corpus remain open parts of M8.
+
+Encoding and object contracts follow Arm's [AAPCS64](https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst)
+and [ELF for AArch64](https://github.com/ARM-software/abi-aa/blob/main/aaelf64/aaelf64.rst).

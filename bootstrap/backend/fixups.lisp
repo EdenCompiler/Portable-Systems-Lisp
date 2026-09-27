@@ -1,0 +1,18 @@
+(include "fixup_types.lisp")
+
+(defun call_fixup_at (arena index)
+  (declare (type (ptr native_fixup_arena) arena) (type usize index)
+           (returns (ptr native_call_fixup)))
+  (pointer+ (deref (field-pointer arena 'items)) (wrap-cast isize index)))
+
+(defun record_call_fixup (arena instruction target)
+  (declare (type (ptr native_fixup_arena) arena) (type usize instruction target)
+           (returns c-int))
+  (let ((count (deref (field-pointer arena 'count))))
+    (if (< count (deref (field-pointer arena 'capacity)))
+        (let ((entry (call_fixup_at arena count)))
+          (store (field-pointer entry 'instruction) instruction)
+          (store (field-pointer entry 'target) target)
+          (store (field-pointer arena 'count) (wrap+ count 1))
+          1)
+        (progn (store (field-pointer arena 'error) 1) 0))))

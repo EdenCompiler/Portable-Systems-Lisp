@@ -12,6 +12,7 @@ static struct event events[2];
 static size_t event_count, reads, prepares, compiles, writes, releases;
 static uintptr_t phase;
 static uint32_t expected_optimization = 1;
+static uint32_t expected_target = NATIVE_TARGET_X86_64_LINUX;
 static struct psl_ast_node nodes[3];
 static struct native_signature signatures[2];
 static struct native_function functions[2];
@@ -77,6 +78,7 @@ int native_compile_unit(struct native_compile_context *context, struct byte_buff
     ++compiles;
     assert(context->parser->nodes == nodes && context->source);
     assert(context->optimization == expected_optimization);
+    assert(context->target == expected_target);
     assert(object->data == object_bytes && object->length == sizeof object_bytes);
     assert(!result->phase && !result->form && !result->index);
     if (scenario != COMPILE_FAILURE) return 1;
@@ -136,7 +138,7 @@ static void check_run(enum scenario next, int expected) {
 }
 
 static void check_compilation_errors(void) {
-    static const uint32_t kinds[] = {0, 6, 7, 8, 0, 9, 10, 0, 0, 11};
+    static const uint32_t kinds[] = {0, 6, 7, 8, 0, 9, 10, 0, 0, 11, 0};
     for (phase = 0; phase < sizeof kinds / sizeof *kinds; ++phase) {
         check_run(COMPILE_FAILURE, 1);
         assert(event_count == (size_t)(kinds[phase] ? 2 : 1));
@@ -149,6 +151,47 @@ static void check_compilation_errors(void) {
         if (phase == 6) assert(events[0].length == 6 && strcmp(events[0].text, "broken") == 0);
         if (phase == 9) assert(events[0].length == 3 && strcmp(events[0].text, "raw") == 0);
     }
+}
+
+static void check_target_arguments(void) {
+    const char *targets[] = {"--target=x86_64-linux-gnu", "--target=aarch64-linux-gnu"};
+    for (uint32_t target = 0; target < 2; ++target) {
+        expected_target = target;
+        expected_optimization = 1;
+        char *single[] = {"pslcc-native", (char *)targets[target], "source.lisp", "result.o", NULL};
+        reset(SUCCESS);
+        assert(native_compiler_main(4, single) == 0);
+        assert(reads == 1 && writes == 1 && releases == 1 && !event_count);
+        for (uint32_t level = 0; level < 2; ++level) {
+            expected_optimization = level;
+            char *flag = level ? "-O1" : "-O0";
+            for (unsigned order = 0; order < 2; ++order) {
+                char *args[] = {"pslcc-native", order ? flag : (char *)targets[target],
+                    order ? (char *)targets[target] : flag, "source.lisp", "result.o", NULL};
+                reset(SUCCESS);
+                assert(native_compiler_main(5, args) == 0);
+                assert(reads == 1 && writes == 1 && releases == 1 && !event_count);
+            }
+        }
+    }
+    const char *bad[] = {"--target=", "--target=aarch64-linux-gn", "--target=aarch64-linux-gnu-extra",
+        "--target=x86_64-windows-gnu", "--target=riscv64-linux-gnu"};
+    for (size_t i = 0; i < sizeof bad / sizeof *bad; ++i) {
+        char *args[] = {"pslcc-native", (char *)bad[i], "source.lisp", "result.o", NULL};
+        reset(SUCCESS);
+        assert(native_compiler_main(4, args) == 2);
+        assert(event_count == 1 && events[0].kind == NATIVE_HOST_USAGE && !reads && !releases);
+    }
+    char *duplicates[] = {"pslcc-native", "--target=aarch64-linux-gnu",
+        "--target=x86_64-linux-gnu", "source.lisp", "result.o", NULL};
+    reset(SUCCESS);
+    assert(native_compiler_main(5, duplicates) == 2);
+    assert(event_count == 1 && events[0].kind == NATIVE_HOST_USAGE && !reads && !releases);
+    reset(SUCCESS);
+    assert(native_run_compiler_target("source.lisp", "result.o", 1, 2) == 2);
+    assert(event_count == 1 && events[0].kind == NATIVE_HOST_USAGE && !reads && !releases);
+    expected_target = NATIVE_TARGET_X86_64_LINUX;
+    expected_optimization = 1;
 }
 
 static void check_arguments(void) {
@@ -196,6 +239,7 @@ int main(void) {
     assert(strcmp(events[0].text, "result.o") == 0);
     check_compilation_errors();
     check_arguments();
+    check_target_arguments();
 #ifdef PSL_TEST_ALLOCATOR_FAULTS
     reset(SUCCESS);
     fail_state = 1;

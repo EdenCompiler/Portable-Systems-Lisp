@@ -205,15 +205,16 @@
     (align8 (wrap+ (wrap+ (align8 (wrap+ 64 code_size)) symbols)
                    (wrap+ name_bytes 66)))))
 
-(defun emit_multi_section_headers_with_relocations (buffer code_size functions count
-                                                     name_bytes relocation_bytes)
+(defun emit_multi_section_headers_extra (buffer code_size functions count
+                                          name_bytes relocation_bytes extra_symbols)
   (declare (type (ptr byte_buffer) buffer)
            (type (ptr native_function) functions)
-           (type usize code_size count name_bytes relocation_bytes)
+           (type usize code_size count name_bytes relocation_bytes extra_symbols)
            (returns c-int))
   (let ((data_offset (wrap+ 64 code_size))
         (symbol_offset (wrap+ (align8 (wrap+ 64 code_size)) relocation_bytes))
-        (symbol_bytes (wrap* (wrap+ (multi_function_count_from functions 0 count) 3) 24)))
+        (symbol_bytes (wrap* (wrap+ (multi_function_count_from functions 0 count)
+                                     (wrap+ 3 extra_symbols)) 24)))
     (let ((name_offset (wrap+ symbol_offset symbol_bytes)))
       (let ((section_names (wrap+ name_offset name_bytes)))
         (emit_zero_until buffer (wrap+ (deref (field-pointer buffer 'length))
@@ -229,7 +230,7 @@
                              (wrap-cast u64 symbol_offset)
                              (wrap-cast u64 symbol_bytes) 5
                              (wrap-cast u64
-                                        (wrap+ 3
+                                        (wrap+ (wrap+ 3 extra_symbols)
                                                (local_function_count_from
                                                 functions 0 count))) 8 24)
         (emit_section_header buffer 32 3 0
@@ -241,6 +242,12 @@
                              (wrap-cast u64 (wrap+ section_names 66))
                              0 0 0 1 0)
         1))))
+
+(defun emit_multi_section_headers_with_relocations (buffer code_size functions count
+                                                     name_bytes relocation_bytes)
+  (declare (type (ptr byte_buffer) buffer) (type (ptr native_function) functions)
+           (type usize code_size count name_bytes relocation_bytes) (returns c-int))
+  (emit_multi_section_headers_extra buffer code_size functions count name_bytes relocation_bytes 0))
 
 (defun emit_multi_section_headers (buffer code_size functions count name_bytes)
   (declare (type (ptr byte_buffer) buffer)
