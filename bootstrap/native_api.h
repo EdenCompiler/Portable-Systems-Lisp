@@ -343,13 +343,16 @@ extern int native_import_form_p(struct native_signature_context *, uintptr_t);
 extern int native_parse_import(struct native_signature_context *, uintptr_t);
 extern int write_elf64_calls(const uint8_t *, uintptr_t, const struct native_function *,
                              uintptr_t, const struct native_fixup_arena *, struct byte_buffer *);
+extern int write_coff64_calls(const uint8_t *, uintptr_t, const struct native_function *,
+                              uintptr_t, const struct native_fixup_arena *, struct byte_buffer *);
 extern int native_parse_signature(struct native_signature_context *context,
                                    uintptr_t root);
 
 
 extern int ssa_optimize_function(struct native_compile_context *context);
 /* Native output targets, independent of the architecture hosting the compiler. */
-enum native_target_id { NATIVE_TARGET_X86_64_LINUX = 0, NATIVE_TARGET_AARCH64_LINUX = 1, NATIVE_TARGET_RISCV64_LINUX = 2 };
+enum native_target_id { NATIVE_TARGET_X86_64_LINUX = 0, NATIVE_TARGET_AARCH64_LINUX = 1,
+                        NATIVE_TARGET_RISCV64_LINUX = 2, NATIVE_TARGET_X86_64_WINDOWS = 3 };
 extern int native_run_compiler_target(const char *source, const char *output,
                                       uint32_t optimization, uint32_t target);
 extern int write_elf64_calls_target(uint32_t target, const uint8_t *code, uintptr_t code_size,

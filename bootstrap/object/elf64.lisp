@@ -16,39 +16,9 @@
   (declare (type usize code_size name_size) (returns usize))
   (wrap+ (section_header_offset code_size name_size) 512))
 
-(defun name_ascii_p (name index length)
-  (declare (type (ptr u8) name)
-           (type usize index length)
-           (returns c-int))
-  (if (= index length)
-      1
-      (let ((byte (deref (pointer+ name (wrap-cast isize index)))))
-        (if (= byte 0)
-            0
-            (if (< byte 128)
-                (name_ascii_p name (wrap+ index 1) length)
-                0)))))
+(include "function_validation.lisp")
 
-(defun emit_zero_until (buffer stop)
-  (declare (type (ptr byte_buffer) buffer)
-           (type usize stop)
-           (returns c-int))
-  (while (< (deref (field-pointer buffer 'length)) stop)
-    (emit_byte_unchecked buffer 0))
-  1)
-
-(defun emit_source_bytes (buffer source length)
-  (declare (type (ptr byte_buffer) buffer)
-           (type (ptr u8) source)
-           (type usize length)
-           (returns c-int))
-  (let ((start (deref (field-pointer buffer 'length))))
-    (while (< (deref (field-pointer buffer 'length))
-              (wrap+ start length))
-      (let ((index (wrap- (deref (field-pointer buffer 'length)) start)))
-        (emit_byte_unchecked
-         buffer (deref (pointer+ source (wrap-cast isize index)))))))
-  1)
+(include "bytes.lisp")
 
 (defun emit_elf_header (buffer section_offset machine flags)
   (declare (type (ptr byte_buffer) buffer)

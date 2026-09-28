@@ -12,6 +12,7 @@
           ((= (native_target_abi target) 1) (emit_lir_x86_function context))
           ((= (native_target_abi target) 2) (emit_lir_aarch64_function context))
           ((= (native_target_abi target) 3) (emit_lir_riscv64_function context))
+          ((= (native_target_abi target) 4) (emit_lir_win64_function context))
           (t 0)))))
 
 (defun native_patch_unit_calls (context count)

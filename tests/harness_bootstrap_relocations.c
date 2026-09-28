@@ -31,6 +31,7 @@ static int check_aarch64(void) {
     if (!write_elf64_calls_target(NATIVE_TARGET_AARCH64_LINUX, code, sizeof code,
                                   functions, 2, &fixups, &output)) return 0;
     if (!rejected_target(UINT32_MAX, code, sizeof code, functions, 2, &fixups)) return 0;
+    if (!rejected_target(NATIVE_TARGET_X86_64_WINDOWS, code, sizeof code, functions, 2, &fixups)) return 0;
     fixup.instruction = 1;
     if (!rejected_target(1, code, sizeof code, functions, 2, &fixups)) return 0;
     fixup.instruction = 0;

@@ -143,13 +143,14 @@
   (declare (type (ptr u8) code) (type (ptr native_function) functions)
            (type (ptr native_fixup_arena) fixups) (type (ptr byte_buffer) buffer)
            (type usize code_size count) (type u32 output_target) (returns c-int) (c-export :c))
-  (if (= (native_target_valid_p output_target) 0) 0
-      (if (= (elf_calls_output_shape_p code_size functions count buffer) 0) 0
-          (if (= (elf_target_function_spans_p functions count 0 output_target) 0) 0
-              (if (= (elf_calls_arena_p fixups) 0) 0
-                  (if (= (elf_calls_valid_from code code_size functions count fixups 0 output_target) 0) 0
-                      (if (= (elf_import_references_p functions count fixups 0) 0) 0
-                          (emit_elf_linked_functions code code_size functions count fixups buffer output_target))))))))
+  (if (= (native_target_object_format output_target) 2) 0
+      (if (= (native_target_valid_p output_target) 0) 0
+          (if (= (elf_calls_output_shape_p code_size functions count buffer) 0) 0
+              (if (= (elf_target_function_spans_p functions count 0 output_target) 0) 0
+                  (if (= (elf_calls_arena_p fixups) 0) 0
+                      (if (= (elf_calls_valid_from code code_size functions count fixups 0 output_target) 0) 0
+                          (if (= (elf_import_references_p functions count fixups 0) 0) 0
+                              (emit_elf_linked_functions code code_size functions count fixups buffer output_target)))))))))
 
 (defun write_elf64_calls (code code_size functions count fixups buffer)
   (declare (type (ptr u8) code) (type (ptr native_function) functions)

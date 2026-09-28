@@ -101,6 +101,17 @@
               (native_unit_fail result 6)))))
   (if (= (deref (field-pointer result 'phase)) 0) 1 0))
 
+(defun native_write_target_object (context code functions count fixups object)
+  (declare (type (ptr native_compile_context) context) (type (ptr byte_buffer) code object)
+           (type (ptr native_function) functions) (type usize count)
+           (type (ptr native_fixup_arena) fixups) (returns c-int))
+  (let ((target (deref (field-pointer context 'target))))
+    (if (= (native_target_object_format target) 2)
+        (write_coff64_calls (deref (field-pointer code 'data))
+                            (deref (field-pointer code 'length)) functions count fixups object)
+        (write_elf64_calls_target target (deref (field-pointer code 'data))
+                                  (deref (field-pointer code 'length)) functions count fixups object))))
+
 (defun native_finish_unit (context result count object)
   (declare (type (ptr native_compile_context) context)
            (type (ptr native_unit_result) result) (type usize count)
@@ -110,9 +121,7 @@
         (fixups (deref (field-pointer context 'fixups))))
     (if (= (native_patch_unit_calls context count) 0)
         (native_unit_fail result 7)
-        (if (= (write_elf64_calls_target (deref (field-pointer context 'target)) (deref (field-pointer code 'data))
-                                  (deref (field-pointer code 'length))
-                                  functions count fixups object) 1)
+        (if (= (native_write_target_object context code functions count fixups object) 1)
             1 (native_unit_fail result 8)))))
 
 (include "driver_effects.lisp")

@@ -124,6 +124,10 @@ bootstrap/
     elf64_calls.lisp   imported-call symbols and validated relocation output
     elf64_target_calls.lisp  PLT32/CALL26/CALL_PLT fields and AArch64 mapping symbols
     win64_unwind.lisp  native Microsoft x64 unwind-code encoding
+    bytes.lisp, function_validation.lisp  shared object-byte and function checks
+    coff64_layout.lisp, coff64_sections.lisp, coff64_symbols.lisp,
+    coff64_relocations.lisp, coff64_validation.lisp, coff64_calls.lisp
+                       native COFF section, symbol, relocation, and call writer
 runtime/
   psl_runtime.h         versioned hosted value and root ABI
   gc.c                  mark-and-sweep collector
@@ -347,9 +351,12 @@ Their C entry trampoline and file/path/error adapters are shared
 temporary host code, so this does not establish full self hosting.
 
 The native output target is selected in the compilation context. Backend
-`dispatch.lisp` chooses x86-64 SysV, AArch64 AAPCS64, or RISC-V64 LP64D; the frontend, optimizers,
-and IR verifiers are shared. Deferred call arenas are target-independent.
-`elf64_target_calls.lisp` owns call field validation, relocation types/addends,
-AArch64 alignment and mapping symbols, while CPU instruction construction stays
-in `backend/`. The three current output targets are 64-bit little-endian Linux
-ELF; native COFF and broader ABI/data/runtime ports remain pending.
+`dispatch.lisp` chooses x86-64 SysV, Microsoft x64, AArch64 AAPCS64, or
+RISC-V64 LP64D. The target contract keeps architecture, ABI, OS, and object
+format separate. The frontend, optimizers, and IR verifiers are shared.
+Deferred call arenas are target-independent. `elf64_target_calls.lisp` owns ELF
+call fields and relocations; `coff64_calls.lisp` owns COFF calls and metadata.
+Common object checks live in `function_validation.lisp`. CPU instruction
+construction stays in `backend/`. The four current native output targets are
+64-bit little-endian Linux ELF or Windows COFF. Broader ABI/data/runtime
+ports remain pending.

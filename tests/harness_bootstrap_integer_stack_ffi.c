@@ -7,8 +7,10 @@ extern int64_t call_eleven(uint64_t *, int32_t *);
 int64_t foreign_eleven(uint64_t a, uint64_t b, uint64_t c, uint64_t d,
     uint64_t e, uint64_t f, uint64_t g, uint64_t h, int8_t i, uint16_t j, int32_t *p) {
     uintptr_t stack;
-    #if defined(__riscv)
+#if defined(__riscv)
     __asm__ volatile("mv %0, sp" : "=r"(stack));
+#elif defined(__x86_64__)
+    __asm__ volatile("mov %%rsp, %0" : "=r"(stack));
 #else
     __asm__ volatile("mov %0, sp" : "=r"(stack));
 #endif

@@ -22,6 +22,7 @@
 (include "frontend/scalar_resolve.lisp")
 (include "frontend/ffi.lisp")
 (include "object/elf64_calls.lisp")
+(include "object/coff64_calls.lisp")
 
 (defun configure_scalar_signature (context signature)
   (declare (type (ptr native_compile_context) context)

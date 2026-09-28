@@ -5,7 +5,7 @@
 
 ;; Calls are encoded with an empty rel32 field, then patched after all function
 ;; offsets are known. Defined calls are patched within .text; imported calls
-;; retain zero placeholders for the ELF writer's PLT32 relocations.
+;; retain zero placeholders for the selected object writer's relocations.
 (defun call_padding_p (stack_depth)
   (declare (type usize stack_depth) (returns c-int))
   (if (= (bits-and (wrap-cast u64 stack_depth) 1) 1) 1 0))

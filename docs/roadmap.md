@@ -297,8 +297,8 @@ byte for byte with Stage 0's object for a single exported function, then links
 and runs it with C. This passes for x86-64, AArch64, and RISC-V64 ELF64 without
 executing target code during object generation. A separate native writer now
 emits multiple x86-64 function symbols. The native x86-64 writer now supports
-PLT32 call relocations for C imports. Data, other relocation families, and COFF
-remain to be ported.
+PLT32 call relocations for C imports. A later slice added native COFF output;
+data and other relocation families remain to be ported.
 `sh tests/bootstrap_native_compiler.sh [HOST_TARGET]` builds a native executable from PSL
 compiler components plus a temporary C file-I/O wrapper. It parses a source
 file, accepts machine-integer functions with independently typed parameters,
@@ -665,8 +665,8 @@ arguments, incoming register saves, virtual-register slots, and one expression
 scratch word. Large frames probe every crossed page before allocation without
 an imported `__chkstk` service. The unwind encoder describes the push,
 allocation, and frame-register operations with small and large allocation
-forms. Frame and prologue sizes are carried with encoded functions for an
-eventual COFF writer.
+forms. Frame and prologue sizes are carried with encoded functions for the
+COFF writer.
 
 `make test-native-win64-frame` builds these PSL modules for Linux and Windows,
 then executes generated Microsoft x64 code through C callers on both systems.
@@ -675,6 +675,22 @@ Under Wine, the harness registers generated unwind records and checks
 probed large frame. A second harness feeds verified LIR through the native
 Windows encoder and runs a five-argument conditional function.
 
-The native compilation-unit target selector and object writer still support
-only Linux ELF. Native Windows COFF output, Windows-targeted compiler
-generations, broader ABI features, and full Stage 1–3 remain required for M8.
+### M8 native Windows COFF output slice
+
+Native target ID 3 connects the shared verified compilation pipeline to the
+Microsoft x64 body encoder and a PSL-owned COFF writer. The writer emits
+`.text`, `.data`, `.pdata`, and `.xdata`, local/exported function symbols,
+referenced imported symbols, REL32 calls, and ADDR32NB unwind references.
+It validates function spans, names, fixups, import references, frame metadata,
+and encoded prologues before writing. Relocation overflow uses COFF's extended
+count record; a 65,536-call object links and runs under Wine.
+
+`make test-native-windows` checks the typed integer/pointer/Boolean/void subset
+at both optimization levels against Stage 0 using C programs, including
+eleven-argument callbacks and source-order side effects. It checks deterministic
+objects, symbol and relocation inspection, linked `RtlVirtualUnwind`, static
+archives, shared DLLs, public writer mutation rejection, and three successive
+Windows native subset generations of all four compiler units. Each generation
+reproduces Windows fixture and x86-64 Linux objects. The target compiler still
+uses temporary C file/path/diagnostic adapters, and full Stage 1–3 plus broader
+language/runtime/ABI/data support remain open M8 work.

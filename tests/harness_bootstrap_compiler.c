@@ -154,8 +154,9 @@ static void check_compilation_errors(void) {
 }
 
 static void check_target_arguments(void) {
-    const char *targets[] = {"--target=x86_64-linux-gnu", "--target=aarch64-linux-gnu", "--target=riscv64-linux-gnu"};
-    for (uint32_t target = 0; target < 3; ++target) {
+    const char *targets[] = {"--target=x86_64-linux-gnu", "--target=aarch64-linux-gnu",
+                             "--target=riscv64-linux-gnu", "--target=x86_64-windows-gnu"};
+    for (uint32_t target = 0; target < 4; ++target) {
         expected_target = target;
         expected_optimization = 1;
         char *single[] = {"pslcc-native", (char *)targets[target], "source.lisp", "result.o", NULL};
@@ -175,7 +176,7 @@ static void check_target_arguments(void) {
         }
     }
     const char *bad[] = {"--target=", "--target=aarch64-linux-gn", "--target=aarch64-linux-gnu-extra",
-        "--target=x86_64-windows-gnu", "--target=riscv64-none-elf"};
+        "--target=x86_64-windows-gn", "--target=riscv64-none-elf"};
     for (size_t i = 0; i < sizeof bad / sizeof *bad; ++i) {
         char *args[] = {"pslcc-native", (char *)bad[i], "source.lisp", "result.o", NULL};
         reset(SUCCESS);
@@ -188,7 +189,7 @@ static void check_target_arguments(void) {
     assert(native_compiler_main(5, duplicates) == 2);
     assert(event_count == 1 && events[0].kind == NATIVE_HOST_USAGE && !reads && !releases);
     reset(SUCCESS);
-    assert(native_run_compiler_target("source.lisp", "result.o", 1, 3) == 2);
+    assert(native_run_compiler_target("source.lisp", "result.o", 1, 4) == 2);
     assert(event_count == 1 && events[0].kind == NATIVE_HOST_USAGE && !reads && !releases);
     expected_target = NATIVE_TARGET_X86_64_LINUX;
     expected_optimization = 1;

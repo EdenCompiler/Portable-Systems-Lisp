@@ -8,7 +8,7 @@
               (if (= (deref text) (wrap-cast u8 bits))
                   (compiler_text_matches (pointer+ text 1) (shr64 bits 8) (wrap- remaining 1)) 0)))))
 
-;; Target suffixes use two eight-byte chunks and a one/two-byte tail.
+;; Target suffixes use two eight-byte chunks and a short tail.
 (defun compiler_target_suffix_p (text first second tail size)
   (declare (type (ptr u8) text) (type u64 first second tail) (type usize size) (returns c-int))
   (if (= (compiler_text_matches text first 8) 1)
@@ -25,6 +25,8 @@
     ((= (compiler_target_suffix_p text #x343668637261613d #x672d78756e696c2d #x756e 2) 1) 1)
     ;; "=riscv64", "-linux-g", "nu"
     ((= (compiler_target_suffix_p text #x343676637369723d #x672d78756e696c2d #x756e 2) 1) 2)
+    ;; "=x86_64-", "windows-", "gnu"
+    ((= (compiler_target_suffix_p text #x2d34365f3638783d #x2d73776f646e6977 #x756e67 3) 1) 3)
     (t -1)))
 
 ;; The prefix chunk spells "--target".

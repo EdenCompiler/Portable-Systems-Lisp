@@ -397,7 +397,7 @@ AArch64 native subset generations. It compares those units and fixture objects,
 and confirms an AArch64 compiler host still produces identical x86-64 output.
 The native core has no undefined runtime imports. The same temporary C OS
 adapters remain linked at each generation. Floating-point/aggregate ABIs, data
-symbols, COFF native output, general packages/macros, and the complete
+symbols, general packages/macros, and the complete
 Stage 0 corpus remain open parts of M8.
 
 Encoding and object contracts follow Arm's [AAPCS64](https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst)
@@ -452,6 +452,36 @@ RISC-V-specific C boundary checks inspect raw unsigned-32 register/stack/return
 bits and unaligned memory, and generation outputs reproduce those fixtures.
 The ABI follows the [RISC-V psABI](https://riscv-non-isa.github.io/riscv-elf-psabi-doc/).
 
+## Native Windows output
+
+`--target=x86_64-windows-gnu` selects native target ID 3 (x86-64 / Microsoft
+x64 / Windows / COFF). The shared verified HIR, SSA, and LIR feed a Win64 body
+encoder. Its frame keeps RSP sixteen-byte aligned and stationary after the
+prologue, reserves outgoing shadow and stack arguments, and saves incoming
+registers and virtual values. Large frames probe stack pages without a runtime
+import. Functions carry frame and prologue metadata for the native `.pdata`
+and `.xdata` writer.
+
+The COFF writer emits `.text`, empty `.data`, `.pdata`, `.xdata`, local/exported
+functions, referenced imports, `IMAGE_REL_AMD64_REL32` calls, and
+`IMAGE_REL_AMD64_ADDR32NB` unwind references. Its writer API validates function
+spans, symbol names, call fields, import references, and encoded prologues
+before touching output. Relocation counts above 65,535 use the COFF extended
+count record. No LLVM, assembler, or third-party object library participates.
+
+```sh
+make
+build/pslcc-native --target=x86_64-windows-gnu tests/bootstrap_answer.lisp build/answer-win.o
+make test-native-windows
+```
+
+The Windows gate runs independent C harnesses at `-O0` and `-O1`, compares
+behavior with Stage 0 under Wine, inspects COFF relocations and unwind data,
+links static and shared libraries, checks negative writer mutations and
+extended relocation counts, and reproduces all four compiler modules across
+three Windows native subset generations. `make test-native-win64-frame` checks
+large-frame probes and virtual unwinding at partial prologues.
+
 M8 remains open: general source packages/macros, broader managed/runtime and
-ABI/data ports, native COFF, the remaining OS adapters, and full Stage 1–3
+ABI/data ports, the remaining OS adapters, and full Stage 1–3
 source/object/interop corpus comparisons are still required.
