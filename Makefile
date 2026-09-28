@@ -14,6 +14,9 @@ NATIVE_HOST := $(BUILD_DIR)/native-host.o
 NATIVE_SOURCE := $(BUILD_DIR)/native-source.o
 NATIVE_DRIVER := $(BUILD_DIR)/native-driver.o
 NATIVE_OUTPUT := $(BUILD_DIR)/native-output.o
+NATIVE_OBJECTS := $(NATIVE_CORE) $(NATIVE_HOST) $(NATIVE_SOURCE) $(NATIVE_DRIVER) $(NATIVE_OUTPUT)
+HOST_SOURCES := bootstrap/driver.c bootstrap/host/source.c bootstrap/host/compiler.c
+HOST_HEADERS := bootstrap/native_api.h bootstrap/host/source.h bootstrap/host/compiler.h
 
 .PHONY: all native stage0 example test test-native test-self-core \
         test-windows test-native-win64-frame test-native-windows test-aarch64 test-native-aarch64 test-native-riscv64 test-riscv64 clean help
@@ -44,10 +47,8 @@ $(NATIVE_OUTPUT): $(BOOTSTRAP_SOURCES) $(STAGE0_SOURCES) | $(BUILD_DIR)
 	$(PSLCC) $(PSLFLAGS) -c bootstrap/host/output.lisp -o "$@"
 
 # Build the native compiler host for the current Linux typed subset.
-$(NATIVE_COMPILER): $(NATIVE_CORE) $(NATIVE_HOST) $(NATIVE_SOURCE) $(NATIVE_DRIVER) $(NATIVE_OUTPUT) bootstrap/driver.c bootstrap/native_api.h \
-                    bootstrap/host/source.c bootstrap/host/source.h bootstrap/host/compiler.c bootstrap/host/compiler.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) bootstrap/driver.c bootstrap/host/source.c bootstrap/host/compiler.c \
-	  "$(NATIVE_CORE)" "$(NATIVE_HOST)" "$(NATIVE_SOURCE)" "$(NATIVE_DRIVER)" "$(NATIVE_OUTPUT)" $(LDFLAGS) $(LDLIBS) -o "$@"
+$(NATIVE_COMPILER): $(NATIVE_OBJECTS) $(HOST_SOURCES) $(HOST_HEADERS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(HOST_SOURCES) $(NATIVE_OBJECTS) $(LDFLAGS) $(LDLIBS) -o "$@"
 
 $(BUILD_DIR)/arithmetic: examples/native/arithmetic.lisp $(STAGE0_SOURCES) | $(BUILD_DIR)
 	$(PSLCC) $(PSLFLAGS) "$<" -o "$@"
@@ -87,7 +88,7 @@ test-riscv64:
 
 # Remove only artifacts owned by this Makefile.
 clean:
-	rm -f "$(NATIVE_COMPILER)" "$(NATIVE_CORE)" "$(NATIVE_HOST)" "$(NATIVE_SOURCE)" "$(NATIVE_DRIVER)" "$(NATIVE_OUTPUT)" "$(BUILD_DIR)/arithmetic"
+	rm -f "$(NATIVE_COMPILER)" $(NATIVE_OBJECTS) "$(BUILD_DIR)/arithmetic"
 
 help:
 	@echo 'make                   Build the native compiler subset (SBCL + C compiler)'
