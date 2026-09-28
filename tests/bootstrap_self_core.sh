@@ -8,7 +8,7 @@ trap 'rm -rf "$work_dir"' EXIT HUP INT TERM
 build_driver() {
   cc -Wall -Wextra -Werror "$project_root/bootstrap/driver.c" \
     "$project_root/bootstrap/host/source.c" "$project_root/bootstrap/host/compiler.c" \
-    "$1" "$2" "$3" "$4" -o "$5"
+    "$1" "$2" "$3" "$4" "$5" -o "$6"
 }
 
 compare_diagnostic() {
@@ -70,10 +70,12 @@ compare_rejections() {
   -o "$work_dir/source-0.o"
 "$project_root/pslcc" -c "$project_root/bootstrap/host/compiler.lisp" \
   -o "$work_dir/driver-0.o"
+"$project_root/pslcc" -c "$project_root/bootstrap/host/output.lisp" \
+  -o "$work_dir/output-0.o"
 for generation in 0 1 2; do
   build_driver "$work_dir/core-$generation.o" "$work_dir/host-$generation.o" \
     "$work_dir/source-$generation.o" "$work_dir/driver-$generation.o" \
-    "$work_dir/compiler-$generation"
+    "$work_dir/output-$generation.o" "$work_dir/compiler-$generation"
   PATH=/nonexistent "$work_dir/compiler-$generation" \
     "$project_root/bootstrap/native-core.lisp" "$work_dir/core-$((generation + 1)).o"
   PATH=/nonexistent "$work_dir/compiler-$generation" \
@@ -82,9 +84,12 @@ for generation in 0 1 2; do
     "$project_root/bootstrap/host/source_unit.lisp" "$work_dir/source-$((generation + 1)).o"
   PATH=/nonexistent "$work_dir/compiler-$generation" \
     "$project_root/bootstrap/host/compiler.lisp" "$work_dir/driver-$((generation + 1)).o"
+  PATH=/nonexistent "$work_dir/compiler-$generation" \
+    "$project_root/bootstrap/host/output.lisp" "$work_dir/output-$((generation + 1)).o"
   test "$(nm -u "$work_dir/core-$((generation + 1)).o" | wc -l)" -eq 0
   readelf -h "$work_dir/core-$((generation + 1)).o" | grep -q 'REL (Relocatable file)'
   PSL_NATIVE_DRIVER_OBJECT="$work_dir/driver-$generation.o" \
+    PSL_NATIVE_OUTPUT_OBJECT="$work_dir/output-$generation.o" \
     PSL_NATIVE_SOURCE_OBJECT="$work_dir/source-$generation.o" \
     PSL_NATIVE_HOST_OBJECT="$work_dir/host-$generation.o" \
     PSL_NATIVE_CORE_OBJECT="$work_dir/core-$generation.o" \
@@ -105,4 +110,6 @@ cmp "$work_dir/source-1.o" "$work_dir/source-2.o"
 cmp "$work_dir/source-2.o" "$work_dir/source-3.o"
 cmp "$work_dir/driver-1.o" "$work_dir/driver-2.o"
 cmp "$work_dir/driver-2.o" "$work_dir/driver-3.o"
-echo 'PSL native core, storage, source loader, and driver generations reproduce identical objects'
+cmp "$work_dir/output-1.o" "$work_dir/output-2.o"
+cmp "$work_dir/output-2.o" "$work_dir/output-3.o"
+echo 'PSL native core, storage, source loader, driver, and output generations reproduce identical objects'

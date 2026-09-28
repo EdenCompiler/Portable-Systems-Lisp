@@ -617,7 +617,7 @@ source processing. There is no assembler, LLVM, or backend library dependency.
 `sh tests/bootstrap_native_aarch64.sh` checks O0/O1 behavior against Stage 0
 with C-built programs under QEMU, deterministic output, ELF headers/relocations,
 shared-library calls, three successive AArch64 native subset generations of all
-four compiler units, fixture artifact comparisons, and unchanged x86-64 output
+five compiler units, fixture artifact comparisons, and unchanged x86-64 output
 from an AArch64 compiler host. An eleven-argument C↔PSL test checks narrow values and pointers beyond the
 eight register arguments, callback calls, and evaluation order. It exposed and
 fixed Stage 0 normalization of narrow incoming stack arguments; large stack
@@ -650,7 +650,7 @@ these changes.
 `make test-native-riscv64` runs the shared native ELF gate at O0/O1 against
 Stage 0 behavior, C-built register/stack/pointer tests, raw unsigned-32 ABI and
 unaligned-memory checks, ELF/relocation inspection, static/shared libraries,
-three QEMU native subset generations of all four compiler units, and artifact
+three QEMU native subset generations of all five compiler units, and artifact
 comparisons on RISC-V and x86-64 output. `make test-native-aarch64` uses the same
 runner; each target has a small wrapper. Native COFF, broader ABI/data/runtime
 features, general source packages/macros, remaining host services, and complete
@@ -690,7 +690,17 @@ at both optimization levels against Stage 0 using C programs, including
 eleven-argument callbacks and source-order side effects. It checks deterministic
 objects, symbol and relocation inspection, linked `RtlVirtualUnwind`, static
 archives, shared DLLs, public writer mutation rejection, and three successive
-Windows native subset generations of all four compiler units. Each generation
+Windows native subset generations of all five compiler units. Each generation
 reproduces Windows fixture and x86-64 Linux objects. The target compiler still
 uses temporary C file/path/diagnostic adapters, and full Stage 1–3 plus broader
 language/runtime/ABI/data support remain open M8 work.
+
+### M8 hosted object output port
+
+The native compiler now compiles `bootstrap/host/output.lisp` as a fifth PSL
+unit. It owns opening, writing, closing, and error reporting for object output
+through explicit hosted C file imports. `bootstrap/host/compiler.c` now only
+renders selected diagnostics. The output unit is included in native generation
+comparisons on Linux, Windows, AArch64, and RISC-V64. File reading, path
+canonicalization, diagnostic rendering, the C entry trampoline, and broader
+source/runtime support remain to be ported before full Stage 1–3.

@@ -9,7 +9,7 @@
   ((context (ptr native_compile_context)) (object (ptr byte_buffer))
    (result (ptr native_unit_result))) -> c-int)
 
-;; Host output primitives. The PSL driver selects messages and source locations.
+;; Object output is another PSL unit; C still renders selected diagnostics.
 (ffi:import-function "native_host_write_object"
   ((path (ptr u8)) (object (ptr byte_buffer))) -> c-int)
 (ffi:import-function "native_host_report_error"

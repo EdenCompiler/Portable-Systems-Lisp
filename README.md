@@ -51,9 +51,11 @@ make example
 make test
 ```
 
-`make` compiles the PSL native core, hosted storage, source loader, and driver
-into `build/native-core.o`, `build/native-host.o`, `build/native-source.o`, and
-`build/native-driver.o`, then links the temporary OS and diagnostic adapter. `build/pslcc-native [-O0|-O1] [--target=TARGET] SOURCE OUTPUT.o` accepts the
+`make` compiles the PSL native core, hosted storage, source loader, driver,
+and output writer into `build/native-core.o`, `build/native-host.o`,
+`build/native-source.o`, `build/native-driver.o`, and `build/native-output.o`,
+then links the remaining temporary OS and diagnostic adapters.
+`build/pslcc-native [-O0|-O1] [--target=TARGET] SOURCE OUTPUT.o` accepts the
 [documented bootstrap subset](bootstrap/README.md); it is not yet the complete
 Stage 0 compiler. `make example` uses Stage 0 to build and run a pure Lisp
 program. Use `make help` for native generation checks, cross-target tests,

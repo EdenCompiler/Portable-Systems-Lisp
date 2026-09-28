@@ -3,15 +3,6 @@
 #include <inttypes.h>
 #include <stdio.h>
 
-int native_host_write_object(const uint8_t *path, const struct byte_buffer *object) {
-    FILE *stream = fopen((const char *)path, "wb");
-    int result;
-    if (!stream) return 0;
-    result = fwrite(object->data, 1, object->length, stream) == object->length;
-    if (fclose(stream) != 0) result = 0;
-    return result;
-}
-
 void native_host_report_error(uint32_t kind, const uint8_t *text,
                               uintptr_t length, uintptr_t position) {
     switch (kind) {

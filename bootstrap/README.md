@@ -392,7 +392,7 @@ passes are shared.
 
 The output gate runs existing independent C harnesses under QEMU at both
 optimization levels, compares behavior against Stage 0, inspects ELF/relocations,
-links a shared library, and rebuilds all four PSL compiler units across three
+links a shared library, and rebuilds all five PSL compiler units across three
 AArch64 native subset generations. It compares those units and fixture objects,
 and confirms an AArch64 compiler host still produces identical x86-64 output.
 The native core has no undefined runtime imports. The same temporary C OS
@@ -447,7 +447,7 @@ make test-native-riscv64
 `tests/bootstrap_native_elf.sh` owns the shared AArch64/RISC-V native output
 gate; the target scripts select toolchains/runners. It checks O0/O1 C behavior
 against Stage 0, deterministic ELF objects, static/shared library calls, and
-three native subset generations of all four compiler units under QEMU.
+three native subset generations of all five compiler units under QEMU.
 RISC-V-specific C boundary checks inspect raw unsigned-32 register/stack/return
 bits and unaligned memory, and generation outputs reproduce those fixtures.
 The ABI follows the [RISC-V psABI](https://riscv-non-isa.github.io/riscv-elf-psabi-doc/).
@@ -478,10 +478,21 @@ make test-native-windows
 The Windows gate runs independent C harnesses at `-O0` and `-O1`, compares
 behavior with Stage 0 under Wine, inspects COFF relocations and unwind data,
 links static and shared libraries, checks negative writer mutations and
-extended relocation counts, and reproduces all four compiler modules across
+extended relocation counts, and reproduces all five compiler modules across
 three Windows native subset generations. `make test-native-win64-frame` checks
 large-frame probes and virtual unwinding at partial prologues.
 
 M8 remains open: general source packages/macros, broader managed/runtime and
 ABI/data ports, the remaining OS adapters, and full Stage 1–3
 source/object/interop corpus comparisons are still required.
+
+## Hosted object output
+
+`host/output.lisp` is a fifth PSL compilation unit. The compiler driver calls
+its exported `native_host_write_object`; the unit imports `fopen`, `fwrite`,
+`fclose`, `calloc`, and `free` from the host C library. It creates the binary
+mode string in owned storage, writes the exact object bytes, closes the stream,
+and returns failures to the PSL driver. This hosted service is separate from
+machine instruction encoding and does not affect freestanding output.
+`host/compiler.c` remains for diagnostic rendering; `host/source.c` still
+handles file reads and canonical paths.

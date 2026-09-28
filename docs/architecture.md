@@ -62,7 +62,8 @@ bootstrap/
     compiler.lisp      CLI argument validation and compilation flow
     compiler_diagnostics.lisp  failure phase and source-location selection
     compiler_types.lisp, compiler_imports.lisp  state and typed module/host ABI
-    compiler.c, compiler.h  temporary object output and diagnostic rendering
+    compiler.c, compiler.h  temporary diagnostic rendering
+    output.lisp         hosted object-file output through C file primitives
     driver.lisp         owned storage preparation and initialization coordinator
     driver_types.lisp   driver and storage record layouts
     storage.lisp        explicit calloc/free imports and partial cleanup
@@ -262,7 +263,7 @@ headers and bodies of the complete native core. Dedicated component harnesses
 compare byte emission, arena, integer parsing, scanning, syntax parsing, and
 include decoding with Stage 0.
 The PSL unit driver first collects all signatures, then predeclares functions,
-compiles bodies, patches relative calls, and invokes the ELF call writer.
+compiles bodies, patches relative calls, and invokes the selected object writer.
 `native_compile_unit` exposes this pipeline on caller-owned source/arenas,
 with a failure phase and AST/signature location. The separately compiled PSL
 hosted driver allocates, initializes, and releases those arenas. Record layouts
@@ -271,9 +272,10 @@ hosted driver includes them without bringing in compiler algorithms. Its only
 foreign imports are `calloc` and `free`; these stay out of `native-core.lisp`.
 The PSL hosted compiler driver selects source/output handling, compilation
 control, cleanup, and failure locations. Its entry point receives argc/argv
-from a C `main` trampoline. Temporary C adapters read/write files, canonicalize
-paths, and render the driver's selected messages. They contain no compilation
-control or phase/location selection.
+from a C `main` trampoline. Temporary C adapters read source files, canonicalize
+paths, and render the driver's selected messages. A separate PSL output unit
+writes object files through imported C file primitives. The adapters contain no
+compilation control or phase/location selection.
 This permits forward calls and recursion. It is a
 restricted source-to-object proof, not Stage 1: general symbol interpretation,
 macro expansion, full semantic analysis, remaining generic optimization and
