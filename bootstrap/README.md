@@ -38,9 +38,10 @@ The native modules currently implement:
 - Top-level `include` recognition and Lisp string decoding in
   `frontend/source.lisp`. `host/source_unit.lisp` owns relative path resolution,
   once-per-unit inclusion, active-cycle checks, and ordered source assembly.
-  `host/source.c` provides file reads, canonical names, platform path policy,
-  and error rendering. Missing files, malformed includes, and reader errors
-  prevent object output.
+  `host/source_io.lisp` reads files through explicit hosted stream imports.
+  `host/source.c` provides canonical names, platform path policy, and error
+  rendering. Missing files, malformed includes, and reader errors prevent
+  object output.
 - C-compatible structure layouts in caller-owned tables. The native source
   pass accepts `defcstruct`, computes field offsets, size, and alignment for
   the current 64-bit target slice, and resolves scalar, pointer, and earlier
@@ -392,7 +393,7 @@ passes are shared.
 
 The output gate runs existing independent C harnesses under QEMU at both
 optimization levels, compares behavior against Stage 0, inspects ELF/relocations,
-links a shared library, and rebuilds all five PSL compiler units across three
+links a shared library, and rebuilds all six PSL compiler units across three
 AArch64 native subset generations. It compares those units and fixture objects,
 and confirms an AArch64 compiler host still produces identical x86-64 output.
 The native core has no undefined runtime imports. The same temporary C OS
@@ -447,7 +448,7 @@ make test-native-riscv64
 `tests/bootstrap_native_elf.sh` owns the shared AArch64/RISC-V native output
 gate; the target scripts select toolchains/runners. It checks O0/O1 C behavior
 against Stage 0, deterministic ELF objects, static/shared library calls, and
-three native subset generations of all five compiler units under QEMU.
+three native subset generations of all six PSL compiler units under QEMU.
 RISC-V-specific C boundary checks inspect raw unsigned-32 register/stack/return
 bits and unaligned memory, and generation outputs reproduce those fixtures.
 The ABI follows the [RISC-V psABI](https://riscv-non-isa.github.io/riscv-elf-psabi-doc/).
@@ -478,7 +479,7 @@ make test-native-windows
 The Windows gate runs independent C harnesses at `-O0` and `-O1`, compares
 behavior with Stage 0 under Wine, inspects COFF relocations and unwind data,
 links static and shared libraries, checks negative writer mutations and
-extended relocation counts, and reproduces all five compiler modules across
+extended relocation counts, and reproduces all six compiler modules across
 three Windows native subset generations. `make test-native-win64-frame` checks
 large-frame probes and virtual unwinding at partial prologues.
 
@@ -488,11 +489,21 @@ source/object/interop corpus comparisons are still required.
 
 ## Hosted object output
 
-`host/output.lisp` is a fifth PSL compilation unit. The compiler driver calls
+`host/output.lisp` is a separately compiled PSL unit. The compiler driver calls
 its exported `native_host_write_object`; the unit imports `fopen`, `fwrite`,
 `fclose`, `calloc`, and `free` from the host C library. It creates the binary
 mode string in owned storage, writes the exact object bytes, closes the stream,
 and returns failures to the PSL driver. This hosted service is separate from
 machine instruction encoding and does not affect freestanding output.
 `host/compiler.c` remains for diagnostic rendering; `host/source.c` still
-handles file reads and canonical paths.
+handles canonical paths, platform path policy, and source diagnostics.
+
+## Hosted source input
+
+`host/source_io.lisp` owns opening and incrementally reading source files. It
+uses `fopen`, `fread`, `feof`, `ferror`, and `fclose` through explicit FFI
+imports, grows owned storage with checked arithmetic, appends the parser's NUL
+sentinel, and releases every partial allocation on failure. The independent
+input harness covers empty, binary, 4095-byte boundary, and multi-buffer files,
+missing paths, and each allocation failure on Linux. All native generation
+gates compile and compare this sixth PSL unit.

@@ -8,28 +8,6 @@
 #include <windows.h>
 #endif
 
-uint8_t *native_source_read_file(const uint8_t *path, size_t *length) {
-    FILE *stream = fopen((const char *)path, "rb");
-    long size;
-    uint8_t *bytes;
-    if (!stream) return NULL;
-    if (fseek(stream, 0, SEEK_END) != 0 || (size = ftell(stream)) < 0 ||
-        fseek(stream, 0, SEEK_SET) != 0) {
-        fclose(stream);
-        return NULL;
-    }
-    bytes = malloc((size_t)size + 1);
-    if (!bytes || fread(bytes, 1, (size_t)size, stream) != (size_t)size) {
-        free(bytes);
-        fclose(stream);
-        return NULL;
-    }
-    fclose(stream);
-    bytes[size] = 0;
-    *length = (size_t)size;
-    return bytes;
-}
-
 uint8_t *native_source_canonical_path(const uint8_t *path) {
 #ifdef _WIN32
     char *absolute = _fullpath(NULL, (const char *)path, 0);

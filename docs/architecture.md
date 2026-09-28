@@ -74,7 +74,8 @@ bootstrap/
     source_buffers.lisp  assembled bytes and canonical file ownership
     source_frames.lisp  per-file scanner/parser state and cleanup
     source_imports.lisp, source_types.lisp  typed host/core ABI and loader records
-    source.c, source.h temporary file reads, canonical paths, and error rendering
+    source_io.lisp      hosted incremental file input through C stream primitives
+    source.c, source.h temporary canonical paths, path policy, and error rendering
   frontend/
     reader.lisp, parser.lisp, atoms.lisp, source.lisp
                        byte scanning, syntax, integer atoms, and include decoding
@@ -272,10 +273,11 @@ hosted driver includes them without bringing in compiler algorithms. Its only
 foreign imports are `calloc` and `free`; these stay out of `native-core.lisp`.
 The PSL hosted compiler driver selects source/output handling, compilation
 control, cleanup, and failure locations. Its entry point receives argc/argv
-from a C `main` trampoline. Temporary C adapters read source files, canonicalize
-paths, and render the driver's selected messages. A separate PSL output unit
-writes object files through imported C file primitives. The adapters contain no
-compilation control or phase/location selection.
+from a C `main` trampoline. A PSL input unit reads source files through imported
+C stream primitives, while temporary C adapters canonicalize paths and render
+the driver's selected messages. A separate PSL output unit writes object files
+through imported C file primitives. The adapters contain no compilation control
+or phase/location selection.
 This permits forward calls and recursion. It is a
 restricted source-to-object proof, not Stage 1: general symbol interpretation,
 macro expansion, full semantic analysis, remaining generic optimization and

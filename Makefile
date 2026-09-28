@@ -12,9 +12,10 @@ NATIVE_COMPILER := $(BUILD_DIR)/pslcc-native
 NATIVE_CORE := $(BUILD_DIR)/native-core.o
 NATIVE_HOST := $(BUILD_DIR)/native-host.o
 NATIVE_SOURCE := $(BUILD_DIR)/native-source.o
+NATIVE_INPUT := $(BUILD_DIR)/native-input.o
 NATIVE_DRIVER := $(BUILD_DIR)/native-driver.o
 NATIVE_OUTPUT := $(BUILD_DIR)/native-output.o
-NATIVE_OBJECTS := $(NATIVE_CORE) $(NATIVE_HOST) $(NATIVE_SOURCE) $(NATIVE_DRIVER) $(NATIVE_OUTPUT)
+NATIVE_OBJECTS := $(NATIVE_CORE) $(NATIVE_HOST) $(NATIVE_SOURCE) $(NATIVE_INPUT) $(NATIVE_DRIVER) $(NATIVE_OUTPUT)
 HOST_SOURCES := bootstrap/driver.c bootstrap/host/source.c bootstrap/host/compiler.c
 HOST_HEADERS := bootstrap/native_api.h bootstrap/host/source.h bootstrap/host/compiler.h
 
@@ -39,6 +40,9 @@ $(NATIVE_HOST): $(BOOTSTRAP_SOURCES) $(STAGE0_SOURCES) | $(BUILD_DIR)
 
 $(NATIVE_SOURCE): $(BOOTSTRAP_SOURCES) $(STAGE0_SOURCES) | $(BUILD_DIR)
 	$(PSLCC) $(PSLFLAGS) -c bootstrap/host/source_unit.lisp -o "$@"
+
+$(NATIVE_INPUT): $(BOOTSTRAP_SOURCES) $(STAGE0_SOURCES) | $(BUILD_DIR)
+	$(PSLCC) $(PSLFLAGS) -c bootstrap/host/source_io.lisp -o "$@"
 
 $(NATIVE_DRIVER): $(BOOTSTRAP_SOURCES) $(STAGE0_SOURCES) | $(BUILD_DIR)
 	$(PSLCC) $(PSLFLAGS) -c bootstrap/host/compiler.lisp -o "$@"

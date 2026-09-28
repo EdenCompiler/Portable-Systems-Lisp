@@ -89,7 +89,7 @@ compile_modules() {
   generation=$1
   for pair in core:bootstrap/native-core.lisp host:bootstrap/host/driver.lisp \
       source:bootstrap/host/source_unit.lisp driver:bootstrap/host/compiler.lisp \
-      output:bootstrap/host/output.lisp; do
+      input:bootstrap/host/source_io.lisp output:bootstrap/host/output.lisp; do
     name=${pair%%:*}
     source=${pair#*:}
     if test "$generation" -eq 1; then
@@ -105,11 +105,11 @@ compile_modules() {
     "$project_root/bootstrap/host/source.c" "$project_root/bootstrap/host/compiler.c" \
     "$work_dir/core-$generation.o" "$work_dir/host-$generation.o" \
     "$work_dir/source-$generation.o" "$work_dir/driver-$generation.o" \
-    "$work_dir/output-$generation.o" \
+    "$work_dir/input-$generation.o" "$work_dir/output-$generation.o" \
     -o "$work_dir/compiler-$generation"
 }
 
-# Rebuild all five PSL modules on the target, then compare artifacts from
+# Rebuild all six PSL modules on the target, then compare artifacts from
 # successive native subset generations. This is not the complete M8 gate.
 for generation in 1 2 3; do
   compile_modules "$generation"
