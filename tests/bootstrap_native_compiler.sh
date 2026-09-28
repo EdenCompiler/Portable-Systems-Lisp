@@ -11,20 +11,32 @@ case $host_target in
   x86_64-linux-gnu)
     host_compiler=cc
     path_source=bootstrap/host/source_path_posix.lisp
-    path_expect= ;;
+    path_expect=
+    data_format=elf
+    data_machine=62
+    data_flags=0 ;;
   x86_64-windows-gnu)
     host_compiler=x86_64-w64-mingw32-gcc
     host_suffix=.exe
     path_source=bootstrap/host/source_path_windows.lisp
-    path_expect=-DEXPECT_WINDOWS_PATHS=1 ;;
+    path_expect=-DEXPECT_WINDOWS_PATHS=1
+    data_format=coff
+    data_machine=0
+    data_flags=0 ;;
   aarch64-linux-gnu)
     host_compiler=aarch64-linux-gnu-gcc
     path_source=bootstrap/host/source_path_posix.lisp
-    path_expect= ;;
+    path_expect=
+    data_format=elf
+    data_machine=183
+    data_flags=0 ;;
   riscv64-linux-gnu)
     host_compiler=riscv64-linux-gnu-gcc
     path_source=bootstrap/host/source_path_posix.lisp
-    path_expect= ;;
+    path_expect=
+    data_format=elf
+    data_machine=243
+    data_flags=4 ;;
   *) echo "unsupported bootstrap host: $host_target" >&2; exit 2 ;;
 esac
 
@@ -125,6 +137,31 @@ run_host "$work_dir/compiler-driver-check$host_suffix"
   "$work_dir/native-core.o" "$work_dir/native-host.o" "$work_dir/native-source.o" \
   "$work_dir/native-input.o" "$work_dir/native-path.o" \
   "$work_dir/native-driver.o" "$work_dir/native-output.o" -o "$work_dir/pslcc-native-slice$host_suffix"
+
+# Compare object data emitted by a Stage 0 writer and a writer built by the
+# native compiler. Their own code bytes may differ while behavior must agree.
+"$project_root/pslcc" -O1 --target="$host_target" -c \
+  "$project_root/bootstrap/object/static_data.lisp" \
+  -o "$work_dir/static-data-stage0.o"
+run_host "$work_dir/pslcc-native-slice$host_suffix" -O1 --target="$host_target" \
+  "$project_root/bootstrap/object/static_data.lisp" \
+  "$work_dir/static-data-native.o"
+for writer in stage0 native; do
+  "$host_compiler" -std=c11 -Wall -Wextra -Werror \
+    "$project_root/tests/harness_bootstrap_static_data_writer.c" \
+    "$work_dir/static-data-$writer.o" \
+    -o "$work_dir/static-data-$writer$host_suffix"
+  run_host "$work_dir/static-data-$writer$host_suffix" "$data_format" \
+    "$work_dir/static-data-output-$writer.o" "$data_machine" "$data_flags"
+done
+cmp "$work_dir/static-data-output-stage0.o" \
+    "$work_dir/static-data-output-native.o"
+"$host_compiler" -std=c11 -Wall -Wextra -Werror \
+  "$project_root/tests/harness_bootstrap_static_data.c" \
+  "$work_dir/static-data-output-native.o" \
+  -o "$work_dir/static-data-check$host_suffix"
+run_host "$work_dir/static-data-check$host_suffix"
+
 check_cli_failure() {
   expected=$1
   shift

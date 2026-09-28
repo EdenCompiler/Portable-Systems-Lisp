@@ -11,6 +11,21 @@ struct byte_buffer {
     uintptr_t capacity;
 };
 
+struct native_data_symbol {
+    const uint8_t *name;
+    uintptr_t name_length;
+    const uint8_t *bytes;
+    uintptr_t size;
+    uintptr_t alignment;
+    uint8_t exported;
+};
+
+extern int write_elf64_data(uint16_t machine, uint32_t flags,
+                            const struct native_data_symbol *, uintptr_t,
+                            struct byte_buffer *);
+extern int write_coff64_data(const struct native_data_symbol *, uintptr_t,
+                             struct byte_buffer *);
+
 struct psl_scanner {
     const uint8_t *data;
     uintptr_t length;

@@ -7,6 +7,7 @@
 (include "frontend/signatures.lisp")
 (include "frontend/atoms.lisp")
 (include "object/elf64.lisp")
+(include "object/static_data.lisp")
 (include "ir/hir.lisp")
 (include "backend/x86_calls.lisp")
 (include "backend/x86_control.lisp")

@@ -129,6 +129,8 @@ bootstrap/
     elf64_target_calls.lisp  PLT32/CALL26/CALL_PLT fields and AArch64 mapping symbols
     win64_unwind.lisp  native Microsoft x64 unwind-code encoding
     bytes.lisp, function_validation.lisp  shared object-byte and function checks
+    data_types.lisp, data_validation.lisp, static_data.lisp
+                       validated static data symbols and data-only ELF/COFF output
     coff64_layout.lisp, coff64_sections.lisp, coff64_symbols.lisp,
     coff64_relocations.lisp, coff64_validation.lisp, coff64_calls.lisp
                        native COFF section, symbol, relocation, and call writer

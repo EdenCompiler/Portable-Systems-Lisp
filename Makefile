@@ -20,7 +20,7 @@ NATIVE_OBJECTS := $(NATIVE_CORE) $(NATIVE_HOST) $(NATIVE_SOURCE) $(NATIVE_INPUT)
 HOST_SOURCES := bootstrap/driver.c bootstrap/host/source.c bootstrap/host/compiler.c
 HOST_HEADERS := bootstrap/native_api.h bootstrap/host/source.h bootstrap/host/compiler.h
 
-.PHONY: all native stage0 example test test-native test-self-core \
+.PHONY: all native stage0 example test test-native test-static-data test-self-core \
         test-windows test-native-win64-frame test-native-windows test-aarch64 test-native-aarch64 test-native-riscv64 test-riscv64 clean help
 
 all: native
@@ -67,8 +67,11 @@ example: $(BUILD_DIR)/arithmetic
 test:
 	sh tests/smoke.sh
 
-test-native:
+test-native: test-static-data
 	sh tests/bootstrap_native_compiler.sh
+
+test-static-data:
+	sh tests/bootstrap_static_data.sh x86_64-linux-gnu
 
 test-self-core:
 	sh tests/bootstrap_self_core.sh
@@ -80,15 +83,18 @@ test-native-win64-frame:
 	sh tests/bootstrap_win64_frame.sh
 
 test-native-windows: native
+	sh tests/bootstrap_static_data.sh x86_64-windows-gnu
 	sh tests/bootstrap_native_windows.sh
 
 test-aarch64:
 	sh tests/aarch64.sh
 
 test-native-aarch64: native
+	sh tests/bootstrap_static_data.sh aarch64-linux-gnu
 	sh tests/bootstrap_native_aarch64.sh
 
 test-native-riscv64: native
+	sh tests/bootstrap_static_data.sh riscv64-linux-gnu
 	sh tests/bootstrap_native_riscv64.sh
 
 test-riscv64:
@@ -104,6 +110,7 @@ help:
 	@echo 'make example           Compile and run the pure Lisp arithmetic example'
 	@echo 'make test              Run the Linux smoke suite'
 	@echo 'make test-native       Check native compilation and C interoperability'
+	@echo 'make test-static-data  Check native ELF static data output on x86-64 Linux'
 	@echo 'make test-self-core    Compare successive native core generations'
 	@echo 'make test-windows      Run Windows checks (MinGW-w64 and Wine required)'
 	@echo 'make test-native-win64-frame Check native Win64 frame, LIR, and unwind encoding'

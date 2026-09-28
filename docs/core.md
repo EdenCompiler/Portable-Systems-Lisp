@@ -230,6 +230,14 @@ work in shared objects and across preemptible symbols. Identical inputs,
 options, and compiler version produce identical bytes when macros are
 deterministic. A typed object has no implicit libc, GC, tagged-object, or PSL
 startup symbol. Managed hosted objects reference only selected runtime modules.
+
+The native bootstrap exposes data-only writers as `write_elf64_data` and
+`write_coff64_data`. A `native_data_symbol` supplies an ASCII linker name,
+caller-owned initialized bytes, power-of-two alignment up to 4096, and local or
+global visibility. The complete declaration set is validated before output is
+changed. The source compiler does not yet lower string literals or data-address
+relocations through this interface.
+
 Windows emits AMD64 COFF with `.text`, `.data`, `.pdata`, and `.xdata`, plus
 `IMAGE_REL_AMD64_REL32` and `IMAGE_REL_AMD64_ADDR32NB` relocations. Its
 `.pdata`/`.xdata` records describe the fixed function prologue for stack

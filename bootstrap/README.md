@@ -397,9 +397,16 @@ links a shared library, and rebuilds all seven PSL compiler units across three
 AArch64 native subset generations. It compares those units and fixture objects,
 and confirms an AArch64 compiler host still produces identical x86-64 output.
 The native core has no undefined runtime imports. The same temporary C
-diagnostic adapters remain linked at each generation. Floating-point/aggregate ABIs, data
-symbols, general packages/macros, and the complete
+diagnostic adapters remain linked at each generation. Floating-point/aggregate ABIs,
+code-to-data relocations, general packages/macros, and the complete
 Stage 0 corpus remain open parts of M8.
+
+`object/static_data.lisp` adds validated data-only ELF64 and COFF objects. Its
+symbol records distinguish file-local and exported objects, preserve requested
+power-of-two alignment, and carry caller-owned byte sequences without libc or
+an assembler. Stage 0 and the native compiler build the writer independently;
+tests compare the generated objects and link them to C on every hosted target.
+Source string literals and data-address relocations remain follow-up work.
 
 Encoding and object contracts follow Arm's [AAPCS64](https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst)
 and [ELF for AArch64](https://github.com/ARM-software/abi-aa/blob/main/aaelf64/aaelf64.rst).
@@ -463,12 +470,14 @@ registers and virtual values. Large frames probe stack pages without a runtime
 import. Functions carry frame and prologue metadata for the native `.pdata`
 and `.xdata` writer.
 
-The COFF writer emits `.text`, empty `.data`, `.pdata`, `.xdata`, local/exported
+The compiler COFF writer emits `.text`, empty `.data`, `.pdata`, `.xdata`, local/exported
 functions, referenced imports, `IMAGE_REL_AMD64_REL32` calls, and
 `IMAGE_REL_AMD64_ADDR32NB` unwind references. Its writer API validates function
 spans, symbol names, call fields, import references, and encoded prologues
 before touching output. Relocation counts above 65,535 use the COFF extended
 count record. No LLVM, assembler, or third-party object library participates.
+The separate static-data writer emits initialized `.data` objects with local
+and exported symbols; it is not yet connected to compiled function output.
 
 ```sh
 make

@@ -72,7 +72,8 @@ MinGW-w64 and Wine to check C calls, unwind metadata, and successive native
 subset generations on Windows. Run `make test-native-aarch64` with
 the AArch64 C toolchain and QEMU to check C calls and successive native subset
 generations on AArch64. `make test-native-riscv64` runs the corresponding
-RISC-V gate. Full self hosting remains in progress.
+RISC-V gate. `make test-static-data` checks native static data symbols,
+alignment, and linked values. Full self hosting remains in progress.
 
 ## Source and C interop
 

@@ -297,8 +297,11 @@ byte for byte with Stage 0's object for a single exported function, then links
 and runs it with C. This passes for x86-64, AArch64, and RISC-V64 ELF64 without
 executing target code during object generation. A separate native writer now
 emits multiple x86-64 function symbols. The native x86-64 writer now supports
-PLT32 call relocations for C imports. A later slice added native COFF output;
-data and other relocation families remain to be ported.
+PLT32 call relocations for C imports. A later slice added native COFF output.
+Data-only ELF64 and COFF objects now preserve caller-provided bytes, alignment,
+and local/global object symbols. Stage 0 and native writer builds produce the
+same linked data behavior on all hosted targets. Code-to-data relocations and
+the remaining relocation families still need to be ported.
 `sh tests/bootstrap_native_compiler.sh [HOST_TARGET]` builds a native executable from PSL
 compiler components plus a temporary C file-I/O wrapper. It parses a source
 file, accepts machine-integer functions with independently typed parameters,
