@@ -8,12 +8,23 @@ host_target=${1:-x86_64-linux-gnu}
 host_suffix=
 
 case $host_target in
-  x86_64-linux-gnu) host_compiler=cc ;;
+  x86_64-linux-gnu)
+    host_compiler=cc
+    path_source=bootstrap/host/source_path_posix.lisp
+    path_expect= ;;
   x86_64-windows-gnu)
     host_compiler=x86_64-w64-mingw32-gcc
-    host_suffix=.exe ;;
-  aarch64-linux-gnu) host_compiler=aarch64-linux-gnu-gcc ;;
-  riscv64-linux-gnu) host_compiler=riscv64-linux-gnu-gcc ;;
+    host_suffix=.exe
+    path_source=bootstrap/host/source_path_windows.lisp
+    path_expect=-DEXPECT_WINDOWS_PATHS=1 ;;
+  aarch64-linux-gnu)
+    host_compiler=aarch64-linux-gnu-gcc
+    path_source=bootstrap/host/source_path_posix.lisp
+    path_expect= ;;
+  riscv64-linux-gnu)
+    host_compiler=riscv64-linux-gnu-gcc
+    path_source=bootstrap/host/source_path_posix.lisp
+    path_expect= ;;
   *) echo "unsupported bootstrap host: $host_target" >&2; exit 2 ;;
 esac
 
@@ -60,6 +71,12 @@ else
   "$project_root/pslcc" --target="$host_target" -c \
     "$project_root/bootstrap/host/source_io.lisp" -o "$work_dir/native-input.o"
 fi
+if test -n "${PSL_NATIVE_PATH_OBJECT:-}"; then
+  cp "$PSL_NATIVE_PATH_OBJECT" "$work_dir/native-path.o"
+else
+  "$project_root/pslcc" --target="$host_target" -c \
+    "$project_root/$path_source" -o "$work_dir/native-path.o"
+fi
 if test -n "${PSL_NATIVE_DRIVER_OBJECT:-}"; then
   cp "$PSL_NATIVE_DRIVER_OBJECT" "$work_dir/native-driver.o"
 else
@@ -81,6 +98,12 @@ mkdir "$work_dir/source-input-fixtures"
   "$project_root/tests/harness_bootstrap_source_io.c" "$work_dir/native-input.o" \
   -o "$work_dir/source-input-check$host_suffix"
 run_host "$work_dir/source-input-check$host_suffix" "$work_dir/source-input-fixtures"
+"$host_compiler" -std=c11 -Wall -Wextra -Werror $path_expect \
+  "$project_root/tests/harness_bootstrap_source_path.c" "$work_dir/native-path.o" \
+  -o "$work_dir/source-path-check$host_suffix"
+run_host "$work_dir/source-path-check$host_suffix" \
+  "$project_root/bootstrap/native-core.lisp" \
+  "$project_root/bootstrap/./native-core.lisp" "$work_dir/missing-path"
 "$host_compiler" -Wall -Wextra -Werror $source_allocator_flags \
   "$project_root/tests/harness_bootstrap_source_unit.c" \
   "$work_dir/native-core.o" "$work_dir/native-source.o" -o "$work_dir/source-unit-check$host_suffix"
@@ -99,7 +122,8 @@ run_host "$work_dir/driver-check$host_suffix"
 run_host "$work_dir/compiler-driver-check$host_suffix"
 "$host_compiler" -Wall -Wextra -Werror "$project_root/bootstrap/driver.c" \
   "$project_root/bootstrap/host/source.c" "$project_root/bootstrap/host/compiler.c" \
-  "$work_dir/native-core.o" "$work_dir/native-host.o" "$work_dir/native-source.o" "$work_dir/native-input.o" \
+  "$work_dir/native-core.o" "$work_dir/native-host.o" "$work_dir/native-source.o" \
+  "$work_dir/native-input.o" "$work_dir/native-path.o" \
   "$work_dir/native-driver.o" "$work_dir/native-output.o" -o "$work_dir/pslcc-native-slice$host_suffix"
 check_cli_failure() {
   expected=$1
@@ -246,6 +270,8 @@ run_host "$work_dir/pslcc-native-slice$host_suffix" \
 run_host "$work_dir/pslcc-native-slice$host_suffix" \
   "$project_root/bootstrap/host/source_io.lisp" "$work_dir/native-input-native.o"
 run_host "$work_dir/pslcc-native-slice$host_suffix" \
+  "$project_root/$path_source" "$work_dir/native-path-native.o"
+run_host "$work_dir/pslcc-native-slice$host_suffix" \
   "$project_root/bootstrap/host/compiler.lisp" "$work_dir/native-driver-native.o"
 run_host "$work_dir/pslcc-native-slice$host_suffix" \
   "$project_root/bootstrap/host/output.lisp" "$work_dir/native-output-native.o"
@@ -298,6 +324,7 @@ run_host "$work_dir/layout-check$host_suffix"
   "$project_root/tests/harness_bootstrap_signatures.c" \
   "$project_root/bootstrap/host/source.c" \
   "$work_dir/native-core.o" "$work_dir/native-source.o" "$work_dir/native-input.o" \
+  "$work_dir/native-path.o" \
   -o "$work_dir/signature-check$host_suffix"
 run_host "$work_dir/signature-check$host_suffix" \
   "$project_root/bootstrap/binary.lisp" \
@@ -397,6 +424,18 @@ cc -Wall -Wextra -Werror "$project_root/tests/harness_bootstrap_foreign_calls.c"
 run_host "$work_dir/pslcc-native-slice$host_suffix" \
   "$project_root/tests/bootstrap_foreign_calls.lisp" "$work_dir/foreign-repeat.o"
 cmp "$work_dir/foreign-calls.o" "$work_dir/foreign-repeat.o"
+run_host "$work_dir/pslcc-native-slice$host_suffix" \
+  "$project_root/tests/bootstrap_import_case.lisp" "$work_dir/import-case.o"
+nm -u "$work_dir/import-case.o" | grep -q ' U MixedCaseAdd$'
+cc -Wall -Wextra -Werror "$project_root/tests/harness_bootstrap_import_case.c" \
+  "$work_dir/import-case.o" -o "$work_dir/import-case"
+"$work_dir/import-case"
+"$project_root/pslcc" -c "$project_root/tests/bootstrap_import_case.lisp" \
+  -o "$work_dir/import-case-stage0.o"
+nm -u "$work_dir/import-case-stage0.o" | grep -q ' U MixedCaseAdd$'
+cc -Wall -Wextra -Werror "$project_root/tests/harness_bootstrap_import_case.c" \
+  "$work_dir/import-case-stage0.o" -o "$work_dir/import-case-stage0"
+"$work_dir/import-case-stage0"
 for source in "$project_root"/tests/bootstrap_foreign_errors/*.lisp; do
   if run_host "$work_dir/pslcc-native-slice$host_suffix" "$source" "$work_dir/invalid-foreign.o" \
       >"$work_dir/stdout" 2>"$work_dir/stderr"; then
@@ -792,6 +831,8 @@ if test "$host_target" != x86_64-linux-gnu; then
     -o "$work_dir/native-reference-source.o"
   "$project_root/pslcc" -c "$project_root/bootstrap/host/source_io.lisp" \
     -o "$work_dir/native-reference-input.o"
+  "$project_root/pslcc" -c "$project_root/bootstrap/host/source_path_posix.lisp" \
+    -o "$work_dir/native-reference-path.o"
   "$project_root/pslcc" -c "$project_root/bootstrap/host/compiler.lisp" \
     -o "$work_dir/native-reference-driver.o"
   "$project_root/pslcc" -c "$project_root/bootstrap/host/output.lisp" \
@@ -800,6 +841,7 @@ if test "$host_target" != x86_64-linux-gnu; then
     "$project_root/bootstrap/host/source.c" "$project_root/bootstrap/host/compiler.c" \
     "$work_dir/native-reference-core.o" "$work_dir/native-reference-host.o" \
     "$work_dir/native-reference-source.o" "$work_dir/native-reference-input.o" \
+    "$work_dir/native-reference-path.o" \
     "$work_dir/native-reference-driver.o" \
     "$work_dir/native-reference-output.o" \
     -o "$work_dir/native-reference"
@@ -815,6 +857,9 @@ if test "$host_target" != x86_64-linux-gnu; then
   "$work_dir/native-reference" "$project_root/bootstrap/host/source_io.lisp" \
     "$work_dir/native-input-reference.o"
   cmp "$work_dir/native-input-native.o" "$work_dir/native-input-reference.o"
+  "$work_dir/native-reference" "$project_root/$path_source" \
+    "$work_dir/native-path-reference.o"
+  cmp "$work_dir/native-path-native.o" "$work_dir/native-path-reference.o"
   "$work_dir/native-reference" "$project_root/bootstrap/host/driver.lisp" \
     "$work_dir/native-host-reference.o"
   cmp "$work_dir/native-host-native.o" "$work_dir/native-host-reference.o"
@@ -908,6 +953,8 @@ fi
 "$project_root/pslcc" -O0 --target="$host_target" -c \
   "$project_root/bootstrap/host/source_io.lisp" -o "$work_dir/native-input-O0.o"
 "$project_root/pslcc" -O0 --target="$host_target" -c \
+  "$project_root/$path_source" -o "$work_dir/native-path-O0.o"
+"$project_root/pslcc" -O0 --target="$host_target" -c \
   "$project_root/bootstrap/host/compiler.lisp" -o "$work_dir/native-driver-O0.o"
 "$project_root/pslcc" -O0 --target="$host_target" -c \
   "$project_root/bootstrap/host/output.lisp" -o "$work_dir/native-output-O0.o"
@@ -926,7 +973,7 @@ run_host "$work_dir/driver-O0-check$host_suffix"
 "$host_compiler" -Wall -Wextra -Werror "$project_root/bootstrap/driver.c" \
   "$project_root/bootstrap/host/source.c" "$project_root/bootstrap/host/compiler.c" \
   "$work_dir/native-core-O0.o" "$work_dir/native-host-O0.o" "$work_dir/native-source-O0.o" \
-  "$work_dir/native-input-O0.o" \
+  "$work_dir/native-input-O0.o" "$work_dir/native-path-O0.o" \
   "$work_dir/native-driver-O0.o" "$work_dir/native-output-O0.o" -o "$work_dir/pslcc-native-O0$host_suffix"
 run_host "$work_dir/pslcc-native-O0$host_suffix" \
   "$project_root/bootstrap/host/compiler.lisp" "$work_dir/native-driver-native-O0.o"
@@ -940,6 +987,9 @@ cmp "$work_dir/native-source-native.o" "$work_dir/native-source-native-O0.o"
 run_host "$work_dir/pslcc-native-O0$host_suffix" \
   "$project_root/bootstrap/host/source_io.lisp" "$work_dir/native-input-native-O0.o"
 cmp "$work_dir/native-input-native.o" "$work_dir/native-input-native-O0.o"
+run_host "$work_dir/pslcc-native-O0$host_suffix" \
+  "$project_root/$path_source" "$work_dir/native-path-native-O0.o"
+cmp "$work_dir/native-path-native.o" "$work_dir/native-path-native-O0.o"
 run_host "$work_dir/pslcc-native-O0$host_suffix" \
   "$project_root/bootstrap/host/driver.lisp" "$work_dir/native-host-native-O0.o"
 cmp "$work_dir/native-host-native.o" "$work_dir/native-host-native-O0.o"
@@ -1004,7 +1054,7 @@ cmp "$work_dir/layout-queries.o" "$work_dir/layout-queries-O0.o"
 if test -n "${PSL_NATIVE_OBJECT_SNAPSHOT_DIR:-}"; then
   mkdir -p "$PSL_NATIVE_OBJECT_SNAPSHOT_DIR"
   for object in "$work_dir"/*.o; do
-    case ${object##*/} in native-core.o|native-host.o|native-source.o|native-input.o|native-driver.o|native-output.o) continue ;; esac
+    case ${object##*/} in native-core.o|native-host.o|native-source.o|native-input.o|native-path.o|native-driver.o|native-output.o) continue ;; esac
     cp "$object" "$PSL_NATIVE_OBJECT_SNAPSHOT_DIR/${object##*/}"
   done
 fi

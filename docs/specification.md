@@ -179,7 +179,9 @@ Target architecture, ABI, OS, and object format are separate descriptors.
 The compiler emits normal object symbols and relocations. An ordinary `defun`
 with `returns` and `c-export` declarations exports a function under the
 selected C ABI. `ffi:import-function` declares an imported C signature, and
-`ffi:call` marks each invocation. `ffi:source` includes a local C translation
+`ffi:call` marks each invocation. The declaration string preserves the exact C
+linker symbol; a call may repeat that string when case must be preserved.
+`ffi:source` includes a local C translation
 unit in the resulting relocatable object on a supported hosted target. If no
 source file is included, the C symbol remains an unresolved link dependency.
 `ffi:import-data` and `ffi:export-data` declare C data symbols;

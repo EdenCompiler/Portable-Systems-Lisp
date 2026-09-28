@@ -28,7 +28,7 @@
               (let ((length (deref (field-pointer node 'length)))
                     (start (wrap+ (deref (field-pointer node 'start)) 1)))
                 (if (< length 3) 0
-                    (if (= (simple_export_name_p source start (wrap- length 2)) 1)
+                    (if (= (simple_import_name_p source start (wrap- length 2)) 1)
                         (parser_new_node parser 8 start (wrap- length 2)) 0)))
               0)))))
 

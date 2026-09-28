@@ -196,7 +196,10 @@ combines it with the PSL object into one relocatable ELF64 or COFF object.
 An `ffi:import-function` may also refer
 to a C symbol supplied by a later link step, with no `ffi:source`. Imported
 functions must be invoked with `ffi:call`; ordinary Lisp functions use normal
-calls. Data symbols use `(ffi:import-data "name" type)` or
+calls. The import string is the exact linker symbol. For a symbol whose case
+cannot be written as an ordinary lowercase Lisp name, pass the same string to
+the call, as in `(ffi:call "CreateFileA" ...)`. Data symbols use
+`(ffi:import-data "name" type)` or
 `(ffi:export-data "name" type initial-value)`. Use
 `(ffi:address-of name)` to obtain a typed raw pointer, then `deref` or `store`
 for integer, floating, or pointer data. Exported scalar data accepts a typed
@@ -261,7 +264,9 @@ become a pointer. Raw pointers, including address zero, are true in `if`.
 Native C calls use `ffi:import-function` declarations and explicit `ffi:call`
 expressions, with the same integer and raw pointer source types as ordinary
 functions, including opaque `(ptr void)` arguments/results and `void` results.
-Imported names must currently be lowercase C-compatible strings.
+Imported names are case-sensitive C-compatible strings. Lowercase imports use
+the natural `(ffi:call name ...)` spelling; mixed-case imports use their exact
+string spelling at the call site.
 Declarations can appear before or after their callers. Duplicate names,
 malformed parameters, mismatched arity/types, ordinary calls to imports, and
 `ffi:call` on defined Lisp functions are rejected. Imported calls lower through
@@ -324,8 +329,9 @@ Top-level lowercase `(include "relative-file.lisp")` now splices source into
 the same unit. A native PSL parser identifies include forms and decodes their
 filenames. The hosted PSL loader resolves relative include paths, deduplicates
 canonical files, rejects active cycles, and assembles forms in source order.
-Its temporary C adapter reads files, canonicalizes paths, and renders errors. Nested paths
-are relative to the file naming them. Reader and include failures produce no
+Its PSL host units read files and canonicalize paths; a temporary C adapter
+renders errors. Nested paths are relative to the file naming them. Reader and
+include failures produce no
 object. `native_read_source_unit` returns an owned, NUL-terminated byte buffer
 and its length; the caller releases it with a free-compatible allocator. An
 empty unit returns an owned empty buffer. Errors return null and release partial

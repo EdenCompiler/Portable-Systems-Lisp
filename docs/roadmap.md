@@ -362,8 +362,8 @@ source corpus, remaining ABI/backend/object features, and Stage 1–3 remain
 open; this is progress on subgate 2, not completion of M8.
 
 Native source loading now accepts top-level includes. The PSL frontend
-recognizes include syntax and decodes Lisp string filenames; a temporary C
-adapter reads files and resolves canonical paths. The PSL hosted loader
+recognizes include syntax and decodes Lisp string filenames. Separate PSL host
+units now read files and resolve canonical paths. The PSL hosted loader
 preserves include order, deduplicates repeats, and rejects cycles. Tests compare nested/repeated include
 objects with a flattened unit and reject missing files, malformed includes,
 and reader errors. The traversal and source-buffer ownership are now in PSL.
@@ -422,8 +422,8 @@ The hosted driver now uses these primitives for allocation and initialization.
 initializers and allocation/release helpers. Declaration-only layout modules
 are shared with the core without linking its algorithms into the hosted unit.
 This unit explicitly imports `calloc`/`free`; the native core still has no
-unresolved symbols. The C adapters handle file I/O, canonical paths, and
-diagnostic rendering; argument validation and compilation flow are now in PSL; source traversal has since moved into PSL. A C harness checks allocation sizes and context links,
+unresolved symbols. The remaining C adapters handle diagnostic rendering;
+argument validation and compilation flow are now in PSL. A C harness checks allocation sizes and context links,
 rejects overflowing capacities before allocation, compiles in memory, and checks
 repeated cleanup and driver reuse. Linux linker fault injection fails each of
 its 19 allocations, including the later inline cache, and verifies that partial
@@ -436,8 +436,8 @@ while the remaining file/source services and full M8 gate stay open.
 The source loader has moved into `bootstrap/host/source_unit.lisp`, with small
 path, buffer, parser-frame, and file-ownership helpers. It imports the core's
 parser/include API through typed C ABI signatures, plus explicit string/memory
-services. The C adapter only reads files, canonicalizes names, reports platform
-path policy, and renders errors. Source inclusion still preserves order,
+services. Separate PSL units read files, canonicalize names, and report platform
+path policy; the C adapter renders errors. Source inclusion still preserves order,
 deduplicates canonical files, rejects active cycles, and releases partial state.
 An independent in-memory OS fixture checks flattened bytes, empty units,
 POSIX/Windows paths, include/reader errors, and reuse after failure. Linux
@@ -445,8 +445,8 @@ allocation injection checks every malloc/calloc/realloc failure in ordinary and
 empty loads. The real adapter retains the compiler suite's include and symlink
 checks. The generation gate now compiles and compares this PSL loader alongside
 the core and storage objects, with no external tool lookup during compilation.
-This advances source/runtime services in subgate 4; complete file/diagnostic
-services, the broader compiler ports, and Stage 1–3 remain open.
+This advances source/runtime services in subgate 4; diagnostic services, the
+broader compiler ports, and Stage 1–3 remain open.
 
 The hosted compilation controller and native entry point now live in
 `bootstrap/host/compiler.lisp`. Small helpers select failure diagnostics and
@@ -549,12 +549,12 @@ for byte. Core objects have no unresolved symbols; rejected-source diagnostics
 match exactly across generations. Signature/layout tables no longer have
 the old 256-entry ceiling, and the ELF writer permits the complete core.
 Each generation also compiles its hosted storage, source loader, source input,
-and driver units;
+path service, driver, and output units;
 successive hosted objects match byte for byte. The same temporary C
-path/diagnostic adapter is linked to each generation.
+diagnostic adapter is linked to each generation.
 This is a core reproduction gate; the broader Stage 0 corpus, the remaining
 optimization for broader types and managed/indirect effects, remaining target/ABI/object features, and the remaining PSL
-CLI/target selection and primitive file/path/error services are still open. Full Stage 1, Stage 2, and Stage 3 compiler builds remain open,
+CLI/target selection and diagnostic services are still open. Full Stage 1, Stage 2, and Stage 3 compiler builds remain open,
 as does the M8 gate.
 The scalar source path accepts lowercase hyphenated internal function and local
 names; C exports still require C-compatible names. Its deterministic object
@@ -617,7 +617,7 @@ source processing. There is no assembler, LLVM, or backend library dependency.
 `sh tests/bootstrap_native_aarch64.sh` checks O0/O1 behavior against Stage 0
 with C-built programs under QEMU, deterministic output, ELF headers/relocations,
 shared-library calls, three successive AArch64 native subset generations of all
-six compiler units, fixture artifact comparisons, and unchanged x86-64 output
+seven compiler units, fixture artifact comparisons, and unchanged x86-64 output
 from an AArch64 compiler host. An eleven-argument C↔PSL test checks narrow values and pointers beyond the
 eight register arguments, callback calls, and evaluation order. It exposed and
 fixed Stage 0 normalization of narrow incoming stack arguments; large stack
@@ -650,7 +650,7 @@ these changes.
 `make test-native-riscv64` runs the shared native ELF gate at O0/O1 against
 Stage 0 behavior, C-built register/stack/pointer tests, raw unsigned-32 ABI and
 unaligned-memory checks, ELF/relocation inspection, static/shared libraries,
-three QEMU native subset generations of all six compiler units, and artifact
+three QEMU native subset generations of all seven compiler units, and artifact
 comparisons on RISC-V and x86-64 output. `make test-native-aarch64` uses the same
 runner; each target has a small wrapper. Native COFF, broader ABI/data/runtime
 features, general source packages/macros, remaining host services, and complete
@@ -690,9 +690,9 @@ at both optimization levels against Stage 0 using C programs, including
 eleven-argument callbacks and source-order side effects. It checks deterministic
 objects, symbol and relocation inspection, linked `RtlVirtualUnwind`, static
 archives, shared DLLs, public writer mutation rejection, and three successive
-Windows native subset generations of all six compiler units. Each generation
+Windows native subset generations of all seven compiler units. Each generation
 reproduces Windows fixture and x86-64 Linux objects. The target compiler still
-uses temporary C path/diagnostic adapters, and full Stage 1–3 plus broader
+uses temporary C diagnostic adapters, and full Stage 1–3 plus broader
 language/runtime/ABI/data support remain open M8 work.
 
 ### M8 hosted object output port
@@ -701,8 +701,8 @@ The native compiler now compiles `bootstrap/host/output.lisp` as a separate PSL
 unit. It owns opening, writing, closing, and error reporting for object output
 through explicit hosted C file imports. `bootstrap/host/compiler.c` now only
 renders selected diagnostics. The output unit is included in native generation
-comparisons on Linux, Windows, AArch64, and RISC-V64. Path canonicalization,
-diagnostic rendering, the C entry trampoline, and broader
+comparisons on Linux, Windows, AArch64, and RISC-V64. Diagnostic rendering, the
+C entry trampoline, and broader
 source/runtime support remain to be ported before full Stage 1–3.
 
 ### M8 hosted source input port
@@ -712,7 +712,20 @@ checked buffer growth, NUL termination, and partial cleanup. The unit imports
 only hosted C stream and allocation primitives; `bootstrap/host/source.c` no
 longer reads files. An independent harness checks empty, binary, boundary, and
 multi-buffer inputs, missing files, and every allocation failure. Linux,
-Windows, AArch64, and RISC-V64 native gates compile this sixth PSL unit through
-three generations and compare its artifacts. Canonical paths, platform path
-policy, diagnostic rendering, broader source/runtime support, and the complete
+Windows, AArch64, and RISC-V64 native gates compile this PSL unit through three
+generations and compare its artifacts. Diagnostic rendering, broader
+source/runtime support, and the complete
 Stage 1–3 corpus remain open M8 work.
+
+### M8 hosted canonical path port
+
+Selected PSL units now implement canonical file identity and platform path
+policy. POSIX hosts import `realpath`; Windows imports `_fullpath` and resolves
+the final path through a file handle, preserving include deduplication and cycle
+detection across aliases. An independent cross-host harness checks aliases,
+missing files, and the reported path policy. This also ports exact mixed-case C
+imports: declarations preserve the linker spelling, and `ffi:call` accepts an
+exact string name. The native ELF and COFF writers emit that spelling, verified
+with linked C and Windows API calls. All target gates compile this seventh PSL
+unit through three generations. Diagnostic rendering, broader source/runtime
+support, and the complete Stage 1–3 corpus remain open M8 work.

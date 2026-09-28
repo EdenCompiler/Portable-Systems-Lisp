@@ -4,8 +4,8 @@
 includes separate source modules in one translation unit so their functions
 use ordinary Lisp calls. Stage 0 builds the initial core. The resulting native
 compiler can now compile every module included by `native-core.lisp`, including
-its frontend, IR verifiers, x86-64, AArch64, and RISC-V64 encoders, and ELF writer. A temporary C
-adapter still supplies file I/O, canonical paths, and diagnostic rendering.
+its frontend, IR verifiers, x86-64, AArch64, and RISC-V64 encoders, and ELF writer. Temporary C
+adapters still supply diagnostic rendering.
 Allocation, initialization, cleanup, source traversal, argument validation,
 compilation flow, and diagnostic selection live in PSL, with
 explicit libc imports; this is
@@ -39,9 +39,9 @@ The native modules currently implement:
   `frontend/source.lisp`. `host/source_unit.lisp` owns relative path resolution,
   once-per-unit inclusion, active-cycle checks, and ordered source assembly.
   `host/source_io.lisp` reads files through explicit hosted stream imports.
-  `host/source.c` provides canonical names, platform path policy, and error
-  rendering. Missing files, malformed includes, and reader errors prevent
-  object output.
+  The selected `host/source_path_*.lisp` unit obtains canonical names and host
+  path policy from POSIX or Windows APIs. `host/source.c` renders source errors.
+  Missing files, malformed includes, and reader errors prevent object output.
 - C-compatible structure layouts in caller-owned tables. The native source
   pass accepts `defcstruct`, computes field offsets, size, and alignment for
   the current 64-bit target slice, and resolves scalar, pointer, and earlier
@@ -73,9 +73,9 @@ The native modules currently implement:
   argument and result must match its declared source type; arithmetic operands
   must have equal types. `shr64` remains specific to `u64`.
   C calls use `(ffi:import-function "name" ((arg TYPE) ...) -> TYPE)` and
-  `(ffi:call name ...)`. Imports currently accept lowercase C-compatible
-  names and integer/pointer signatures, including `(ptr void)` and `void`
-  results. Ordinary calls cannot invoke an
+  `(ffi:call name ...)`. Imports accept case-sensitive C-compatible names and
+  integer/pointer signatures, including `(ptr void)` and `void`. A mixed-case
+  linker name is repeated as a string at its call site. Ordinary calls cannot invoke an
   import, and `ffi:call` cannot invoke an ordinary Lisp function. The native
   frontend checks duplicate names, parameter shapes, call arity, and source
   types before code generation. C harnesses verify narrow returns, pointers,
@@ -121,7 +121,7 @@ The native modules currently implement:
   Stage 0 also cross-compiles the combined native unit to AArch64 and RISC-V64
   objects; the test script supports execution on those hosts when their cross
   compilers and runners are available. `driver.c` and `host/source.c` supply
-  file I/O, canonical paths, and diagnostic rendering. The C main forwards
+  the entry trampoline and diagnostic rendering. The C main forwards
   argc/argv to the compiled PSL driver. Hosted memory and traversal are already compiled PSL modules.
 
 `driver.lisp` now owns the compilation-unit pipeline, exposed as
@@ -145,7 +145,7 @@ Only the failing phase's location is valid. Arenas may contain partial work
 after failure; the host writes the object file only after successful completion.
 The PSL compiler driver maps these phases to source/function locations and
 selects the exit status. The C adapter renders its selected message and provides
-file/path services. The separately compiled PSL storage driver owns arenas.
+diagnostic output. The separately compiled PSL storage driver owns arenas.
 An independent C API caller compiles a unit from memory, checks declaration,
 reader, signature, body, and output-capacity failures, and links/runs the emitted
 object with a forward Lisp call and a C import. It runs with each core generation.
@@ -393,11 +393,11 @@ passes are shared.
 
 The output gate runs existing independent C harnesses under QEMU at both
 optimization levels, compares behavior against Stage 0, inspects ELF/relocations,
-links a shared library, and rebuilds all six PSL compiler units across three
+links a shared library, and rebuilds all seven PSL compiler units across three
 AArch64 native subset generations. It compares those units and fixture objects,
 and confirms an AArch64 compiler host still produces identical x86-64 output.
-The native core has no undefined runtime imports. The same temporary C OS
-adapters remain linked at each generation. Floating-point/aggregate ABIs, data
+The native core has no undefined runtime imports. The same temporary C
+diagnostic adapters remain linked at each generation. Floating-point/aggregate ABIs, data
 symbols, general packages/macros, and the complete
 Stage 0 corpus remain open parts of M8.
 
@@ -448,7 +448,7 @@ make test-native-riscv64
 `tests/bootstrap_native_elf.sh` owns the shared AArch64/RISC-V native output
 gate; the target scripts select toolchains/runners. It checks O0/O1 C behavior
 against Stage 0, deterministic ELF objects, static/shared library calls, and
-three native subset generations of all six PSL compiler units under QEMU.
+three native subset generations of all seven PSL compiler units under QEMU.
 RISC-V-specific C boundary checks inspect raw unsigned-32 register/stack/return
 bits and unaligned memory, and generation outputs reproduce those fixtures.
 The ABI follows the [RISC-V psABI](https://riscv-non-isa.github.io/riscv-elf-psabi-doc/).
@@ -479,12 +479,12 @@ make test-native-windows
 The Windows gate runs independent C harnesses at `-O0` and `-O1`, compares
 behavior with Stage 0 under Wine, inspects COFF relocations and unwind data,
 links static and shared libraries, checks negative writer mutations and
-extended relocation counts, and reproduces all six compiler modules across
+extended relocation counts, and reproduces all seven compiler modules across
 three Windows native subset generations. `make test-native-win64-frame` checks
 large-frame probes and virtual unwinding at partial prologues.
 
 M8 remains open: general source packages/macros, broader managed/runtime and
-ABI/data ports, the remaining OS adapters, and full Stage 1–3
+ABI/data ports, diagnostic rendering, and full Stage 1–3
 source/object/interop corpus comparisons are still required.
 
 ## Hosted object output
@@ -495,8 +495,7 @@ its exported `native_host_write_object`; the unit imports `fopen`, `fwrite`,
 mode string in owned storage, writes the exact object bytes, closes the stream,
 and returns failures to the PSL driver. This hosted service is separate from
 machine instruction encoding and does not affect freestanding output.
-`host/compiler.c` remains for diagnostic rendering; `host/source.c` still
-handles canonical paths, platform path policy, and source diagnostics.
+`host/compiler.c` and `host/source.c` remain for diagnostic rendering.
 
 ## Hosted source input
 
@@ -506,4 +505,14 @@ imports, grows owned storage with checked arithmetic, appends the parser's NUL
 sentinel, and releases every partial allocation on failure. The independent
 input harness covers empty, binary, 4095-byte boundary, and multi-buffer files,
 missing paths, and each allocation failure on Linux. All native generation
-gates compile and compare this sixth PSL unit.
+gates compile and compare this PSL unit.
+
+## Hosted canonical paths
+
+`host/source_path_posix.lisp` imports `realpath`; the Windows unit imports
+`_fullpath` plus handle-based final-path APIs so aliases share one source-unit
+identity. Both export the same canonicalization and path-policy interface to the
+loader. A cross-host harness checks lexical aliases, missing files, and platform
+policy. Exact mixed-case Windows imports also exercise the native frontend's
+case-sensitive C symbol handling. All generation gates compile and compare the
+selected seventh PSL unit.

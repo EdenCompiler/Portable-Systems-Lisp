@@ -10,8 +10,8 @@
   ((parser (ptr psl_parser)) (bytes (ptr u8)) (root usize)
    (output (ptr u8)) (capacity usize)) -> c-int)
 
-;; File input is another PSL unit. The OS adapter canonicalizes paths, exposes
-;; platform path policy, and renders source diagnostics.
+;; File input and host-specific path handling are separate PSL units. The
+;; remaining C adapter renders source diagnostics.
 (ffi:import-function "native_source_read_file"
   ((path (ptr u8)) (length (ptr usize))) -> (ptr u8))
 (ffi:import-function "native_source_canonical_path" ((path (ptr u8))) -> (ptr u8))

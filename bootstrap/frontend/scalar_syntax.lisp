@@ -139,6 +139,12 @@
       (if (< byte 123) 1 0)
       0))
 
+(defun uppercase_letter_p (byte)
+  (declare (type u8 byte) (returns c-int))
+  (if (< 64 byte)
+      (if (< byte 91) 1 0)
+      0))
+
 (defun c_name_byte_p (byte first)
   (declare (type u8 byte first) (returns c-int))
   (if (= (lowercase_letter_p byte) 1)
@@ -172,6 +178,30 @@
       (if (< 255 length)
           0
           (simple_export_name_from source start length 0))))
+
+(defun c_import_name_byte_p (byte first)
+  (declare (type u8 byte first) (returns c-int))
+  (if (= (uppercase_letter_p byte) 1) 1
+      (c_name_byte_p byte first)))
+
+(defun simple_import_name_from (source start length index)
+  (declare (type (ptr u8) source)
+           (type usize start length index)
+           (returns c-int))
+  (if (= index length) 1
+      (let ((byte (deref (pointer+ source
+                                  (wrap-cast isize (wrap+ start index))))))
+        (if (= (c_import_name_byte_p byte (if (= index 0) 1 0)) 1)
+            (simple_import_name_from source start length (wrap+ index 1))
+            0))))
+
+(defun simple_import_name_p (source start length)
+  (declare (type (ptr u8) source)
+           (type usize start length)
+           (returns c-int))
+  (if (= length 0) 0
+      (if (< 255 length) 0
+          (simple_import_name_from source start length 0))))
 
 (defun source_name_byte_p (byte first)
   (declare (type u8 byte first) (returns c-int))

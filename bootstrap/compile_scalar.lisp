@@ -49,7 +49,8 @@
                              (deref (field-pointer signature 'name)))))
       (if (= (deref (field-pointer node 'kind)) 8)
           (if (= (scalar_function_name_p
-                  source node (deref (field-pointer signature 'exported))) 1)
+                  source node (deref (field-pointer signature 'exported))
+                  (deref (field-pointer signature 'imported))) 1)
               (progn
                 (store (field-pointer function 'name)
                        (pointer+ source
@@ -75,18 +76,18 @@
               0)
           0))))
 
-(defun scalar_function_name_p (source node exported)
+(defun scalar_function_name_p (source node exported imported)
   (declare (type (ptr u8) source)
            (type (ptr psl_ast_node) node)
-           (type u8 exported)
+           (type u8 exported imported)
            (returns c-int))
   (let ((start (deref (field-pointer node 'start)))
         (length (deref (field-pointer node 'length))))
-    (if (= (simple_source_name_p source start length) 0)
-        0
-        (if (= exported 1)
-            (simple_export_name_p source start length)
-            1))))
+    (if (= imported 1) (simple_import_name_p source start length)
+        (if (= (simple_source_name_p source start length) 0) 0
+            (if (= exported 1)
+                (simple_export_name_p source start length)
+                1)))))
 
 (defun predeclare_scalar_form (context signature function)
   (declare (type (ptr native_compile_context) context)

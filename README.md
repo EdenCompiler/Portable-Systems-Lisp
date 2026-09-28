@@ -52,10 +52,10 @@ make test
 ```
 
 `make` compiles the PSL native core, hosted storage, source loader, source input,
-driver, and output writer into `build/native-core.o`, `build/native-host.o`,
-`build/native-source.o`, `build/native-input.o`, `build/native-driver.o`, and
-`build/native-output.o`, then links the remaining temporary path and diagnostic
-adapters.
+POSIX path service, driver, and output writer into `build/native-core.o`,
+`build/native-host.o`, `build/native-source.o`, `build/native-input.o`,
+`build/native-path.o`, `build/native-driver.o`, and `build/native-output.o`, then
+links the remaining temporary diagnostic adapters.
 `build/pslcc-native [-O0|-O1] [--target=TARGET] SOURCE OUTPUT.o` accepts the
 [documented bootstrap subset](bootstrap/README.md); it is not yet the complete
 Stage 0 compiler. `make example` uses Stage 0 to build and run a pure Lisp

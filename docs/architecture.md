@@ -75,7 +75,9 @@ bootstrap/
     source_frames.lisp  per-file scanner/parser state and cleanup
     source_imports.lisp, source_types.lisp  typed host/core ABI and loader records
     source_io.lisp      hosted incremental file input through C stream primitives
-    source.c, source.h temporary canonical paths, path policy, and error rendering
+    source_path_posix.lisp, source_path_windows.lisp
+                       canonical file identity and host path policy
+    source.c, source.h temporary source diagnostic rendering
   frontend/
     reader.lisp, parser.lisp, atoms.lisp, source.lisp
                        byte scanning, syntax, integer atoms, and include decoding
@@ -274,10 +276,11 @@ foreign imports are `calloc` and `free`; these stay out of `native-core.lisp`.
 The PSL hosted compiler driver selects source/output handling, compilation
 control, cleanup, and failure locations. Its entry point receives argc/argv
 from a C `main` trampoline. A PSL input unit reads source files through imported
-C stream primitives, while temporary C adapters canonicalize paths and render
-the driver's selected messages. A separate PSL output unit writes object files
-through imported C file primitives. The adapters contain no compilation control
-or phase/location selection.
+C stream primitives, and selected PSL path units canonicalize file identities
+through POSIX or Windows host APIs. Temporary C adapters render the driver's
+selected messages. A separate PSL output unit writes object files through
+imported C file primitives. The adapters contain no compilation control or
+phase/location selection.
 This permits forward calls and recursion. It is a
 restricted source-to-object proof, not Stage 1: general symbol interpretation,
 macro expansion, full semantic analysis, remaining generic optimization and
@@ -344,15 +347,15 @@ storage unit owns/reclaims the extra cache; the native core has no new imports.
 Managed/indirect effects, remaining ABI/backend features, and the
 full Stage 1–3 comparison remain pending M8 work. The x86-64 Linux
 `bootstrap_self_core.sh` gate now compiles the complete native core through
-three native generations and runs the full native subset suite on each. Both
-the core, hosted storage, source loader, and compiler driver objects match byte
-for byte. A C harness compares
+three native generations and runs the full native subset suite on each. The
+core, hosted storage, source loader, input, path, compiler driver, and output
+objects match byte for byte. A C harness compares
 arena sizes and context links, injects failure at every allocation on Linux,
 and checks overflow rejection, idempotent cleanup, and reuse. A separate mock
 provider checks driver statuses, every diagnostic phase/location, valid/invalid
 argument counts, state-allocation failure, and cleanup after all outcomes.
-Their C entry trampoline and file/path/error adapters are shared
-temporary host code, so this does not establish full self hosting.
+Their C entry trampoline and diagnostic adapters are shared temporary host
+code, so this does not establish full self hosting.
 
 The native output target is selected in the compilation context. Backend
 `dispatch.lisp` chooses x86-64 SysV, Microsoft x64, AArch64 AAPCS64, or

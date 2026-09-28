@@ -75,7 +75,8 @@
   (let ((parser (deref (field-pointer context 'parser))))
     (let ((name (ast_next parser (ast_first parser body))))
       (if (= name 0) 0
-          (let ((index (prior_function_index context name (deref (field-pointer context 'prior_count)))))
+          (let ((index (prior_foreign_function_index
+                        context name (deref (field-pointer context 'prior_count)))))
             (if (= index 0) 0
                 (let ((signature (native_signature_at (deref (field-pointer context 'signatures))
                                                       (wrap- index 1))))

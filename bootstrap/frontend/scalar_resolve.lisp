@@ -89,6 +89,34 @@
               0)
           0))))
 
+(defun ast_string_matches_function_p (parser source name function)
+  (declare (type (ptr psl_parser) parser)
+           (type (ptr u8) source)
+           (type usize name)
+           (type (ptr native_function) function)
+           (returns c-int))
+  (let ((node (parser_node parser name)))
+    (let ((length (deref (field-pointer node 'length))))
+      (if (= (deref (field-pointer node 'kind)) 7)
+          (if (< length 2) 0
+              (let ((content_length (wrap- length 2)))
+                (if (= content_length (deref (field-pointer function 'name_length)))
+                    (same_name_bytes_p
+                     (pointer+ source
+                       (wrap-cast isize (wrap+ (deref (field-pointer node 'start)) 1)))
+                     (deref (field-pointer function 'name)) content_length)
+                    0)))
+          0))))
+
+(defun ast_foreign_name_matches_function_p (parser source name function)
+  (declare (type (ptr psl_parser) parser)
+           (type (ptr u8) source)
+           (type usize name)
+           (type (ptr native_function) function)
+           (returns c-int))
+  (if (= (ast_name_matches_function_p parser source name function) 1) 1
+      (ast_string_matches_function_p parser source name function)))
+
 (defun prior_function_index (context name index)
   (declare (type (ptr native_compile_context) context)
            (type usize name index)
@@ -103,6 +131,20 @@
                 (native_function_at functions (wrap- index 1))) 1)
             index
             (prior_function_index context name (wrap- index 1))))))
+
+(defun prior_foreign_function_index (context name index)
+  (declare (type (ptr native_compile_context) context)
+           (type usize name index)
+           (returns usize))
+  (if (= index 0) 0
+      (let ((parser (deref (field-pointer context 'parser)))
+            (source (deref (field-pointer context 'source)))
+            (functions (deref (field-pointer context 'functions))))
+        (if (= (ast_foreign_name_matches_function_p
+                parser source name
+                (native_function_at functions (wrap- index 1))) 1)
+            index
+            (prior_foreign_function_index context name (wrap- index 1))))))
 
 (defun call_shape_from_p (parser argument remaining)
   (declare (type (ptr psl_parser) parser)
