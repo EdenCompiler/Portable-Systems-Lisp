@@ -63,6 +63,15 @@ program. Use `make help` for native generation checks, cross-target tests,
 cleanup, and build variables. For example, `make PSLFLAGS=-O0` selects
 unoptimized compilation on a fresh build; `make clean` removes generated files.
 
+To compile one source file with Stage 0 through Make, provide `SOURCE`; the
+output defaults to `build/program.o`:
+
+```sh
+make compile SOURCE=examples/basic/standalone.lisp
+make compile SOURCE=program.lisp OUTPUT=build/program.o \
+  TARGET=x86_64-linux-gnu PROFILE=hosted
+```
+
 The native subset compiler emits x86-64 Linux ELF by default. Select
 `--target=x86_64-windows-gnu` for Microsoft x64 COFF,
 `--target=aarch64-linux-gnu` for AAPCS64 ELF, or

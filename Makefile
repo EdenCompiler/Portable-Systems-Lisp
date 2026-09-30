@@ -4,6 +4,10 @@
 PSLCC ?= ./pslcc
 PSLFLAGS ?= -O1
 BUILD_DIR ?= build
+SOURCE ?=
+OUTPUT ?= $(BUILD_DIR)/program.o
+TARGET ?= x86_64-linux-gnu
+PROFILE ?= hosted
 CFLAGS ?= -O2 -Wall -Wextra -Werror
 
 BOOTSTRAP_SOURCES := $(shell find bootstrap -name '*.lisp')
@@ -20,15 +24,25 @@ NATIVE_OBJECTS := $(NATIVE_CORE) $(NATIVE_HOST) $(NATIVE_SOURCE) $(NATIVE_INPUT)
 HOST_SOURCES := bootstrap/driver.c bootstrap/host/source.c bootstrap/host/compiler.c
 HOST_HEADERS := bootstrap/native_api.h bootstrap/host/source.h bootstrap/host/compiler.h
 
-.PHONY: all native stage0 example test test-native test-static-data test-self-core \
+.PHONY: all compiler native stage0 compile example test test-native test-static-data test-self-core \
         test-windows test-native-win64-frame test-native-windows test-aarch64 test-native-aarch64 test-native-riscv64 test-riscv64 clean help
 
-all: native
-native: $(NATIVE_COMPILER)
+all: compiler
+compiler native: $(NATIVE_COMPILER)
 
 # Stage 0 runs directly under SBCL; it has no separate build artifact.
 stage0:
 	$(PSLCC) --help
+
+# Compile one PSL source file into a relocatable object. Example:
+# make compile SOURCE=examples/basic/standalone.lisp OUTPUT=build/standalone.o
+compile: | $(BUILD_DIR)
+	@test -n "$(SOURCE)" || { \
+		echo 'SOURCE is required (for example: make compile SOURCE=program.lisp)'; \
+		exit 2; \
+	}
+	$(PSLCC) $(PSLFLAGS) --target="$(TARGET)" --profile="$(PROFILE)" \
+		-c "$(SOURCE)" -o "$(OUTPUT)"
 
 $(BUILD_DIR):
 	mkdir -p "$@"
@@ -106,7 +120,9 @@ clean:
 
 help:
 	@echo 'make                   Build the native compiler subset (SBCL + C compiler)'
+	@echo 'make compiler          Build build/pslcc-native'
 	@echo 'make stage0            Check the SBCL compiler launcher'
+	@echo 'make compile SOURCE=FILE [OUTPUT=FILE] Compile one PSL file to an object'
 	@echo 'make example           Compile and run the pure Lisp arithmetic example'
 	@echo 'make test              Run the Linux smoke suite'
 	@echo 'make test-native       Check native compilation and C interoperability'
@@ -120,4 +136,5 @@ help:
 	@echo 'make test-native-riscv64 Check native RISC-V output and generations with QEMU'
 	@echo 'make test-riscv64      Run RISC-V checks (cross toolchains and QEMU required)'
 	@echo 'make clean             Remove generated Makefile artifacts'
-	@echo 'Variables: PSLCC, PSLFLAGS, BUILD_DIR, CC, CPPFLAGS, CFLAGS, LDFLAGS, LDLIBS'
+	@echo 'Variables: PSLCC, PSLFLAGS, BUILD_DIR, SOURCE, OUTPUT, TARGET, PROFILE'
+	@echo '           CC, CPPFLAGS, CFLAGS, LDFLAGS, LDLIBS'
