@@ -1,11 +1,28 @@
 (include "coff64_calls.lisp")
 
+(defun coff_compiled_alignment_flag (alignment)
+  (declare (type usize alignment) (returns u32))
+  (cond
+    ((= alignment 1) #x00100000)
+    ((= alignment 2) #x00200000)
+    ((= alignment 4) #x00300000)
+    ((= alignment 8) #x00400000)
+    ((= alignment 16) #x00500000)
+    ((= alignment 32) #x00600000)
+    ((= alignment 64) #x00700000)
+    ((= alignment 128) #x00800000)
+    ((= alignment 256) #x00900000)
+    ((= alignment 512) #x00a00000)
+    ((= alignment 1024) #x00b00000)
+    ((= alignment 2048) #x00c00000)
+    (t #x00d00000)))
+
 (defun coff_data_long_names_from (imports index count)
   (declare (type (ptr native_data_import) imports)
            (type usize index count) (returns usize))
   (if (= index count) 0
       (let ((entry (pointer+ imports (wrap-cast isize index))))
-        (wrap+ (if (= (deref (field-pointer entry 'referenced)) 1)
+        (wrap+ (if (= (native_data_emitted_p entry) 1)
                    (if (< 8 (deref (field-pointer entry 'name_length)))
                        (wrap+ (deref (field-pointer entry 'name_length)) 1)
                        (wrap-cast usize 0))
@@ -83,10 +100,13 @@
            (type usize index count string_offset) (returns usize))
   (if (= index count) string_offset
       (let ((entry (pointer+ imports (wrap-cast isize index))))
-        (if (= (deref (field-pointer entry 'referenced)) 1)
+        (if (= (native_data_emitted_p entry) 1)
             (progn
               (coff_emit_data_symbol_name buffer entry string_offset)
-              (coff_emit_symbol_record buffer 0 0 0 2)
+              (if (= (deref (field-pointer entry 'defined)) 1)
+                  (coff_emit_symbol_record
+                   buffer (defined_data_offset imports index) 2 0 2)
+                  (coff_emit_symbol_record buffer 0 0 0 2))
               (coff_emit_data_symbols_from
                buffer imports (wrap+ index 1) count
                (if (< 8 (deref (field-pointer entry 'name_length)))
@@ -102,7 +122,7 @@
            (type usize index count) (returns c-int))
   (if (= index count) 1
       (let ((entry (pointer+ imports (wrap-cast isize index))))
-        (if (= (deref (field-pointer entry 'referenced)) 1)
+        (if (= (native_data_emitted_p entry) 1)
             (if (< 8 (deref (field-pointer entry 'name_length)))
                 (progn
                   (emit_source_bytes buffer (deref (field-pointer entry 'name))
@@ -129,6 +149,100 @@
   (coff_emit_long_names_from buffer functions 0 function_count)
   (coff_emit_data_long_names buffer imports 0 import_count))
 
+(defun coff_compiled_data_start (code_size imports import_count)
+  (declare (type usize code_size import_count)
+           (type (ptr native_data_import) imports) (returns usize))
+  (compiled_data_align_up (wrap+ 180 code_size)
+                          (defined_data_max_alignment imports import_count)))
+
+(defun coff_compiled_pdata_offset (code_size imports import_count)
+  (declare (type usize code_size import_count)
+           (type (ptr native_data_import) imports) (returns usize))
+  (coff_align4
+   (wrap+ (coff_compiled_data_start code_size imports import_count)
+          (defined_data_size imports import_count))))
+
+(defun coff_compiled_xdata_offset (code_size definitions imports import_count)
+  (declare (type usize code_size definitions import_count)
+           (type (ptr native_data_import) imports) (returns usize))
+  (coff_align4
+   (wrap+ (coff_compiled_pdata_offset code_size imports import_count)
+          (wrap* 12 definitions))))
+
+(defun coff_compiled_text_relocation_offset
+    (code_size definitions xdata imports import_count)
+  (declare (type usize code_size definitions xdata import_count)
+           (type (ptr native_data_import) imports) (returns usize))
+  (coff_align4
+   (wrap+ (coff_compiled_xdata_offset
+           code_size definitions imports import_count) xdata)))
+
+(defun coff_compiled_pdata_relocation_offset
+    (code_size definitions xdata relocations imports import_count)
+  (declare (type usize code_size definitions xdata relocations import_count)
+           (type (ptr native_data_import) imports) (returns usize))
+  (coff_align4
+   (wrap+ (coff_compiled_text_relocation_offset
+           code_size definitions xdata imports import_count)
+          (wrap* 10 (coff_relocation_records relocations)))))
+
+(defun coff_compiled_symbol_offset
+    (code_size definitions xdata relocations imports import_count)
+  (declare (type usize code_size definitions xdata relocations import_count)
+           (type (ptr native_data_import) imports) (returns usize))
+  (coff_align4
+   (wrap+ (coff_compiled_pdata_relocation_offset
+           code_size definitions xdata relocations imports import_count)
+          (wrap* 10 (coff_relocation_records (wrap* 3 definitions))))))
+
+(defun coff_compiled_object_bytes
+    (code_size definitions xdata relocations symbols names imports import_count)
+  (declare (type usize code_size definitions xdata relocations symbols names
+                       import_count)
+           (type (ptr native_data_import) imports) (returns usize))
+  (wrap+ (coff_compiled_symbol_offset
+          code_size definitions xdata relocations imports import_count)
+         (wrap+ (wrap* 18 (wrap+ 4 symbols)) (wrap+ 4 names))))
+
+(defun coff_emit_header_with_data
+    (buffer code_size definitions xdata relocations symbols imports import_count)
+  (declare (type (ptr byte_buffer) buffer)
+           (type usize code_size definitions xdata relocations symbols import_count)
+           (type (ptr native_data_import) imports) (returns c-int))
+  (let ((data_start (coff_compiled_data_start code_size imports import_count))
+        (data_size (defined_data_size imports import_count)))
+    (emit_integer buffer #x8664 2)
+    (emit_integer buffer 4 2)
+    (emit_integer buffer 0 4)
+    (emit_integer
+     buffer (wrap-cast u64
+                       (coff_compiled_symbol_offset
+                        code_size definitions xdata relocations
+                        imports import_count)) 4)
+    (emit_integer buffer (wrap-cast u64 (wrap+ 4 symbols)) 4)
+    (emit_integer buffer 0 4)
+    (coff_emit_section_header
+     buffer #x747865742e code_size 180
+     (if (= relocations 0) (wrap-cast usize 0)
+         (coff_compiled_text_relocation_offset
+          code_size definitions xdata imports import_count))
+     relocations #x60500020)
+    (coff_emit_section_header
+     buffer #x617461642e data_size data_start 0 0
+     (wrap+ #xc0000040
+            (coff_compiled_alignment_flag
+             (defined_data_max_alignment imports import_count))))
+    (coff_emit_section_header
+     buffer #x61746164702e (wrap* 12 definitions)
+     (coff_compiled_pdata_offset code_size imports import_count)
+     (coff_compiled_pdata_relocation_offset
+      code_size definitions xdata relocations imports import_count)
+     (wrap* 3 definitions) #x40300040)
+    (coff_emit_section_header
+     buffer #x61746164782e xdata
+     (coff_compiled_xdata_offset code_size definitions imports import_count)
+     0 0 #x40300040)))
+
 (defun coff_emit_object_with_data (code code_size functions function_count calls
                                    imports import_count data_fixups buffer)
   (declare (type (ptr u8) code) (type (ptr native_function) functions)
@@ -148,31 +262,45 @@
                 (deref (field-pointer data_fixups 'count)))))
     (let ((symbols (wrap+ function_symbols data_symbols))
           (names (wrap+ function_names data_names)))
-      (coff_emit_header buffer code_size definitions xdata relocations symbols)
+      (coff_emit_header_with_data buffer code_size definitions xdata relocations
+                                  symbols imports import_count)
       (emit_source_bytes buffer code code_size)
-      (emit_zero_until buffer (coff_pdata_offset code_size))
+      (emit_zero_until
+       buffer (coff_compiled_data_start code_size imports import_count))
+      (emit_defined_data_from
+       buffer imports 0 import_count
+       (coff_compiled_data_start code_size imports import_count))
+      (emit_zero_until
+       buffer (coff_compiled_pdata_offset code_size imports import_count))
       (coff_emit_pdata_from buffer functions 0 function_count 0)
-      (emit_zero_until buffer (coff_xdata_offset code_size definitions))
+      (emit_zero_until buffer
+                       (coff_compiled_xdata_offset
+                        code_size definitions imports import_count))
       (coff_emit_xdata_from buffer functions 0 function_count)
       (emit_zero_until buffer
-                       (coff_text_relocation_offset code_size definitions xdata))
+                       (coff_compiled_text_relocation_offset
+                        code_size definitions xdata imports import_count))
       (coff_emit_overflow_relocation buffer relocations)
       (coff_emit_text_relocations_range buffer functions calls 0
                                         (deref (field-pointer calls 'count)))
       (coff_emit_data_relocations buffer functions function_count imports
                                   data_fixups 0)
       (emit_zero_until buffer
-                       (coff_pdata_relocation_offset code_size definitions
-                                                     xdata relocations))
+                       (coff_compiled_pdata_relocation_offset
+                        code_size definitions xdata relocations
+                        imports import_count))
       (coff_emit_overflow_relocation buffer (wrap* 3 definitions))
       (coff_emit_pdata_relocations_from buffer functions 0 function_count 0)
       (emit_zero_until buffer
-                       (coff_symbol_offset code_size definitions xdata relocations))
+                       (coff_compiled_symbol_offset
+                        code_size definitions xdata relocations
+                        imports import_count))
       (coff_emit_symbols_with_data buffer functions function_count imports
                                    import_count function_names)
       (if (= (deref (field-pointer buffer 'length))
-             (coff_object_bytes code_size definitions xdata relocations
-                                symbols names)) 1 0))))
+             (coff_compiled_object_bytes
+              code_size definitions xdata relocations symbols names
+              imports import_count)) 1 0))))
 
 (defun write_coff64_calls_data (code code_size functions function_count calls
                                 imports import_count data_fixups buffer)
@@ -209,8 +337,9 @@
                                          functions 0 function_count)
                                         (coff_data_long_names_from
                                          imports 0 import_count))))
-                            (let ((size (coff_object_bytes code_size definitions xdata
-                                                          relocations symbols names)))
+                            (let ((size (coff_compiled_object_bytes
+                                         code_size definitions xdata relocations
+                                         symbols names imports import_count)))
                               (if (< #xffffffff size) 0
                                   (if (= (room_for buffer size) 0) 0
                                       (coff_emit_object_with_data

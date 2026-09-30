@@ -23,7 +23,7 @@ is updated. Dates and staffing are deliberately unspecified.
 | x86-64 none / ELF64 | M7 executable subset | Runtime-free static image with an explicit entry or generated `linux-exit` startup, linker script, and map. QEMU user-mode executes the explicit Linux-syscall startup without libc. |
 | RISC-V64 Linux / LP64D / ELF64 | M7 complete for documented subset | Self-encoded machine code, GP/FP and stack calls, small C structs, ELF call/GOT relocations, GNU cross linking, and QEMU execution. Larger aggregates, variadics, and `long double` remain unsupported. |
 | RISC-V64 none / ELF64 | M7 executable subset | QEMU `virt` image with explicit startup, stack setup, UART access from Lisp, and SiFive Test exit status; no firmware, OS, libc, or hosted runtime is linked. Other boards require their own startup and memory map. |
-| Self hosting | M8 in progress | Native PSL modules cover source loading, typed integer/pointer analysis, verified HIR/SSA/LIR, effects and optimization, four hosted target encoders, ELF/COFF calls, unwind metadata, static data objects, and imported data relocations. Three native subset generations reproduce compiler modules and interop fixtures across x86-64 Linux/Windows, AArch64, and RISC-V. General macros/packages, managed and broader ABI types, a complete Stage 1, and the full corpus gate remain open. |
+| Self hosting | M8 in progress | Native PSL modules cover source loading, typed integer/pointer analysis, verified HIR/SSA/LIR, effects and optimization, four hosted target encoders, ELF/COFF calls, unwind metadata, imported data relocations, and initialized exported scalar data. Three native subset generations reproduce compiler modules and interop fixtures across x86-64 Linux/Windows, AArch64, and RISC-V. General macros/packages, managed and broader ABI types, source strings/general static bytes, a complete Stage 1, and the full corpus gate remain open. |
 | Hosted ANSI Common Lisp | Pending M9 | `--profile=hosted` has an M4 managed-value subset; numeric tower, conditions, CLOS, streams, `eval`, and conformance remain pending. |
 | Executables and libraries | Working on supported hosted targets | `pslcc` invokes the selected GCC linker for executables and shared libraries, and `ar` for deterministic `.a`; dynamic source selects only required runtime objects. |
 | macOS and Wasm | Pending M10 | No object writer or code generation for these targets yet. |
@@ -385,10 +385,12 @@ and shared C links. It inspects relocations/symbols and excludes unused imports.
 An object API mutation harness rejects malformed call fixups and import
 metadata before output. The core-generation gate includes these fixtures and
 foreign-source rejection diagnostics. The same pipeline now accepts typed
-`ffi:import-data` declarations and `ffi:address-of`, emits only referenced C
-object symbols, and validates GOT or COFF relative fixups on all four hosted
-output targets. Native `ffi:source`, initialized/exported data,
-floating/aggregate signatures, and managed/indirect effects still need ports. This adds
+`ffi:import-data`, `ffi:export-data`, and `ffi:address-of` declarations. It
+emits only referenced imported C objects, keeps every exported scalar
+definition visible, lays out initialized `.data`, and validates GOT or COFF
+relative fixups on all four hosted output targets. Native `ffi:source`, source
+strings/general byte data, floating/aggregate signatures, and managed/indirect
+effects still need ports. This adds
 part of the subgate 3 object/ABI path needed by a PSL driver; it does not close
 M8.
 

@@ -266,6 +266,8 @@ struct native_data_import {
     uintptr_t type_ast;
     uintptr_t size;
     uintptr_t alignment;
+    uint64_t initial;
+    uint8_t defined;
     uint8_t referenced;
 };
 

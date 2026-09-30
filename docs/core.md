@@ -235,11 +235,13 @@ The native bootstrap exposes data-only writers as `write_elf64_data` and
 `write_coff64_data`. A `native_data_symbol` supplies an ASCII linker name,
 caller-owned initialized bytes, power-of-two alignment up to 4096, and local or
 global visibility. The complete declaration set is validated before output is
-changed. The native source compiler also accepts referenced
-`ffi:import-data` declarations for integer and raw-pointer objects. It lowers
-`ffi:address-of` through verified HIR, SSA, and LIR, then emits PIC data
-relocations in the combined code object. Native source declarations for
-initialized or exported data remain pending.
+changed. The native source compiler also accepts `ffi:import-data` and
+`ffi:export-data` declarations for integer and raw-pointer objects. Exported
+integers use range-checked literal initializers; exported pointers require zero.
+It lowers `ffi:address-of` through verified HIR, SSA, and LIR, then emits
+initialized `.data`, object symbols, and PIC data relocations in the combined
+code object. General byte arrays, floating data, and aggregate initializers
+remain pending.
 
 Windows emits AMD64 COFF with `.text`, `.data`, `.pdata`, and `.xdata`, plus
 `IMAGE_REL_AMD64_REL32` and `IMAGE_REL_AMD64_ADDR32NB` relocations. Its
@@ -287,14 +289,18 @@ imports are absent from the symbol table. C-built executables, static libraries,
 and shared libraries consume these objects; the native CLI still emits objects
 rather than invoking a linker.
 
-Native C data imports use `(ffi:import-data "name" type)` and
-`(ffi:address-of name)`. Integer and raw-pointer object types are supported;
+Native C data declarations use `(ffi:import-data "name" type)`,
+`(ffi:export-data "name" type initializer)`, and `(ffi:address-of name)`.
+Integer and raw-pointer object types are supported;
 the address expression has the corresponding pointer type and may be consumed
 by `deref`, `store`, and the existing pointer operations. C names are
 case-sensitive identifier strings, and an exact mixed-case string may be used
-as the address designator. Duplicate function/data names, malformed imports,
+as the address designator. Exported integer literals are checked against their
+declared width and signedness; exported pointer objects accept only zero.
+Duplicate function/data names, malformed declarations, invalid initializers,
 unknown objects, and address type mismatches are rejected. Only referenced
-objects receive undefined symbols. x86-64 ELF uses `R_X86_64_GOTPCREL`,
+imports receive undefined symbols; every exported definition remains visible
+to the linker. x86-64 ELF uses `R_X86_64_GOTPCREL`,
 AArch64 uses the GOT page/low-12 pair, RISC-V uses
 `R_RISCV_GOT_HI20` with a local `R_RISCV_PCREL_LO12_I` anchor, and COFF uses
 `IMAGE_REL_AMD64_REL32`.
@@ -317,8 +323,8 @@ the native subset's types and spelling rules.
 Explicit libc imports such as `malloc` and `free` work; they do not become
 implicit runtime dependencies of other units.
 
-Native `ffi:source`, initialized/exported data, floating/aggregate signatures,
-and pointer qualifiers remain unsupported. Import effect annotations and
+Native `ffi:source`, source strings/general byte data, floating/aggregate
+signatures, and pointer qualifiers remain unsupported. Import effect annotations and
 allocation-effect certification are implemented for the documented direct-call
 subset; unannotated imports remain unknown.
 

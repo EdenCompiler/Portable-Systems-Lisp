@@ -496,16 +496,37 @@ if nm -u "$work_dir/data-import-1.o" | grep -q unused_counter; then
   echo 'native object retained an unused C data import' >&2
   exit 1
 fi
+for level in 0 1; do
+  run_host "$work_dir/pslcc-native-slice$host_suffix" "-O$level" \
+    "$project_root/tests/bootstrap_data_export.lisp" "$work_dir/data-export-$level.o"
+  run_host "$work_dir/pslcc-native-slice$host_suffix" "-O$level" \
+    "$project_root/tests/bootstrap_data_export.lisp" \
+    "$work_dir/data-export-$level-repeat.o"
+  cmp "$work_dir/data-export-$level.o" "$work_dir/data-export-$level-repeat.o"
+  cc -Wall -Wextra -Werror "$project_root/tests/harness_bootstrap_data_export.c" \
+    "$work_dir/data-export-$level.o" -o "$work_dir/data-export-$level"
+  "$work_dir/data-export-$level"
+  "$project_root/pslcc" "-O$level" -c \
+    "$project_root/tests/bootstrap_data_export.lisp" \
+    -o "$work_dir/data-export-stage0-$level.o"
+  cc -Wall -Wextra -Werror "$project_root/tests/harness_bootstrap_data_export.c" \
+    "$work_dir/data-export-stage0-$level.o" -o "$work_dir/data-export-stage0-$level"
+  "$work_dir/data-export-stage0-$level"
+done
+readelf -SW "$work_dir/data-export-1.o" | grep -q '\.data.*PROGBITS'
+readelf -sW "$work_dir/data-export-1.o" | grep -q 'OBJECT.*GLOBAL.*psl_counter'
+readelf -sW "$work_dir/data-export-1.o" | grep -q 'OBJECT.*GLOBAL.*MixedCaseExport'
+readelf -sW "$work_dir/data-export-1.o" | grep -q 'OBJECT.*GLOBAL.*unreferenced_export'
 for source in "$project_root"/tests/bootstrap_data_errors/*.lisp; do
   if run_host "$work_dir/pslcc-native-slice$host_suffix" "$source" \
       "$work_dir/invalid-data.o" >"$work_dir/stdout" 2>"$work_dir/stderr"; then
-    echo "native slice accepted invalid data import source: $source" >&2
+    echo "native slice accepted invalid data declaration source: $source" >&2
     exit 1
   fi
   test ! -e "$work_dir/invalid-data.o"
   if "$project_root/pslcc" -c "$source" -o "$work_dir/invalid-data-stage0.o" \
       >"$work_dir/stdout" 2>"$work_dir/stderr"; then
-    echo "Stage 0 accepted invalid data import source: $source" >&2
+    echo "Stage 0 accepted invalid data declaration source: $source" >&2
     exit 1
   fi
   test ! -e "$work_dir/invalid-data-stage0.o"

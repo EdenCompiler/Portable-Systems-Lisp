@@ -26,6 +26,9 @@
         ((= (native_import_data_form_p context form) 1)
          (if (= (native_parse_import_data context form) 1) 1
              (native_unit_fail result 2)))
+        ((= (native_export_data_form_p context form) 1)
+         (if (= (native_parse_export_data context form) 1) 1
+             (native_unit_fail result 2)))
         (t
          (if (= (native_parse_signature signatures form) 0)
              (native_unit_fail result 3)

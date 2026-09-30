@@ -82,7 +82,9 @@ subset generations on Windows. Run `make test-native-aarch64` with
 the AArch64 C toolchain and QEMU to check C calls and successive native subset
 generations on AArch64. `make test-native-riscv64` runs the corresponding
 RISC-V gate. `make test-static-data` checks native static data symbols,
-alignment, and linked values. Full self hosting remains in progress.
+alignment, and linked values. The native source subset also emits initialized
+integer and null-pointer `ffi:export-data` definitions in combined code objects.
+Full self hosting remains in progress.
 
 ## Source and C interop
 

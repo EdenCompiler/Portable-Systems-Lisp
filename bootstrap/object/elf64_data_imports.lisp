@@ -12,10 +12,20 @@
     (if (= length 0) 0
         (if (< 255 length) 0
             (if (= (name_ascii_p (deref (field-pointer entry 'name)) 0 length) 0) 0
-                (if (< 1 (deref (field-pointer entry 'referenced))) 0
-                    (if (= (deref (field-pointer entry 'size)) 0) 0
-                        (data_import_alignment_p
-                         (deref (field-pointer entry 'alignment))))))))))
+                (if (< 1 (deref (field-pointer entry 'defined))) 0
+                    (if (< 1 (deref (field-pointer entry 'referenced))) 0
+                        (if (= (deref (field-pointer entry 'size)) 0) 0
+                            (if (= (deref (field-pointer entry 'defined)) 1)
+                                (if (< 8 (deref (field-pointer entry 'size))) 0
+                                    (data_import_alignment_p
+                                     (deref (field-pointer entry 'alignment))))
+                                (data_import_alignment_p
+                                 (deref (field-pointer entry 'alignment))))))))))))
+
+(defun native_data_emitted_p (entry)
+  (declare (type (ptr native_data_import) entry) (returns usize))
+  (if (= (deref (field-pointer entry 'defined)) 1) (wrap-cast usize 1)
+      (wrap-cast usize (deref (field-pointer entry 'referenced)))))
 
 (defun same_data_import_name_p (left right)
   (declare (type (ptr native_data_import) left right) (returns c-int))
@@ -46,10 +56,8 @@
   (declare (type (ptr native_data_import) imports)
            (type usize index count) (returns usize))
   (if (= index count) 0
-      (wrap+ (wrap-cast usize
-                        (deref (field-pointer
-                                (pointer+ imports (wrap-cast isize index))
-                                'referenced)))
+      (wrap+ (native_data_emitted_p
+              (pointer+ imports (wrap-cast isize index)))
              (data_import_emitted_count_from imports (wrap+ index 1) count))))
 
 (defun data_import_name_bytes_from (imports index count)
@@ -57,7 +65,7 @@
            (type usize index count) (returns usize))
   (if (= index count) 0
       (let ((entry (pointer+ imports (wrap-cast isize index))))
-        (wrap+ (if (= (deref (field-pointer entry 'referenced)) 1)
+        (wrap+ (if (= (native_data_emitted_p entry) 1)
                    (wrap+ (deref (field-pointer entry 'name_length)) 1)
                    (wrap-cast usize 0))
                (data_import_name_bytes_from imports (wrap+ index 1) count)))))
@@ -69,10 +77,83 @@
       (data_import_rank_from
        imports target (wrap+ index 1)
        (wrap+ rank
-              (wrap-cast usize
-                         (deref (field-pointer
-                                 (pointer+ imports (wrap-cast isize index))
-                                 'referenced)))))))
+              (native_data_emitted_p
+               (pointer+ imports (wrap-cast isize index)))))))
+
+(defun compiled_data_align_up (value alignment)
+  (declare (type usize value alignment) (returns usize))
+  (bits-and (wrap+ value (wrap- alignment 1)) (wrap- 0 alignment)))
+
+(defun defined_data_size_from (imports index count offset)
+  (declare (type (ptr native_data_import) imports)
+           (type usize index count offset) (returns usize))
+  (if (= index count) offset
+      (let ((entry (pointer+ imports (wrap-cast isize index))))
+        (if (= (deref (field-pointer entry 'defined)) 0)
+            (defined_data_size_from imports (wrap+ index 1) count offset)
+            (defined_data_size_from
+             imports (wrap+ index 1) count
+             (wrap+ (compiled_data_align_up
+                     offset (deref (field-pointer entry 'alignment)))
+                    (deref (field-pointer entry 'size))))))))
+
+(defun defined_data_size (imports count)
+  (declare (type (ptr native_data_import) imports)
+           (type usize count) (returns usize))
+  (defined_data_size_from imports 0 count 0))
+
+(defun defined_data_max_alignment_from (imports index count maximum)
+  (declare (type (ptr native_data_import) imports)
+           (type usize index count maximum) (returns usize))
+  (if (= index count) maximum
+      (let ((entry (pointer+ imports (wrap-cast isize index))))
+        (defined_data_max_alignment_from
+         imports (wrap+ index 1) count
+         (if (= (deref (field-pointer entry 'defined)) 0) maximum
+             (let ((alignment (deref (field-pointer entry 'alignment))))
+               (if (< maximum alignment) alignment maximum)))))))
+
+(defun defined_data_max_alignment (imports count)
+  (declare (type (ptr native_data_import) imports)
+           (type usize count) (returns usize))
+  (defined_data_max_alignment_from imports 0 count 1))
+
+(defun defined_data_offset_from (imports index stop offset)
+  (declare (type (ptr native_data_import) imports)
+           (type usize index stop offset) (returns usize))
+  (if (= index stop) offset
+      (let ((entry (pointer+ imports (wrap-cast isize index))))
+        (defined_data_offset_from
+         imports (wrap+ index 1) stop
+         (if (= (deref (field-pointer entry 'defined)) 0) offset
+             (wrap+ (compiled_data_align_up
+                     offset (deref (field-pointer entry 'alignment)))
+                    (deref (field-pointer entry 'size))))))))
+
+(defun defined_data_offset (imports index)
+  (declare (type (ptr native_data_import) imports)
+           (type usize index) (returns usize))
+  (let ((entry (pointer+ imports (wrap-cast isize index))))
+    (compiled_data_align_up
+     (defined_data_offset_from imports 0 index 0)
+     (deref (field-pointer entry 'alignment)))))
+
+(defun emit_defined_data_from (buffer imports index count data_start)
+  (declare (type (ptr byte_buffer) buffer)
+           (type (ptr native_data_import) imports)
+           (type usize index count data_start) (returns c-int))
+  (if (= index count) 1
+      (let ((entry (pointer+ imports (wrap-cast isize index))))
+        (if (= (deref (field-pointer entry 'defined)) 1)
+            (progn
+              (emit_zero_until
+               buffer (wrap+ data_start (defined_data_offset imports index)))
+              (emit_integer buffer (deref (field-pointer entry 'initial))
+                            (deref (field-pointer entry 'size)))
+              (emit_defined_data_from buffer imports (wrap+ index 1)
+                                      count data_start))
+            (emit_defined_data_from buffer imports (wrap+ index 1)
+                                    count data_start)))))
 
 (defun elf_data_label_count (fixups output_target)
   (declare (type (ptr native_fixup_arena) fixups)
@@ -292,9 +373,15 @@
            (type usize index count name_offset) (returns usize))
   (if (= index count) name_offset
       (let ((entry (pointer+ imports (wrap-cast isize index))))
-        (if (= (deref (field-pointer entry 'referenced)) 1)
+        (if (= (native_data_emitted_p entry) 1)
             (progn
-              (emit_symbol buffer (wrap-cast u64 name_offset) 17 0 0 0)
+              (emit_symbol
+               buffer (wrap-cast u64 name_offset) 17
+               (if (= (deref (field-pointer entry 'defined)) 1) 2 0)
+               (if (= (deref (field-pointer entry 'defined)) 1)
+                   (wrap-cast u64 (defined_data_offset imports index)) 0)
+               (if (= (deref (field-pointer entry 'defined)) 1)
+                   (wrap-cast u64 (deref (field-pointer entry 'size))) 0))
               (emit_elf_data_import_symbols
                buffer imports (wrap+ index 1) count
                (wrap+ name_offset
@@ -308,7 +395,7 @@
            (type usize index count) (returns c-int))
   (if (= index count) 1
       (let ((entry (pointer+ imports (wrap-cast isize index))))
-        (if (= (deref (field-pointer entry 'referenced)) 1)
+        (if (= (native_data_emitted_p entry) 1)
             (progn
               (emit_source_bytes buffer (deref (field-pointer entry 'name))
                                  (deref (field-pointer entry 'name_length)))
@@ -316,25 +403,59 @@
               (emit_elf_data_import_names buffer imports (wrap+ index 1) count))
             (emit_elf_data_import_names buffer imports (wrap+ index 1) count)))))
 
+(defun elf_compiled_data_start (code_size imports import_count)
+  (declare (type usize code_size import_count)
+           (type (ptr native_data_import) imports) (returns usize))
+  (compiled_data_align_up (wrap+ 64 code_size)
+                          (defined_data_max_alignment imports import_count)))
+
+(defun elf_compiled_relocation_start (code_size imports import_count)
+  (declare (type usize code_size import_count)
+           (type (ptr native_data_import) imports) (returns usize))
+  (align8 (wrap+ (elf_compiled_data_start code_size imports import_count)
+                 (defined_data_size imports import_count))))
+
+(defun elf_compiled_section_offset (code_size imports import_count symbol_count
+                                    name_bytes relocation_bytes)
+  (declare (type usize code_size import_count symbol_count name_bytes
+                       relocation_bytes)
+           (type (ptr native_data_import) imports) (returns usize))
+  (let ((symbol_offset
+         (wrap+ (elf_compiled_relocation_start code_size imports import_count)
+                relocation_bytes)))
+    (align8
+     (wrap+ (wrap+ symbol_offset (wrap* (wrap+ symbol_count 3) 24))
+            (wrap+ name_bytes 66)))))
+
 (defun emit_elf_import_data_headers (buffer code_size functions function_count
+                                     imports import_count
                                      symbol_count name_bytes relocation_bytes
                                      output_target data_labels)
   (declare (type (ptr byte_buffer) buffer)
            (type (ptr native_function) functions)
-           (type usize code_size function_count symbol_count name_bytes relocation_bytes
-                 data_labels)
+           (type (ptr native_data_import) imports)
+           (type usize code_size function_count import_count symbol_count
+                       name_bytes relocation_bytes data_labels)
            (type u32 output_target)
            (returns c-int))
-  (let ((data_offset (wrap+ 64 code_size))
-        (symbol_offset (wrap+ (align8 (wrap+ 64 code_size)) relocation_bytes))
+  (let ((data_offset (elf_compiled_data_start code_size imports import_count))
+        (data_size (defined_data_size imports import_count))
+        (data_alignment (defined_data_max_alignment imports import_count))
+        (symbol_offset
+         (wrap+ (elf_compiled_relocation_start code_size imports import_count)
+                relocation_bytes))
         (symbol_bytes (wrap* (wrap+ symbol_count 3) 24)))
     (let ((name_offset (wrap+ symbol_offset symbol_bytes)))
       (let ((section_names (wrap+ name_offset name_bytes)))
         (emit_zero_until buffer (wrap+ (deref (field-pointer buffer 'length)) 64))
         (emit_section_header buffer 1 1 6 64 (wrap-cast u64 code_size) 0 0 16 0)
-        (emit_section_header buffer 7 1 3 (wrap-cast u64 data_offset) 0 0 0 1 0)
+        (emit_section_header buffer 7 1 3 (wrap-cast u64 data_offset)
+                             (wrap-cast u64 data_size) 0 0
+                             (wrap-cast u64 data_alignment) 0)
         (emit_section_header buffer 13 4 0
-                             (wrap-cast u64 (align8 (wrap+ 64 code_size)))
+                             (wrap-cast u64
+                                        (elf_compiled_relocation_start
+                                         code_size imports import_count))
                              (wrap-cast u64 relocation_bytes) 4 1 8 24)
         (emit_section_header buffer 24 2 0 (wrap-cast u64 symbol_offset)
                              (wrap-cast u64 symbol_bytes) 5
@@ -377,15 +498,23 @@
                                       (elf_mapping_symbol_count output_target))
                                data_labels)))
       (let ((section_offset
-             (wrap+ (multi_section_offset code_size symbol_count name_bytes)
-                    relocation_bytes)))
+             (elf_compiled_section_offset
+              code_size imports import_count symbol_count name_bytes
+              relocation_bytes)))
         (if (= (room_for buffer (wrap+ section_offset 512)) 0) 0
             (progn
               (emit_elf_header buffer section_offset
                                (native_target_elf_machine output_target)
                                (native_target_elf_flags output_target))
               (emit_source_bytes buffer code code_size)
-              (emit_zero_until buffer (align8 (deref (field-pointer buffer 'length))))
+              (emit_zero_until
+               buffer (elf_compiled_data_start code_size imports import_count))
+              (emit_defined_data_from
+               buffer imports 0 import_count
+               (elf_compiled_data_start code_size imports import_count))
+              (emit_zero_until
+               buffer (elf_compiled_relocation_start
+                       code_size imports import_count))
               (emit_elf_call_relocations_with_data_labels
                buffer functions function_count calls 0 output_target data_labels)
               (emit_elf_data_import_relocations buffer functions function_count
@@ -401,6 +530,7 @@
               (emit_section_names buffer)
               (emit_zero_until buffer (align8 (deref (field-pointer buffer 'length))))
               (emit_elf_import_data_headers buffer code_size functions function_count
+                                            imports import_count
                                             symbol_count name_bytes relocation_bytes
                                             output_target data_labels)))))))
 

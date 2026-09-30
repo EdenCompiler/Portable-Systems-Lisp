@@ -61,7 +61,9 @@ The native modules currently implement:
   tables for several functions in source order. The target call writers emit
   undefined symbols and target relocations for referenced C imports. Combined
   ELF and COFF writers also emit referenced imported-data symbols and PIC or
-  relative data-address relocations; unused imports leave no object symbols.
+  relative data-address relocations. They lay out initialized exported scalar
+  objects in `.data`; unused imports leave no object symbols, while exported
+  definitions remain public even when Lisp code does not reference them.
 - A restricted native compiler that accepts independently typed machine-integer
   parameters, locals, and results.
   Types are `u8`, `u16`, `u32`, `u64`, `s8`, `s16`, `s32`, `s64`,
@@ -82,13 +84,15 @@ The native modules currently implement:
   types before code generation. C harnesses verify narrow returns, pointers,
   `strlen`, integer-zero/null-pointer Lisp truth, register/stack calls and
   alignment, and static/shared consumption.
-  C data uses `(ffi:import-data "name" TYPE)` and
-  `(ffi:address-of name)`. Integer and raw-pointer objects flow through the same
-  typed HIR/SSA/LIR pipeline. x86-64 ELF, AArch64 ELF, RISC-V ELF, and AMD64
-  COFF objects carry their target relocation forms and link against the same C
-  harness. `ffi:source`, initialized/exported data, floating/aggregate
-  signatures, and pointer qualifiers still need native ports; allocation-effect
-  annotations use the native certification pass described below.
+  C data uses `(ffi:import-data "name" TYPE)`,
+  `(ffi:export-data "name" TYPE INITIALIZER)`, and `(ffi:address-of name)`.
+  Integer and raw-pointer objects flow through the same typed HIR/SSA/LIR
+  pipeline. Exported integers accept range-checked literals; exported pointers
+  accept zero. x86-64 ELF, AArch64 ELF, RISC-V ELF, and AMD64 COFF objects carry
+  initialized data, symbols, and target relocation forms and link against the
+  same C harness. `ffi:source`, floating/aggregate signatures, and pointer
+  qualifiers still need native ports; allocation-effect annotations use the
+  native certification pass described below.
   It accepts `t`, `nil`, `if`, lexical `let`, `progn`, and test-and-body `cond`
   clauses. Integer zero is true in a condition; only Boolean `nil` is false.
   Test-only `cond` clauses remain unsupported. Binding initializers use
@@ -405,7 +409,7 @@ AArch64 native subset generations. It compares those units and fixture objects,
 and confirms an AArch64 compiler host still produces identical x86-64 output.
 The native core has no undefined runtime imports. The same temporary C
 diagnostic adapters remain linked at each generation. Floating-point/aggregate ABIs,
-initialized/exported data, general packages/macros, and the complete
+general packages/macros, and the complete
 Stage 0 corpus remain open parts of M8.
 
 `object/static_data.lisp` adds validated data-only ELF64 and COFF objects. Its
@@ -413,9 +417,9 @@ symbol records distinguish file-local and exported objects, preserve requested
 power-of-two alignment, and carry caller-owned byte sequences without libc or
 an assembler. Stage 0 and the native compiler build the writer independently;
 tests compare the generated objects and link them to C on every hosted target.
-Native imported data addresses now use the same symbol validation in combined
-code objects. Source string literals and initialized/exported data remain
-follow-up work.
+Native imported and exported scalar data use the same symbol validation in
+combined code objects. Source string literals and byte-array initializers
+remain follow-up work.
 
 Encoding and object contracts follow Arm's [AAPCS64](https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst)
 and [ELF for AArch64](https://github.com/ARM-software/abi-aa/blob/main/aaelf64/aaelf64.rst).
@@ -485,10 +489,10 @@ functions, referenced imports, `IMAGE_REL_AMD64_REL32` calls, and
 spans, symbol names, call fields, import references, and encoded prologues
 before touching output. Relocation counts above 65,535 use the COFF extended
 count record. No LLVM, assembler, or third-party object library participates.
-The same code object can contain undefined imported-data symbols and
-`IMAGE_REL_AMD64_REL32` address relocations. The separate static-data writer
-emits initialized `.data` objects with local and exported symbols; source-level
-initialized/exported data is not yet connected to native function compilation.
+The same code object can contain undefined imported-data symbols, initialized
+exported scalar objects, and `IMAGE_REL_AMD64_REL32` address relocations. The
+separate static-data writer additionally supports caller-owned byte sequences
+and local symbols.
 
 ```sh
 make

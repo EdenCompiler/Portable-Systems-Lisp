@@ -258,14 +258,17 @@ remains in pointer signatures and layout metadata; memory analysis requires a
 sized pointee before accesses or pointer arithmetic. No assembler or
 code-generation library participates in this path.
 
-Imported C objects have a separate typed declaration table and fixup arena.
-The native frontend recognizes `ffi:import-data` and typed
-`ffi:address-of`, rejects collisions with function symbols, and retains only
-referenced objects. The shared IR carries data addresses as a typed leaf.
+Imported and exported C objects have a separate typed declaration table and
+fixup arena. The native frontend recognizes `ffi:import-data`,
+`ffi:export-data`, and typed `ffi:address-of`; it rejects collisions with
+function symbols and retains only referenced imports. Exported scalar
+definitions retain initializer bits, size, and alignment. The shared IR carries
+data addresses as a typed leaf.
 Target encoders emit x86-64, AArch64, or RISC-V GOT address sequences, while
 the COFF encoder emits a relative address sequence. The ELF and COFF object
 modules validate instruction placeholders, local relocation anchors, symbol
-indices, reference flags, and fixup ordering before writing output.
+indices, reference flags, initializers, layout, and fixup ordering before
+writing combined code and initialized data sections.
 
 `hir_analyze_layout.lisp` resolves native `sizeof`, `alignof`, and `offset-of`
 to typed literals using the existing source layout table. Raw `ptr-address`
@@ -299,10 +302,10 @@ phase/location selection.
 This permits forward calls and recursion. It is a restricted source-to-object
 proof, not Stage 1: general symbol interpretation, macro expansion, full
 semantic analysis, managed values and indirect effects, floating and aggregate
-ABIs, `ffi:source`, and initialized/exported source data still run in SBCL or
-remain outside the native subset. Native ELF and COFF writers handle the
-documented integer/pointer code, calls, unwind metadata, static data objects,
-and imported data relocations without an assembler.
+ABIs, `ffi:source`, general static byte data, and source string literals still
+run in SBCL or remain outside the native subset. Native ELF and COFF writers
+handle the documented integer/pointer code, calls, unwind metadata, initialized
+scalar data, and imported data relocations without an assembler.
 
 Each major compiler module has its own Lisp package. `psl.compiler` is the public
 library entry point and coordinates the pipeline. `psl` contains source-level
