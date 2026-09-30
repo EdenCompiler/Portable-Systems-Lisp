@@ -204,7 +204,11 @@ the call, as in `(ffi:call "CreateFileA" ...)`. Data symbols use
 `(ffi:address-of name)` to obtain a typed raw pointer, then `deref` or `store`
 for integer, floating, or pointer data. Exported scalar data accepts a typed
 literal initializer; pointer and structure data currently accept only zero
-initialization. The compiler
+initialization. `(ffi:c-string "text")` creates private, NUL-terminated UTF-8
+static bytes where a `(ptr u8)` argument or result is expected. It is an
+explicit raw C pointer; ordinary string literals retain their hosted Lisp
+meaning. The current bytes reside in writable static data and their pointer is
+valid for the lifetime of the loaded object. The compiler
 does not parse C headers to check declarations. Source-file integration is
 not available for the `none` target. FFI signatures
 are trusted declarations.
@@ -240,8 +244,10 @@ changed. The native source compiler also accepts `ffi:import-data` and
 integers use range-checked literal initializers; exported pointers require zero.
 It lowers `ffi:address-of` through verified HIR, SSA, and LIR, then emits
 initialized `.data`, object symbols, and PIC data relocations in the combined
-code object. General byte arrays, floating data, and aggregate initializers
-remain pending.
+code object. Native `ffi:c-string` literals use private byte definitions and
+local object symbols on every implemented target. General named byte arrays,
+read-only data sections, floating data, and aggregate initializers remain
+pending.
 
 Windows emits AMD64 COFF with `.text`, `.data`, `.pdata`, and `.xdata`, plus
 `IMAGE_REL_AMD64_REL32` and `IMAGE_REL_AMD64_ADDR32NB` relocations. Its

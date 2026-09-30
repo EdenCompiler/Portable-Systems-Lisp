@@ -46,4 +46,7 @@
   (data_imports (ptr native_data_import))
   (data_count usize)
   (data_capacity usize)
+  (data_bytes (ptr u8))
+  (data_byte_count usize)
+  (data_byte_capacity usize)
   (data_fixups (ptr native_fixup_arena)))

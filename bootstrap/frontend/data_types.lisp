@@ -7,6 +7,8 @@
   (type_ast usize)
   (size usize)
   (alignment usize)
+  (bytes (ptr u8))
   (initial u64)
   (defined u8)
+  (global u8)
   (referenced u8))

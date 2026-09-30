@@ -9,6 +9,7 @@
   (functions (ptr native_function))
   (signatures (ptr native_signature))
   (data_imports (ptr native_data_import))
+  (data_bytes (ptr u8))
   (hir (ptr native_hir_node))
   (ssa (ptr native_ssa_value))
   (ssa_blocks (ptr native_ssa_block))

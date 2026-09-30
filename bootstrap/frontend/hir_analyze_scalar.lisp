@@ -93,6 +93,8 @@
         ((= (ast_long_word_p parser source head
                              #x726464613a696666 #x666f2d737365 14) 1)
          (analyze_data_address context body))
+        ((= (native_c_string_form_p parser source head) 1)
+         (analyze_c_string context body head))
         ((= (ast_word_p parser source head #x6669 2) 1)
          (analyze_if_expr context body depth))
         ((= (ast_word_p parser source head #x6e676f7270 5) 1)

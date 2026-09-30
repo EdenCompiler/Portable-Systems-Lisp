@@ -58,9 +58,13 @@
           (setf alignment (max alignment field-alignment))
           (align-buffer bytes field-alignment)
           (push (list (data-declaration-name declaration)
-                      (length bytes) size)
+                      (length bytes) size
+                      (data-declaration-local-p declaration))
                 definitions)
           (cond
+            ((typep (data-declaration-initial declaration)
+                    '(vector (unsigned-byte 8)))
+             (append-buffer bytes (data-declaration-initial declaration)))
             ((float-type-p (data-declaration-type declaration))
              (emit-integer bytes
                            (float-bits (data-declaration-initial declaration)
@@ -102,7 +106,10 @@
                    (lambda (definition)
                      (local-function-definition-p definition signatures))
                    functions))
-         (first-global (+ 3 (length locals) (length local-labels)))
+         (local-data (remove-if-not #'fourth data))
+         (global-data (remove-if #'fourth data))
+         (first-global (+ 3 (length locals) (length local-labels)
+                          (length local-data)))
          (table (byte-buffer))
          (names (byte-buffer))
          (indices (make-hash-table :test #'equal))
@@ -121,12 +128,22 @@
              (write-symbol table (append-string names name)
                            #x00 1 offset 0)
              (incf index))
+    (loop for definition in local-data
+          for name = (first definition)
+          for offset = (second definition)
+          for size = (third definition)
+          do (setf (gethash name indices) index)
+             (write-symbol table 0 #x01 2 offset size)
+             (incf index))
     (loop for (name offset size) in globals
           do (setf (gethash name indices) index)
              (write-symbol table (append-string names name)
                            #x12 1 offset size)
              (incf index))
-    (loop for (name offset size) in data
+    (loop for definition in global-data
+          for name = (first definition)
+          for offset = (second definition)
+          for size = (third definition)
           do (setf (gethash name indices) index)
              (write-symbol table (append-string names name) #x11 2 offset size)
              (incf index))

@@ -44,9 +44,13 @@
         (coff-align bytes (data-declaration-alignment declaration))
         (let ((size (data-declaration-size declaration)))
           (push (list (data-declaration-name declaration)
-                      (length bytes) size)
+                      (length bytes) size
+                      (data-declaration-local-p declaration))
                 definitions)
           (cond
+            ((typep (data-declaration-initial declaration)
+                    '(vector (unsigned-byte 8)))
+             (coff-append-buffer bytes (data-declaration-initial declaration)))
             ((float-type-p (data-declaration-type declaration))
              (emit-integer bytes
                            (float-bits (data-declaration-initial declaration)
@@ -121,9 +125,9 @@
           (coff-add-symbol symbols indices name offset 1 #x20
                            (if (signature-local-p signature) 3 2)))))
     (dolist (definition data-definitions)
-      (destructuring-bind (name offset size) definition
+      (destructuring-bind (name offset size &optional local-p) definition
         (declare (ignore size))
-        (coff-add-symbol symbols indices name offset 2 0 2)))
+        (coff-add-symbol symbols indices name offset 2 0 (if local-p 3 2))))
     (dolist (relocation relocations)
       (let ((name (coff-relocation-name relocation)))
         (unless (gethash name indices)

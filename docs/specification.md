@@ -185,7 +185,10 @@ linker symbol; a call may repeat that string when case must be preserved.
 unit in the resulting relocatable object on a supported hosted target. If no
 source file is included, the C symbol remains an unresolved link dependency.
 `ffi:import-data` and `ffi:export-data` declare C data symbols;
-`ffi:address-of` obtains their typed raw address. On the Linux and Windows
+`ffi:address-of` obtains their typed raw address. `ffi:c-string` explicitly
+converts a literal to private NUL-terminated UTF-8 storage when `(ptr u8)` is
+expected; it does not change the meaning of ordinary Lisp string literals. On
+the Linux and Windows
 targets, the driver can invoke the selected linker or archiver for an
 executable, shared library, or static archive with explicit extra link inputs.
 The earlier `psl:defun/c` and `psl:extern-function` spellings are also accepted

@@ -327,6 +327,8 @@
        (analyze-integer-cast form environment context))
       ((ffi-form-p form "call")
        (analyze-ffi-call form environment context))
+      ((ffi-form-p form "c-string")
+       (analyze-c-string form context expected))
       ((ffi-form-p form "address-of")
        (analyze-data-address form context))
       ((runtime-operation form)

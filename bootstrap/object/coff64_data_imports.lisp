@@ -105,7 +105,8 @@
               (coff_emit_data_symbol_name buffer entry string_offset)
               (if (= (deref (field-pointer entry 'defined)) 1)
                   (coff_emit_symbol_record
-                   buffer (defined_data_offset imports index) 2 0 2)
+                   buffer (defined_data_offset imports index) 2 0
+                   (if (= (deref (field-pointer entry 'global)) 1) 2 3))
                   (coff_emit_symbol_record buffer 0 0 0 2))
               (coff_emit_data_symbols_from
                buffer imports (wrap+ index 1) count

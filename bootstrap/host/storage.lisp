@@ -32,6 +32,8 @@
   (store (field-pointer storage 'data_imports)
          (ptr-cast (ptr native_data_import)
                    (ffi:call calloc capacity (sizeof 'native_data_import))))
+  (store (field-pointer storage 'data_bytes)
+         (ptr-cast (ptr u8) (ffi:call calloc capacity (sizeof 'u8))))
   (cond
     ((= (ptr-address (deref (field-pointer storage 'syntax))) 0) 0)
     ((= (ptr-address (deref (field-pointer storage 'layouts))) 0) 0)
@@ -40,6 +42,7 @@
     ((= (ptr-address (deref (field-pointer storage 'functions))) 0) 0)
     ((= (ptr-address (deref (field-pointer storage 'signatures))) 0) 0)
     ((= (ptr-address (deref (field-pointer storage 'data_imports))) 0) 0)
+    ((= (ptr-address (deref (field-pointer storage 'data_bytes))) 0) 0)
     (t 1)))
 
 (defun native_release_frontend (storage)
@@ -59,6 +62,8 @@
   (ffi:call free (ptr-cast (ptr void) (deref (field-pointer storage 'data_imports))))
   (store (field-pointer storage 'data_imports)
          (ptr-from-address (ptr native_data_import) 0))
+  (ffi:call free (ptr-cast (ptr void) (deref (field-pointer storage 'data_bytes))))
+  (store (field-pointer storage 'data_bytes) (ptr-from-address (ptr u8) 0))
   1)
 
 (defun native_allocate_ir (storage capacity)

@@ -389,8 +389,11 @@ foreign-source rejection diagnostics. The same pipeline now accepts typed
 emits only referenced imported C objects, keeps every exported scalar
 definition visible, lays out initialized `.data`, and validates GOT or COFF
 relative fixups on all four hosted output targets. Native `ffi:source`, source
-strings/general byte data, floating/aggregate signatures, and managed/indirect
-effects still need ports. This adds
+managed strings, named general byte data, floating/aggregate signatures, and
+managed/indirect effects still need ports. Explicit `ffi:c-string` expressions
+now lower `(ptr u8)` C literals to private NUL-terminated static bytes on all
+four hosted output targets; linked C fixtures check both native stages at
+`-O0` and `-O1`, local visibility, and deterministic objects. This adds
 part of the subgate 3 object/ABI path needed by a PSL driver; it does not close
 M8.
 

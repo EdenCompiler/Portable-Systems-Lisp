@@ -19,7 +19,7 @@
   (:nicknames #:ffi)
   (:use)
   (:export #:source #:import-function #:call #:import-data #:export-data
-           #:address-of))
+           #:address-of #:c-string))
 
 (defpackage #:psl.common
   (:use #:cl)
@@ -39,7 +39,7 @@
            #:data-declaration #:make-data-declaration #:data-declaration-name
            #:data-declaration-type #:data-declaration-size
            #:data-declaration-alignment #:data-declaration-initial
-           #:data-declaration-external-p
+           #:data-declaration-external-p #:data-declaration-local-p
            #:integer-type-p #:float-type-p #:signed-type-p #:type-width #:pointer-type-p
            #:pointed-type #:pointer-const-p #:pointer-volatile-p
            #:ssa-instruction #:make-ssa-instruction #:ssa-instruction-id

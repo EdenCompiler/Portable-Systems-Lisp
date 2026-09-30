@@ -22,6 +22,7 @@
 (include "frontend/scalar_resolve.lisp")
 (include "frontend/ffi.lisp")
 (include "frontend/data.lisp")
+(include "frontend/c_strings.lisp")
 (include "object/elf64_calls.lisp")
 (include "object/elf64_data_imports.lisp")
 (include "object/coff64_calls.lisp")

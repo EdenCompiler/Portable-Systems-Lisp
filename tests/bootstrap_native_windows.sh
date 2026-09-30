@@ -43,7 +43,7 @@ for level in 0 1; do
   for name in answer two_functions local_calls six_arguments usize integer_types \
       mixed_integers bitops pointers stack_arguments foreign_calls void_calls \
       layout_queries optimizer cfg_optimizer effects inline integer_stack_ffi \
-      data_import data_export; do
+      data_import data_export c_string; do
     check_fixture "$name" "$level"
   done
 done
@@ -66,6 +66,12 @@ fi
 "$cross_objdump" -t "$work_dir/data_export-1.o" | grep -q 'psl_counter'
 "$cross_objdump" -t "$work_dir/data_export-1.o" | grep -q 'MixedCaseExport'
 "$cross_objdump" -t "$work_dir/data_export-1.o" | grep -q 'unreferenced_export'
+test "$("$cross_objdump" -t "$work_dir/c_string-1.o" | \
+  grep -c 'scl   3.*ffi:c-string')" -eq 2
+if "$cross_nm" -g "$work_dir/c_string-1.o" | grep -q 'ffi:c-string'; then
+  echo 'native Windows output exposed a C string literal' >&2
+  exit 1
+fi
 if "$cross_nm" -u "$work_dir/cfg_optimizer-1.o" | grep -q cfg_dead; then
   echo 'native Windows output retained an unreachable import' >&2
   exit 1
@@ -116,7 +122,7 @@ compile_modules() {
 for generation in 1 2 3; do
   compile_modules "$generation"
   for name in stack_arguments foreign_calls cfg_optimizer inline integer_stack_ffi \
-      data_import data_export; do
+      data_import data_export c_string; do
     run_windows "$work_dir/compiler-$generation.exe" --target="$target" \
       "$project_root/tests/bootstrap_$name.lisp" "$work_dir/target-$name.o"
     cmp "$work_dir/$name-1.o" "$work_dir/target-$name.o"

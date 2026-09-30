@@ -30,14 +30,15 @@
   (let ((node (parser_node (deref (field-pointer context 'parser)) name))
         (entry (native_data_import_at context index))
         (source (deref (field-pointer context 'source))))
-    (if (= (deref (field-pointer node 'length))
+    (if (= (deref (field-pointer entry 'global)) 0) 0
+        (if (= (deref (field-pointer node 'length))
            (deref (field-pointer entry 'name_length)))
-        (same_name_bytes_p
-         (pointer+ source
-                   (wrap-cast isize (deref (field-pointer node 'start))))
-         (deref (field-pointer entry 'name))
-         (deref (field-pointer entry 'name_length)))
-        0)))
+            (same_name_bytes_p
+             (pointer+ source
+                       (wrap-cast isize (deref (field-pointer node 'start))))
+             (deref (field-pointer entry 'name))
+             (deref (field-pointer entry 'name_length)))
+            0))))
 
 (defun native_data_name_used_from (context name index)
   (declare (type (ptr native_compile_context) context)
@@ -73,8 +74,10 @@
     (store (field-pointer entry 'size) (deref (field-pointer shape 'size)))
     (store (field-pointer entry 'alignment)
            (deref (field-pointer shape 'alignment)))
+    (store (field-pointer entry 'bytes) (ptr-from-address (ptr u8) 0))
     (store (field-pointer entry 'initial) initial)
     (store (field-pointer entry 'defined) defined)
+    (store (field-pointer entry 'global) 1)
     (store (field-pointer entry 'referenced) 0)
     1))
 

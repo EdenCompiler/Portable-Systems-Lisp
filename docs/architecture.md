@@ -263,12 +263,17 @@ fixup arena. The native frontend recognizes `ffi:import-data`,
 `ffi:export-data`, and typed `ffi:address-of`; it rejects collisions with
 function symbols and retains only referenced imports. Exported scalar
 definitions retain initializer bits, size, and alignment. The shared IR carries
-data addresses as a typed leaf.
+data addresses as a typed leaf. Explicit `ffi:c-string` expressions intern a
+private NUL-terminated byte definition per source occurrence and use the same
+typed data-address leaf. Repeated analysis passes reuse that definition.
 Target encoders emit x86-64, AArch64, or RISC-V GOT address sequences, while
 the COFF encoder emits a relative address sequence. The ELF and COFF object
 modules validate instruction placeholders, local relocation anchors, symbol
 indices, reference flags, initializers, layout, and fixup ordering before
 writing combined code and initialized data sections.
+ELF places private byte definitions with the local symbols before the first
+global symbol; COFF marks them static. Both writers copy arbitrary initialized
+bytes without routing them through an assembler.
 
 `hir_analyze_layout.lisp` resolves native `sizeof`, `alignof`, and `offset-of`
 to typed literals using the existing source layout table. Raw `ptr-address`

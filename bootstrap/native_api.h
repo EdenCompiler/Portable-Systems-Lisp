@@ -189,6 +189,8 @@ struct native_compile_context {
     uintptr_t backend_frame_size, backend_outgoing_size, backend_prologue_size;
     struct native_data_import *data_imports;
     uintptr_t data_count, data_capacity;
+    uint8_t *data_bytes;
+    uintptr_t data_byte_count, data_byte_capacity;
     struct native_fixup_arena *data_fixups;
 };
 
@@ -266,8 +268,10 @@ struct native_data_import {
     uintptr_t type_ast;
     uintptr_t size;
     uintptr_t alignment;
+    const uint8_t *bytes;
     uint64_t initial;
     uint8_t defined;
+    uint8_t global;
     uint8_t referenced;
 };
 
@@ -279,6 +283,7 @@ struct native_storage {
     struct native_function *functions;
     struct native_signature *signatures;
     struct native_data_import *data_imports;
+    uint8_t *data_bytes;
     struct native_hir_node *hir;
     struct native_ssa_value *ssa;
     struct native_ssa_block *ssa_blocks;

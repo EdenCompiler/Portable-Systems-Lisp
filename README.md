@@ -105,7 +105,9 @@ package prefix. C boundaries have explicit `ffi:` forms:
 `ffi:source` includes a local C file in the generated object. Imported C
 functions use `ffi:call`; calls between PSL functions use ordinary Lisp call
 syntax. Data symbols use `ffi:import-data`, `ffi:export-data`, and
-`ffi:address-of`. See the [C import example](examples/ffi/source_import.lisp),
+`ffi:address-of`. Use `(ffi:c-string "text")` when an imported function expects
+a NUL-terminated `(ptr u8)`; ordinary strings remain Lisp values. See the
+[C import example](examples/ffi/source_import.lisp),
 the [shared data example](examples/ffi/shared_data.lisp), and the
 [example index](examples/README.md).
 
