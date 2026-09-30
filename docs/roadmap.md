@@ -23,7 +23,7 @@ is updated. Dates and staffing are deliberately unspecified.
 | x86-64 none / ELF64 | M7 executable subset | Runtime-free static image with an explicit entry or generated `linux-exit` startup, linker script, and map. QEMU user-mode executes the explicit Linux-syscall startup without libc. |
 | RISC-V64 Linux / LP64D / ELF64 | M7 complete for documented subset | Self-encoded machine code, GP/FP and stack calls, small C structs, ELF call/GOT relocations, GNU cross linking, and QEMU execution. Larger aggregates, variadics, and `long double` remain unsupported. |
 | RISC-V64 none / ELF64 | M7 executable subset | QEMU `virt` image with explicit startup, stack setup, UART access from Lisp, and SiFive Test exit status; no firmware, OS, libc, or hosted runtime is linked. Other boards require their own startup and memory map. |
-| Self hosting | M8 in progress | Native PSL modules cover scanning, parsing, integer atoms, C structure layout, typed function signatures, arenas, byte emission, verified typed HIR/SSA/LIR, x86-64/AArch64/RISC-V64 encoding, and ELF writing for several functions. A restricted compiler handles integer/pointer signatures, memory, loops, casts, conditionals, and recursion and directly compiles integer rules, byte-emitter, arena, integer reader, and scanner modules. Stage 1–3 and the full corpus gate remain open. |
+| Self hosting | M8 in progress | Native PSL modules cover source loading, typed integer/pointer analysis, verified HIR/SSA/LIR, effects and optimization, four hosted target encoders, ELF/COFF calls, unwind metadata, static data objects, and imported data relocations. Three native subset generations reproduce compiler modules and interop fixtures across x86-64 Linux/Windows, AArch64, and RISC-V. General macros/packages, managed and broader ABI types, a complete Stage 1, and the full corpus gate remain open. |
 | Hosted ANSI Common Lisp | Pending M9 | `--profile=hosted` has an M4 managed-value subset; numeric tower, conditions, CLOS, streams, `eval`, and conformance remain pending. |
 | Executables and libraries | Working on supported hosted targets | `pslcc` invokes the selected GCC linker for executables and shared libraries, and `ar` for deterministic `.a`; dynamic source selects only required runtime objects. |
 | macOS and Wasm | Pending M10 | No object writer or code generation for these targets yet. |
@@ -300,8 +300,9 @@ emits multiple x86-64 function symbols. The native x86-64 writer now supports
 PLT32 call relocations for C imports. A later slice added native COFF output.
 Data-only ELF64 and COFF objects now preserve caller-provided bytes, alignment,
 and local/global object symbols. Stage 0 and native writer builds produce the
-same linked data behavior on all hosted targets. Code-to-data relocations and
-the remaining relocation families still need to be ported.
+same linked data behavior on all hosted targets. Native source also imports C
+objects and emits x86-64, AArch64, RISC-V, or COFF code-to-data relocations;
+initialized/exported source data and other relocation families remain pending.
 `sh tests/bootstrap_native_compiler.sh [HOST_TARGET]` builds a native executable from PSL
 compiler components plus a temporary C file-I/O wrapper. It parses a source
 file, accepts machine-integer functions with independently typed parameters,
@@ -383,7 +384,10 @@ consumes the objects through executable, static,
 and shared C links. It inspects relocations/symbols and excludes unused imports.
 An object API mutation harness rejects malformed call fixups and import
 metadata before output. The core-generation gate includes these fixtures and
-foreign-source rejection diagnostics. Native `ffi:source`, data symbols,
+foreign-source rejection diagnostics. The same pipeline now accepts typed
+`ffi:import-data` declarations and `ffi:address-of`, emits only referenced C
+object symbols, and validates GOT or COFF relative fixups on all four hosted
+output targets. Native `ffi:source`, initialized/exported data,
 floating/aggregate signatures, and managed/indirect effects still need ports. This adds
 part of the subgate 3 object/ABI path needed by a PSL driver; it does not close
 M8.
@@ -534,7 +538,8 @@ value records and rewrites operands, linked instruction lists, PHIs, and
 terminators; calls become typed copies. SSA verification precedes folding and
 liveness. Templates use caller-owned cache storage; missing/full cache or SSA
 capacity preserves calls, and the core adds no runtime imports. The hosted
-driver's nineteen allocations have fault-injection cleanup coverage. C fixtures
+driver's twenty-one allocations, including imported-data and data-fixup arenas,
+have fault-injection cleanup coverage. C fixtures
 compare Stage 0/native outputs at both levels for signed values, pointers,
 seven arguments, branches, loops, recursion, and unused effectful arguments.
 Object inspection checks removed pure calls and retained memory calls. API

@@ -58,9 +58,10 @@ The native modules currently implement:
 - A first ELF64 writer for one exported x86-64, AArch64, or RISC-V64 function
   without data or relocations. Its output matches Stage 0 byte for byte for
   the accepted cases. A separate multi-function writer builds x86-64 symbol
-  tables for several functions in source order. The x86-64 call writer emits
-  undefined symbols and `R_X86_64_PLT32` relocations for referenced C imports;
-  unused import declarations leave no object symbols.
+  tables for several functions in source order. The target call writers emit
+  undefined symbols and target relocations for referenced C imports. Combined
+  ELF and COFF writers also emit referenced imported-data symbols and PIC or
+  relative data-address relocations; unused imports leave no object symbols.
 - A restricted native compiler that accepts independently typed machine-integer
   parameters, locals, and results.
   Types are `u8`, `u16`, `u32`, `u64`, `s8`, `s16`, `s32`, `s64`,
@@ -81,9 +82,13 @@ The native modules currently implement:
   types before code generation. C harnesses verify narrow returns, pointers,
   `strlen`, integer-zero/null-pointer Lisp truth, register/stack calls and
   alignment, and static/shared consumption.
-  `ffi:source`, data imports, floating/aggregate signatures, pointer
-  qualifiers still need native ports; allocation-effect annotations use the
-  native certification pass described below.
+  C data uses `(ffi:import-data "name" TYPE)` and
+  `(ffi:address-of name)`. Integer and raw-pointer objects flow through the same
+  typed HIR/SSA/LIR pipeline. x86-64 ELF, AArch64 ELF, RISC-V ELF, and AMD64
+  COFF objects carry their target relocation forms and link against the same C
+  harness. `ffi:source`, initialized/exported data, floating/aggregate
+  signatures, and pointer qualifiers still need native ports; allocation-effect
+  annotations use the native certification pass described below.
   It accepts `t`, `nil`, `if`, lexical `let`, `progn`, and test-and-body `cond`
   clauses. Integer zero is true in a condition; only Boolean `nil` is false.
   Test-only `cond` clauses remain unsupported. Binding initializers use
@@ -139,7 +144,7 @@ and output buffers. It returns one on success and zero on failure. The
 | 5 | Function predeclaration | Zero-based signature `index` |
 | 6 | Function body pipeline | Zero-based signature `index` |
 | 7 | Call patching | No location |
-| 8 | ELF writing | No location |
+| 8 | Target object writing | No location |
 
 Only the failing phase's location is valid. Arenas may contain partial work
 after failure; the host writes the object file only after successful completion.
@@ -313,8 +318,9 @@ The call becomes a typed copy. Arena insertion preserves topological value IDs,
 block instruction lists, PHI operands, and terminator references, then verifies
 SSA before constant folding and liveness. Recursion is never expanded.
 
-The hosted driver owns one additional template buffer, for nineteen allocations
-in total, with partial cleanup covered by fault injection. The core adds no
+The hosted driver owns the template buffer plus imported-data and data-fixup
+arenas, for twenty-one allocations in total, with partial cleanup covered by
+fault injection. The core adds no
 allocator or external runtime import. In-memory callers may omit the cache by
 leaving its pointer and capacity zero. A full cache or full caller SSA arena
 keeps calls intact. Cached template bounds, operand shapes, and parameter
@@ -363,7 +369,8 @@ the M8 gate.
 ## Native AArch64 output
 
 The native compiler accepts `--target=x86_64-linux-gnu` (default),
-`--target=aarch64-linux-gnu`, and `--target=riscv64-linux-gnu`. Either target option can precede or follow `-O0`
+`--target=x86_64-windows-gnu`, `--target=aarch64-linux-gnu`, and
+`--target=riscv64-linux-gnu`. Either target option can precede or follow `-O0`
 or `-O1`, before the source and output paths. Unknown targets and duplicate
 options fail before reading source or allocating compiler storage.
 
@@ -398,7 +405,7 @@ AArch64 native subset generations. It compares those units and fixture objects,
 and confirms an AArch64 compiler host still produces identical x86-64 output.
 The native core has no undefined runtime imports. The same temporary C
 diagnostic adapters remain linked at each generation. Floating-point/aggregate ABIs,
-code-to-data relocations, general packages/macros, and the complete
+initialized/exported data, general packages/macros, and the complete
 Stage 0 corpus remain open parts of M8.
 
 `object/static_data.lisp` adds validated data-only ELF64 and COFF objects. Its
@@ -406,7 +413,9 @@ symbol records distinguish file-local and exported objects, preserve requested
 power-of-two alignment, and carry caller-owned byte sequences without libc or
 an assembler. Stage 0 and the native compiler build the writer independently;
 tests compare the generated objects and link them to C on every hosted target.
-Source string literals and data-address relocations remain follow-up work.
+Native imported data addresses now use the same symbol validation in combined
+code objects. Source string literals and initialized/exported data remain
+follow-up work.
 
 Encoding and object contracts follow Arm's [AAPCS64](https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst)
 and [ELF for AArch64](https://github.com/ARM-software/abi-aa/blob/main/aaelf64/aaelf64.rst).
@@ -443,7 +452,7 @@ buffer reserves 1 MiB plus 16 bytes per source byte/node capacity, and the
 object buffer adds 64 bytes per capacity plus 1 KiB for ELF overhead. Products
 and additions are checked before allocation. Allocation failures and exhaustion
 produce compilation failure and release all storage; this is bounded storage,
-not a promise to accept arbitrary source size. Existing nineteen-allocation
+not a promise to accept arbitrary source size. Existing twenty-one-allocation
 fault/cleanup checks cover the larger buffers and boundary overflow cases.
 
 ```sh
@@ -470,14 +479,16 @@ registers and virtual values. Large frames probe stack pages without a runtime
 import. Functions carry frame and prologue metadata for the native `.pdata`
 and `.xdata` writer.
 
-The compiler COFF writer emits `.text`, empty `.data`, `.pdata`, `.xdata`, local/exported
+The compiler COFF writer emits `.text`, `.data`, `.pdata`, `.xdata`, local/exported
 functions, referenced imports, `IMAGE_REL_AMD64_REL32` calls, and
 `IMAGE_REL_AMD64_ADDR32NB` unwind references. Its writer API validates function
 spans, symbol names, call fields, import references, and encoded prologues
 before touching output. Relocation counts above 65,535 use the COFF extended
 count record. No LLVM, assembler, or third-party object library participates.
-The separate static-data writer emits initialized `.data` objects with local
-and exported symbols; it is not yet connected to compiled function output.
+The same code object can contain undefined imported-data symbols and
+`IMAGE_REL_AMD64_REL32` address relocations. The separate static-data writer
+emits initialized `.data` objects with local and exported symbols; source-level
+initialized/exported data is not yet connected to native function compilation.
 
 ```sh
 make

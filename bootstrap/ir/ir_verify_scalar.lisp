@@ -99,6 +99,17 @@
           ((= kind 17) (ir_operand_matches_op_p context types (deref (field-pointer op 'left)) op))
           ((= kind 19) (if (= code 0) (if (< 1 (deref (field-pointer op 'value))) 0 1) 0))
           ((= kind 29) (if (= code 12) 1 0))
+          ((= kind 34)
+           (let ((target (deref (field-pointer op 'target))))
+             (if (= code 11)
+                 (if (= target 0) 0
+                     (if (< (deref (field-pointer context 'data_count)) target) 0
+                         (source_ast_type_equal_p
+                          context (deref (field-pointer op 'pointee))
+                          (deref (field-pointer
+                                  (native_data_import_at context (wrap- target 1))
+                                  'type_ast)) 0)))
+                 0)))
           ((= kind 18) (ir_verify_unary_type context types op))
           ((= kind 20) (ir_verify_unary_type context types op))
           ((= kind 21) (ir_verify_unary_type context types op))

@@ -48,10 +48,11 @@ static int compile_source_options(struct fixture *f, const uint8_t *source, uint
     f->jump_fixups = (struct native_fixup_arena){f->jumps, 0, 768, 0};
     f->code = (struct byte_buffer){f->bytes, 0, sizeof f->bytes};
     f->context = (struct native_compile_context){
-        &f->parser, source, &f->integer, &f->hir, &f->code,
-        &f->call_fixups, f->functions, &f->signature_context, 1, 0, NULL,
-        0, 0, 0, 0, &f->ssa, f->bindings, &f->lir, f->labels, &f->jump_fixups, 0, 0, 0, 0,
-        NULL, 0, 0, 0, 0, 0, 0, 0
+        .parser = &f->parser, .source = source, .integer = &f->integer,
+        .hir = &f->hir, .code = &f->code, .fixups = &f->call_fixups,
+        .functions = f->functions, .signatures = &f->signature_context,
+        .prior_count = 1, .ssa = &f->ssa, .bindings = f->bindings,
+        .lir = &f->lir, .labels = f->labels, .jumps = &f->jump_fixups
     };
     f->context.optimization = level;
     uintptr_t root = parser_next(&f->parser);

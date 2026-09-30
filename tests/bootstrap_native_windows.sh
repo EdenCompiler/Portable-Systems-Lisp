@@ -42,15 +42,24 @@ check_fixture() {
 for level in 0 1; do
   for name in answer two_functions local_calls six_arguments usize integer_types \
       mixed_integers bitops pointers stack_arguments foreign_calls void_calls \
-      layout_queries optimizer cfg_optimizer effects inline integer_stack_ffi; do
+      layout_queries optimizer cfg_optimizer effects inline integer_stack_ffi \
+      data_import; do
     check_fixture "$name" "$level"
   done
 done
 
 "$cross_objdump" -r "$work_dir/foreign_calls-1.o" | grep -q 'IMAGE_REL_AMD64_REL32.*foreign_seven'
+test "$("$cross_objdump" -r "$work_dir/data_import-1.o" | \
+  grep -c 'IMAGE_REL_AMD64_REL32.*c_counter')" -eq 4
+"$cross_objdump" -r "$work_dir/data_import-1.o" | \
+  grep -q 'IMAGE_REL_AMD64_REL32.*MixedCaseData'
 "$cross_objdump" -r "$work_dir/foreign_calls-1.o" | grep -q 'IMAGE_REL_AMD64_ADDR32NB.*.xdata'
 if "$cross_nm" -u "$work_dir/foreign_calls-1.o" | grep -q unused_foreign; then
   echo 'native Windows output retained an unused import' >&2
+  exit 1
+fi
+if "$cross_nm" -u "$work_dir/data_import-1.o" | grep -q unused_counter; then
+  echo 'native Windows output retained an unused data import' >&2
   exit 1
 fi
 if "$cross_nm" -u "$work_dir/cfg_optimizer-1.o" | grep -q cfg_dead; then
@@ -102,7 +111,7 @@ compile_modules() {
 
 for generation in 1 2 3; do
   compile_modules "$generation"
-  for name in stack_arguments foreign_calls cfg_optimizer inline integer_stack_ffi; do
+  for name in stack_arguments foreign_calls cfg_optimizer inline integer_stack_ffi data_import; do
     run_windows "$work_dir/compiler-$generation.exe" --target="$target" \
       "$project_root/tests/bootstrap_$name.lisp" "$work_dir/target-$name.o"
     cmp "$work_dir/$name-1.o" "$work_dir/target-$name.o"

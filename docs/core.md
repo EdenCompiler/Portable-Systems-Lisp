@@ -235,8 +235,11 @@ The native bootstrap exposes data-only writers as `write_elf64_data` and
 `write_coff64_data`. A `native_data_symbol` supplies an ASCII linker name,
 caller-owned initialized bytes, power-of-two alignment up to 4096, and local or
 global visibility. The complete declaration set is validated before output is
-changed. The source compiler does not yet lower string literals or data-address
-relocations through this interface.
+changed. The native source compiler also accepts referenced
+`ffi:import-data` declarations for integer and raw-pointer objects. It lowers
+`ffi:address-of` through verified HIR, SSA, and LIR, then emits PIC data
+relocations in the combined code object. Native source declarations for
+initialized or exported data remain pending.
 
 Windows emits AMD64 COFF with `.text`, `.data`, `.pdata`, and `.xdata`, plus
 `IMAGE_REL_AMD64_REL32` and `IMAGE_REL_AMD64_ADDR32NB` relocations. Its
@@ -284,6 +287,18 @@ imports are absent from the symbol table. C-built executables, static libraries,
 and shared libraries consume these objects; the native CLI still emits objects
 rather than invoking a linker.
 
+Native C data imports use `(ffi:import-data "name" type)` and
+`(ffi:address-of name)`. Integer and raw-pointer object types are supported;
+the address expression has the corresponding pointer type and may be consumed
+by `deref`, `store`, and the existing pointer operations. C names are
+case-sensitive identifier strings, and an exact mixed-case string may be used
+as the address designator. Duplicate function/data names, malformed imports,
+unknown objects, and address type mismatches are rejected. Only referenced
+objects receive undefined symbols. x86-64 ELF uses `R_X86_64_GOTPCREL`,
+AArch64 uses the GOT page/low-12 pair, RISC-V uses
+`R_RISCV_GOT_HI20` with a local `R_RISCV_PCREL_LO12_I` anchor, and COFF uses
+`IMAGE_REL_AMD64_REL32`.
+
 Native `void` calls may appear in sequences, `let` bindings/bodies, conditional
 arms, and loop bodies. Functions declared `(returns void)` must end in a void
 expression. Void results carry completion metadata through SSA/LIR; they never
@@ -302,10 +317,10 @@ the native subset's types and spelling rules.
 Explicit libc imports such as `malloc` and `free` work; they do not become
 implicit runtime dependencies of other units.
 
-Native `ffi:source`, data symbols, floating/aggregate signatures, pointer
-qualifiers, and import effect annotations remain unsupported. Allocation-effect
-certification still needs a native port; imports do not carry a native
-allocation-free guarantee.
+Native `ffi:source`, initialized/exported data, floating/aggregate signatures,
+and pointer qualifiers remain unsupported. Import effect annotations and
+allocation-effect certification are implemented for the documented direct-call
+subset; unannotated imports remain unknown.
 
 `bootstrap/driver.lisp` exposes `native_compile_unit` for in-memory compilation
 using freshly initialized caller-owned contexts and arenas. It collects layouts
@@ -326,7 +341,8 @@ and `native_compiler_main(argc, argv)`. It owns source loading, preparation,
 unit compilation, output selection, and cleanup, and maps failing phases to
 diagnostic locations. The native subset CLI takes `[-O0|-O1] [--target=TARGET] SOURCE.lisp OUTPUT.o`;
 it does not yet accept Stage 0's other options. Supported native targets are
-`x86_64-linux-gnu`, `aarch64-linux-gnu`, and `riscv64-linux-gnu`. Status is 0 on
+`x86_64-linux-gnu`, `x86_64-windows-gnu`, `aarch64-linux-gnu`, and
+`riscv64-linux-gnu`. Status is 0 on
 success, 1 for rejected language input, and 2 for usage, I/O, or allocation
 failure. Arguments are inspected only for the expected count. Repeated run
 calls allocate independent state and release it on every return. The temporary

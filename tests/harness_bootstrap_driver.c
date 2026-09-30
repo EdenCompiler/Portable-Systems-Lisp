@@ -9,28 +9,30 @@
    contain test allocators or depend on this harness. */
 void *__real_calloc(size_t, size_t);
 void __real_free(void *);
-static void *allocations[19], *owned_source;
+static void *allocations[21], *owned_source;
 static size_t allocation_count, fail_at, live_count, source_frees;
 static size_t capacity;
 static const size_t item_sizes[] = {
     sizeof(struct psl_ast_node), sizeof(struct native_layout),
     sizeof(struct native_layout_field), sizeof(struct native_parameter),
     sizeof(struct native_function), sizeof(struct native_signature),
-    sizeof(struct native_hir_node), sizeof(struct native_ssa_value),
+    sizeof(struct native_data_import), sizeof(struct native_hir_node),
+    sizeof(struct native_ssa_value),
     sizeof(struct native_ssa_block), sizeof(struct native_ir_type),
     sizeof(uintptr_t), sizeof(struct native_lir_instruction),
-    sizeof(struct native_lir_block), sizeof(struct native_ssa_value), sizeof(struct native_call_fixup),
+    sizeof(struct native_lir_block), sizeof(struct native_ssa_value),
+    sizeof(struct native_call_fixup), sizeof(struct native_call_fixup),
     sizeof(struct native_call_fixup), sizeof(uintptr_t), 1, 1
 };
 
 void *__wrap_calloc(size_t count, size_t size) {
     size_t index = allocation_count++;
     size_t expected = capacity;
-    assert(index < 19);
-    if (index == 11) expected *= 6;
-    if (index == 12 || index == 15 || index == 16) expected *= 3;
-    if (index == 17) expected = 1048576 + 16 * capacity;
-    if (index == 18) expected = 1049600 + 80 * capacity;
+    assert(index < 21);
+    if (index == 12) expected *= 6;
+    if (index == 13 || index == 16 || index == 18) expected *= 3;
+    if (index == 19) expected = 1048576 + 16 * capacity;
+    if (index == 20) expected = 1049600 + 80 * capacity;
     assert(count == expected && size == item_sizes[index]);
     if (allocation_count == fail_at) return NULL;
     allocations[index] = __real_calloc(count, size);
@@ -46,13 +48,13 @@ void __wrap_free(void *memory) {
         ++source_frees;
         owned_source = NULL;
     } else {
-        for (i = 0; i < 19; ++i) {
+        for (i = 0; i < 21; ++i) {
             if (allocations[i] != memory) continue;
             allocations[i] = NULL;
             --live_count;
             break;
         }
-        assert(i < 19);
+        assert(i < 21);
     }
     __real_free(memory);
 }
@@ -113,9 +115,15 @@ static void check_initialized(struct native_driver *d) {
     assert(d->context.code == &d->code && d->context.fixups == &d->calls);
     assert(d->context.functions == d->storage.functions);
     assert(d->context.signatures == &d->signature_context);
+    assert(d->context.data_imports == d->storage.data_imports);
+    assert(!d->context.data_count && d->context.data_capacity == cap);
+    assert(d->context.data_fixups == &d->data_fixups);
     assert(d->context.ssa == &d->ssa && d->context.lir == &d->lir);
     assert(d->context.bindings == d->storage.bindings);
     assert(d->context.labels == d->storage.labels && d->context.jumps == &d->jumps);
+    assert(d->data_fixups.items == d->storage.data_fixups);
+    assert(d->data_fixups.capacity == cap);
+    assert(!d->data_fixups.count && !d->data_fixups.error);
     assert(!d->context.prior_count && !d->context.current_arity);
     assert(!d->context.current_signature && !d->context.expected_type);
     assert(!d->context.active_binding && !d->context.local_count);
@@ -174,7 +182,7 @@ static void test_invalid_capacity(void) {
 #ifdef PSL_TEST_ALLOCATOR_FAULTS
 static void test_partial_allocations(void) {
     struct native_driver driver = {0};
-    for (fail_at = 1; fail_at <= 19; ++fail_at) {
+    for (fail_at = 1; fail_at <= 21; ++fail_at) {
         set_source(&driver);
         assert(!native_prepare_driver(&driver));
         check_released(&driver);

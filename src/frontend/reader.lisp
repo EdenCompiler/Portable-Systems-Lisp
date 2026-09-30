@@ -53,6 +53,19 @@
     (symbol (string-downcase (symbol-name thing)))
     (string thing)))
 
+(defun ascii-letter-p (character)
+  (or (char<= #\a character #\z)
+      (char<= #\A character #\Z)))
+
+(defun c-identifier-p (name)
+  (and (stringp name)
+       (plusp (length name))
+       (or (ascii-letter-p (char name 0)) (char= (char name 0) #\_))
+       (loop for character across name
+             always (or (ascii-letter-p character)
+                        (digit-char-p character 10)
+                        (char= character #\_)))))
+
 (defun parse-parameter (item context)
   (unless (and (listp item) (= (length item) 2)
                (symbolp (first item)))
@@ -73,6 +86,8 @@
   (unless (and (>= (length form) 5) (named-p (fourth form) "->"))
     (fail "expected (~A name ((arg type) ...) -> result ...)"
           (if external-p "ffi:import-function" "defun")))
+  (when (and external-p (not (c-identifier-p (second form))))
+    (fail "FFI:IMPORT-FUNCTION requires a C identifier string"))
   (let* ((annotation (nthcdr 5 form))
          (name (source-name (second form)))
          (parameters (parse-parameters (third form) context))

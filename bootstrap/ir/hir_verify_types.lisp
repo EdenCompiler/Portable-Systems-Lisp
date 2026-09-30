@@ -173,6 +173,17 @@
       ((= kind 18) (hir_verify_scalar_cast context node depth))
       ((= kind 19) (if (< 1 (deref (field-pointer node 'value))) 0 1))
       ((= kind 20) (hir_verify_word_truth context node depth))
+      ((= kind 34)
+       (let ((target (deref (field-pointer node 'target))))
+         (if (= code 11)
+             (if (= target 0) 0
+                 (if (< (deref (field-pointer context 'data_count)) target) 0
+                     (source_ast_type_equal_p
+                      context (deref (field-pointer node 'pointee))
+                      (deref (field-pointer
+                              (native_data_import_at context (wrap- target 1))
+                              'type_ast)) 0)))
+             0)))
       ((< 20 kind) (hir_verify_memory_kind context node depth))
       (t (hir_verify_scalar_binary context node depth)))))
 

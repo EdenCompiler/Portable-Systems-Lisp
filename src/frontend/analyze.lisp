@@ -428,6 +428,8 @@
     (fail "expected (ffi:~A name type~A)"
           (if external-p "import-data" "export-data")
           (if external-p "" " initial-value")))
+  (unless (c-identifier-p (second form))
+    (fail "FFI data requires a C identifier string"))
   (let* ((name (source-name (second form)))
          (type (type-name (third form) context))
          (initial (unless external-p (fourth form))))

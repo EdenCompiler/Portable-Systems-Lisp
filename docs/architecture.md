@@ -81,6 +81,8 @@ bootstrap/
   frontend/
     reader.lisp, parser.lisp, atoms.lisp, source.lisp
                        byte scanning, syntax, integer atoms, and include decoding
+    data_types.lisp, data.lisp
+                       imported C object records, declarations, and addresses
     layout.lisp, signatures.lisp, ffi.lisp
                        C layout, ordinary signatures, and explicit C imports
     scalar_syntax.lisp, scalar_types.lisp, scalar_resolve.lisp, pointer_types.lisp
@@ -131,6 +133,8 @@ bootstrap/
     bytes.lisp, function_validation.lisp  shared object-byte and function checks
     data_types.lisp, data_validation.lisp, static_data.lisp
                        validated static data symbols and data-only ELF/COFF output
+    elf64_data_imports.lisp, coff64_data_imports.lisp
+                       combined code/data-import symbols and relocations
     coff64_layout.lisp, coff64_sections.lisp, coff64_symbols.lisp,
     coff64_relocations.lisp, coff64_validation.lisp, coff64_calls.lisp
                        native COFF section, symbol, relocation, and call writer
@@ -254,6 +258,15 @@ remains in pointer signatures and layout metadata; memory analysis requires a
 sized pointee before accesses or pointer arithmetic. No assembler or
 code-generation library participates in this path.
 
+Imported C objects have a separate typed declaration table and fixup arena.
+The native frontend recognizes `ffi:import-data` and typed
+`ffi:address-of`, rejects collisions with function symbols, and retains only
+referenced objects. The shared IR carries data addresses as a typed leaf.
+Target encoders emit x86-64, AArch64, or RISC-V GOT address sequences, while
+the COFF encoder emits a relative address sequence. The ELF and COFF object
+modules validate instruction placeholders, local relocation anchors, symbol
+indices, reference flags, and fixup ordering before writing output.
+
 `hir_analyze_layout.lisp` resolves native `sizeof`, `alignof`, and `offset-of`
 to typed literals using the existing source layout table. Raw `ptr-address`
 conversion has a distinct HIR operation and typed pointer-to-`usize` checks;
@@ -283,14 +296,13 @@ through POSIX or Windows host APIs. Temporary C adapters render the driver's
 selected messages. A separate PSL output unit writes object files through
 imported C file primitives. The adapters contain no compilation control or
 phase/location selection.
-This permits forward calls and recursion. It is a
-restricted source-to-object proof, not Stage 1: general symbol interpretation,
-macro expansion, full semantic analysis, remaining generic optimization and
-managed/indirect effects,
-general function calls,
-relocations, data, and COFF still run in SBCL. The standalone native writer
-also reproduces one-function AArch64 and RISC-V64 ELF objects from supplied
-machine bytes.
+This permits forward calls and recursion. It is a restricted source-to-object
+proof, not Stage 1: general symbol interpretation, macro expansion, full
+semantic analysis, managed values and indirect effects, floating and aggregate
+ABIs, `ffi:source`, and initialized/exported source data still run in SBCL or
+remain outside the native subset. Native ELF and COFF writers handle the
+documented integer/pointer code, calls, unwind metadata, static data objects,
+and imported data relocations without an assembler.
 
 Each major compiler module has its own Lisp package. `psl.compiler` is the public
 library entry point and coordinates the pipeline. `psl` contains source-level

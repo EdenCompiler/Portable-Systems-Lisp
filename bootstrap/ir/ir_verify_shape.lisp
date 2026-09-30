@@ -14,7 +14,10 @@
 
 (defun ir_leaf_kind_p (kind)
   (declare (type u32 kind) (returns c-int))
-  (if (= kind 1) 1 (if (= kind 2) 1 (if (= kind 19) 1 (if (= kind 29) 1 0)))))
+  (if (= kind 1) 1
+      (if (= kind 2) 1
+          (if (= kind 19) 1
+              (if (= kind 29) 1 (if (= kind 34) 1 0))))))
 
 (defun ir_unary_kind_p (kind)
   (declare (type u32 kind) (returns c-int))
@@ -54,6 +57,10 @@
           ((= kind 7)
            (if (= value 0) (ir_reference_p target (deref (field-pointer context 'prior_count))) 0))
           ((= kind 23) (if (= target 0) 0 1))
+          ((= kind 34)
+           (if (= value 0)
+               (ir_reference_p target (deref (field-pointer context 'data_count)))
+               0))
           ((= target 0)
            (cond
              ((= kind 29) (if (= value 0) 1 0))

@@ -125,6 +125,28 @@
           (if (< 268435454 count) 0
               (x86_lir_call_reserved context op target arity (x86_stack_argument_bytes count))))))))
 
+(defun x86_lir_data_address (context op)
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_lir_instruction) op) (returns c-int))
+  (let ((target (deref (field-pointer op 'target)))
+        (code (deref (field-pointer context 'code))))
+    (if (= target 0) 0
+        (if (< (deref (field-pointer context 'data_count)) target) 0
+            (let ((start (deref (field-pointer code 'length))))
+              (store (field-pointer
+                      (native_data_import_at context (wrap- target 1))
+                      'referenced) 1)
+              (if (= (emit_byte code #x48) 0) 0
+                  (if (= (emit_byte code
+                                    (if (= (native_target_object_format
+                                             (deref (field-pointer context 'target))) 2)
+                                        #x8d #x8b)) 0) 0
+                      (if (= (emit_byte code #x05) 0) 0
+                          (if (= (emit_integer code 0 4) 0) 0
+                              (record_call_fixup
+                               (deref (field-pointer context 'data_fixups))
+                               start target))))))))))
+
 (defun x86_lir_value (context op)
   (declare (type (ptr native_compile_context) context)
            (type (ptr native_lir_instruction) op) (returns c-int))
@@ -137,6 +159,7 @@
        (if (= (x86_load_parameter code (wrap-cast usize (deref (field-pointer op 'value)))) 0) 0
            (x86_lir_normalize context op)))
       ((= kind 7) (x86_lir_call context op))
+      ((= kind 34) (x86_lir_data_address context op))
       ((= kind 29) 1)
       ((= (ir_binary_kind_p kind) 1) (x86_lir_binary context op))
       (t (x86_lir_unary context op)))))

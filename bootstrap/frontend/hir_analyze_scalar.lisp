@@ -90,6 +90,9 @@
          (analyze_allocation_region context body depth))
         ((= (ast_word_p parser source head #x6c6c61633a696666 8) 1)
          (hir_from_foreign_call context body depth))
+        ((= (ast_long_word_p parser source head
+                             #x726464613a696666 #x666f2d737365 14) 1)
+         (analyze_data_address context body))
         ((= (ast_word_p parser source head #x6669 2) 1)
          (analyze_if_expr context body depth))
         ((= (ast_word_p parser source head #x6e676f7270 5) 1)

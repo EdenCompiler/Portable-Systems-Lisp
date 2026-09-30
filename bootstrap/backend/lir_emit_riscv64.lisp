@@ -111,6 +111,23 @@
                 (if (< 8 arity) (wrap* 8 (bits-and (wrap- arity 7) (wrap- 0 2)))
                     (wrap-cast usize 0)))))))))
 
+(defun rv_lir_data_address (context op)
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_lir_instruction) op) (returns c-int))
+  (let ((target (deref (field-pointer op 'target)))
+        (code (deref (field-pointer context 'code))))
+    (if (= target 0) 0
+        (if (< (deref (field-pointer context 'data_count)) target) 0
+            (progn
+              (store (field-pointer
+                      (native_data_import_at context (wrap- target 1))
+                      'referenced) 1)
+              (if (= (record_call_fixup
+                      (deref (field-pointer context 'data_fixups))
+                      (deref (field-pointer code 'length)) target) 0) 0
+                  (if (= (rv_word code #x00000297) 0) 0
+                      (rv_i code #x03 5 5 3 0))))))))
+
 (defun rv_lir_value (context op)
   (declare (type (ptr native_compile_context) context) (type (ptr native_lir_instruction) op)
            (returns c-int))
@@ -123,6 +140,7 @@
        (if (= (rv_load_parameter code 5 (wrap-cast usize (deref (field-pointer op 'value)))) 0) 0
            (rv_normalize code 5 (deref (field-pointer op 'scalar_code)))))
       ((= kind 7) (rv_lir_call context op))
+      ((= kind 34) (rv_lir_data_address context op))
       ((= kind 29) 1)
       ((= (ir_binary_kind_p kind) 1) (rv_lir_binary context op))
       (t (rv_lir_unary context op)))))

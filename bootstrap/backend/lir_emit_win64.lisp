@@ -106,6 +106,7 @@
                  (wrap-cast usize (deref (field-pointer op 'value)))) 0) 0
            (x86_lir_normalize context op)))
       ((= kind 7) (win64_lir_call context op))
+      ((= kind 34) (x86_lir_data_address context op))
       ((= kind 29) 1)
       ((= (ir_binary_kind_p kind) 1) (win64_lir_binary context op))
       (t (win64_lir_unary context op)))))

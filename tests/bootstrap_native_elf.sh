@@ -52,7 +52,8 @@ check_fixture() {
 for level in 0 1; do
   for name in answer two_functions local_calls six_arguments usize integer_types \
       mixed_integers bitops pointers stack_arguments foreign_calls void_calls \
-      layout_queries optimizer cfg_optimizer effects inline integer_stack_ffi; do
+      layout_queries optimizer cfg_optimizer effects inline integer_stack_ffi \
+      data_import; do
     check_fixture "$name" "$level"
   done
   if test "$target" = riscv64-linux-gnu; then
@@ -62,12 +63,20 @@ done
 readelf -r "$work_dir/foreign_calls-1.o" | grep -q "$relocation"
 if test "$target" = aarch64-linux-gnu; then
   readelf -s "$work_dir/foreign_calls-1.o" | grep -q '\$x'
+  test "$(readelf -r "$work_dir/data_import-1.o" | grep -c R_AARCH64_ADR_GOT)" -eq 5
+  test "$(readelf -r "$work_dir/data_import-1.o" | grep -c R_AARCH64_LD64_GO)" -eq 5
 else
   readelf -h "$work_dir/foreign_calls-1.o" | grep -q 'double-float ABI'
+  test "$(readelf -r "$work_dir/data_import-1.o" | grep -c R_RISCV_GOT_HI20)" -eq 5
+  test "$(readelf -r "$work_dir/data_import-1.o" | grep -c R_RISCV_PCREL_LO1)" -eq 5
   if readelf -r "$work_dir/foreign_calls-1.o" | grep -q R_RISCV_RELAX; then
     echo 'native RISC-V output permits code-shifting relaxation' >&2
     exit 1
   fi
+fi
+if nm -u "$work_dir/data_import-1.o" | grep -q unused_counter; then
+  echo 'native ELF output retained an unused data import' >&2
+  exit 1
 fi
 if nm -u "$work_dir/cfg_optimizer-1.o" | grep -q cfg_dead; then
   echo 'native output retained an unreachable import' >&2
@@ -115,7 +124,7 @@ compile_modules() {
 # successive native subset generations. This is not the complete M8 gate.
 for generation in 1 2 3; do
   compile_modules "$generation"
-  for name in stack_arguments foreign_calls cfg_optimizer inline integer_stack_ffi; do
+  for name in stack_arguments foreign_calls cfg_optimizer inline integer_stack_ffi data_import; do
     run_target "$work_dir/compiler-$generation" --target="$target" \
       "$project_root/tests/bootstrap_$name.lisp" "$work_dir/target-$name.o"
     cmp "$work_dir/$name-1.o" "$work_dir/target-$name.o"

@@ -473,6 +473,43 @@ nm -u "$work_dir/import-case-stage0.o" | grep -q ' U MixedCaseAdd$'
 cc -Wall -Wextra -Werror "$project_root/tests/harness_bootstrap_import_case.c" \
   "$work_dir/import-case-stage0.o" -o "$work_dir/import-case-stage0"
 "$work_dir/import-case-stage0"
+for level in 0 1; do
+  run_host "$work_dir/pslcc-native-slice$host_suffix" "-O$level" \
+    "$project_root/tests/bootstrap_data_import.lisp" "$work_dir/data-import-$level.o"
+  run_host "$work_dir/pslcc-native-slice$host_suffix" "-O$level" \
+    "$project_root/tests/bootstrap_data_import.lisp" "$work_dir/data-import-$level-repeat.o"
+  cmp "$work_dir/data-import-$level.o" "$work_dir/data-import-$level-repeat.o"
+  cc -Wall -Wextra -Werror "$project_root/tests/harness_bootstrap_data_import.c" \
+    "$work_dir/data-import-$level.o" -o "$work_dir/data-import-$level"
+  "$work_dir/data-import-$level"
+  "$project_root/pslcc" "-O$level" -c \
+    "$project_root/tests/bootstrap_data_import.lisp" \
+    -o "$work_dir/data-import-stage0-$level.o"
+  cc -Wall -Wextra -Werror "$project_root/tests/harness_bootstrap_data_import.c" \
+    "$work_dir/data-import-stage0-$level.o" -o "$work_dir/data-import-stage0-$level"
+  "$work_dir/data-import-stage0-$level"
+done
+test "$(readelf -r "$work_dir/data-import-1.o" | grep -c R_X86_64_GOTPCREL)" -eq 5
+nm -u "$work_dir/data-import-1.o" | grep -q ' U c_counter$'
+nm -u "$work_dir/data-import-1.o" | grep -q ' U MixedCaseData$'
+if nm -u "$work_dir/data-import-1.o" | grep -q unused_counter; then
+  echo 'native object retained an unused C data import' >&2
+  exit 1
+fi
+for source in "$project_root"/tests/bootstrap_data_errors/*.lisp; do
+  if run_host "$work_dir/pslcc-native-slice$host_suffix" "$source" \
+      "$work_dir/invalid-data.o" >"$work_dir/stdout" 2>"$work_dir/stderr"; then
+    echo "native slice accepted invalid data import source: $source" >&2
+    exit 1
+  fi
+  test ! -e "$work_dir/invalid-data.o"
+  if "$project_root/pslcc" -c "$source" -o "$work_dir/invalid-data-stage0.o" \
+      >"$work_dir/stdout" 2>"$work_dir/stderr"; then
+    echo "Stage 0 accepted invalid data import source: $source" >&2
+    exit 1
+  fi
+  test ! -e "$work_dir/invalid-data-stage0.o"
+done
 for source in "$project_root"/tests/bootstrap_foreign_errors/*.lisp; do
   if run_host "$work_dir/pslcc-native-slice$host_suffix" "$source" "$work_dir/invalid-foreign.o" \
       >"$work_dir/stdout" 2>"$work_dir/stderr"; then

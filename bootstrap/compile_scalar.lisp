@@ -21,8 +21,11 @@
 (include "ir/ir_verify_type_helpers.lisp")
 (include "frontend/scalar_resolve.lisp")
 (include "frontend/ffi.lisp")
+(include "frontend/data.lisp")
 (include "object/elf64_calls.lisp")
+(include "object/elf64_data_imports.lisp")
 (include "object/coff64_calls.lisp")
+(include "object/coff64_data_imports.lisp")
 
 (defun configure_scalar_signature (context signature)
   (declare (type (ptr native_compile_context) context)

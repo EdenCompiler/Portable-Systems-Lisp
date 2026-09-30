@@ -19,11 +19,18 @@
          (if (= (native_register_layout layouts form) 1) 1
              (native_unit_fail result 1)))
         ((= (native_import_form_p signatures form) 1)
-         (if (= (native_parse_import signatures form) 1) 1
+         (if (= (native_parse_import signatures form) 0)
+             (native_unit_fail result 2)
+             (if (= (native_latest_signature_data_name_free_p context) 1) 1
+                 (native_unit_fail result 2))))
+        ((= (native_import_data_form_p context form) 1)
+         (if (= (native_parse_import_data context form) 1) 1
              (native_unit_fail result 2)))
         (t
-         (if (= (native_parse_signature signatures form) 1) 1
-             (native_unit_fail result 3)))))))
+         (if (= (native_parse_signature signatures form) 0)
+             (native_unit_fail result 3)
+             (if (= (native_latest_signature_data_name_free_p context) 1) 1
+                 (native_unit_fail result 3))))))))
 
 (defun native_collect_unit (context result)
   (declare (type (ptr native_compile_context) context)
@@ -106,11 +113,26 @@
            (type (ptr native_function) functions) (type usize count)
            (type (ptr native_fixup_arena) fixups) (returns c-int))
   (let ((target (deref (field-pointer context 'target))))
-    (if (= (native_target_object_format target) 2)
-        (write_coff64_calls (deref (field-pointer code 'data))
-                            (deref (field-pointer code 'length)) functions count fixups object)
-        (write_elf64_calls_target target (deref (field-pointer code 'data))
-                                  (deref (field-pointer code 'length)) functions count fixups object))))
+    (let ((data_count (deref (field-pointer context 'data_count))))
+      (if (= data_count 0)
+          (if (= (native_target_object_format target) 2)
+              (write_coff64_calls (deref (field-pointer code 'data))
+                                  (deref (field-pointer code 'length))
+                                  functions count fixups object)
+              (write_elf64_calls_target target (deref (field-pointer code 'data))
+                                        (deref (field-pointer code 'length))
+                                        functions count fixups object))
+          (if (= (native_target_object_format target) 2)
+              (write_coff64_calls_data
+               (deref (field-pointer code 'data))
+               (deref (field-pointer code 'length)) functions count fixups
+               (deref (field-pointer context 'data_imports)) data_count
+               (deref (field-pointer context 'data_fixups)) object)
+              (write_elf64_calls_data_target
+               target (deref (field-pointer code 'data))
+               (deref (field-pointer code 'length)) functions count fixups
+               (deref (field-pointer context 'data_imports)) data_count
+               (deref (field-pointer context 'data_fixups)) object))))))
 
 (defun native_finish_unit (context result count object)
   (declare (type (ptr native_compile_context) context)

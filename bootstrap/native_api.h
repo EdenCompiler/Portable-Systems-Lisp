@@ -187,6 +187,9 @@ struct native_compile_context {
     uintptr_t inline_count, inline_capacity, inline_cursor;
     uint32_t target;
     uintptr_t backend_frame_size, backend_outgoing_size, backend_prologue_size;
+    struct native_data_import *data_imports;
+    uintptr_t data_count, data_capacity;
+    struct native_fixup_arena *data_fixups;
 };
 
 struct native_type_shape {
@@ -257,6 +260,15 @@ struct native_signature_context {
     uint32_t error;
 };
 
+struct native_data_import {
+    const uint8_t *name;
+    uintptr_t name_length;
+    uintptr_t type_ast;
+    uintptr_t size;
+    uintptr_t alignment;
+    uint8_t referenced;
+};
+
 struct native_storage {
     struct psl_ast_node *syntax;
     struct native_layout *layouts;
@@ -264,13 +276,14 @@ struct native_storage {
     struct native_parameter *parameters;
     struct native_function *functions;
     struct native_signature *signatures;
+    struct native_data_import *data_imports;
     struct native_hir_node *hir;
     struct native_ssa_value *ssa;
     struct native_ssa_block *ssa_blocks;
     struct native_ir_type *types;
     struct native_lir_instruction *lir;
     struct native_lir_block *lir_blocks;
-    struct native_call_fixup *calls, *jumps;
+    struct native_call_fixup *calls, *jumps, *data_fixups;
     uintptr_t *bindings, *labels;
     uint8_t *code, *object;
     struct native_ssa_value *inline_values;
@@ -290,7 +303,7 @@ struct native_driver {
     struct native_hir_arena hir;
     struct native_ssa_arena ssa;
     struct native_lir_arena lir;
-    struct native_fixup_arena calls, jumps;
+    struct native_fixup_arena calls, jumps, data_fixups;
     struct byte_buffer code, object;
     struct native_compile_context context;
 };
@@ -373,6 +386,24 @@ extern int native_run_compiler_target(const char *source, const char *output,
 extern int write_elf64_calls_target(uint32_t target, const uint8_t *code, uintptr_t code_size,
                                   const struct native_function *functions, uintptr_t count,
                                   struct native_fixup_arena *fixups, struct byte_buffer *buffer);
+extern int write_elf64_calls_data_target(
+    uint32_t target, const uint8_t *code, uintptr_t code_size,
+    const struct native_function *functions, uintptr_t function_count,
+    struct native_fixup_arena *calls, const struct native_data_import *imports,
+    uintptr_t import_count, struct native_fixup_arena *data_fixups,
+    struct byte_buffer *buffer);
+extern int write_elf64_calls_data(
+    const uint8_t *code, uintptr_t code_size,
+    const struct native_function *functions, uintptr_t function_count,
+    struct native_fixup_arena *calls, const struct native_data_import *imports,
+    uintptr_t import_count, struct native_fixup_arena *data_fixups,
+    struct byte_buffer *buffer);
+extern int write_coff64_calls_data(
+    const uint8_t *code, uintptr_t code_size,
+    const struct native_function *functions, uintptr_t function_count,
+    struct native_fixup_arena *calls, const struct native_data_import *imports,
+    uintptr_t import_count, struct native_fixup_arena *data_fixups,
+    struct byte_buffer *buffer);
 extern int hir_verify_region_metadata(struct native_compile_context *context, uintptr_t index);
 extern int ssa_verify_liveness(struct native_compile_context *context);
 extern int ssa_verify_function(struct native_compile_context *context);
