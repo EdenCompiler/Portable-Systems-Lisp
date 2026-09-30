@@ -141,6 +141,7 @@ run_host "$work_dir/driver-check$host_suffix"
 run_host "$work_dir/compiler-driver-check$host_suffix"
 "$host_compiler" -Wall -Wextra -Werror "$project_root/bootstrap/driver.c" \
   "$project_root/bootstrap/host/platform_stdio.c" \
+  "$project_root/bootstrap/host/platform_toolchain.c" \
   "$work_dir/native-core.o" "$work_dir/native-host.o" "$work_dir/native-source.o" \
   "$work_dir/native-input.o" "$work_dir/native-path.o" \
   "$work_dir/native-driver.o" "$work_dir/native-output.o" \
@@ -195,6 +196,39 @@ test ! -e "$work_dir/cli-rejected.o"
 mkdir "$work_dir/output-directory"
 check_cli_failure 2 "$project_root/tests/bootstrap_answer.lisp" "$work_dir/output-directory"
 grep -q 'cannot write object' "$work_dir/cli.err"
+if test "$host_target" = x86_64-linux-gnu; then
+  for level in 0 1; do
+    run_host "$work_dir/pslcc-native-slice$host_suffix" "-O$level" \
+      "$project_root/examples/ffi/source_import.lisp" \
+      "$work_dir/source-import-$level.o"
+    run_host "$work_dir/pslcc-native-slice$host_suffix" "-O$level" \
+      "$project_root/examples/ffi/source_import.lisp" \
+      "$work_dir/source-import-$level-repeat.o"
+    cmp "$work_dir/source-import-$level.o" \
+      "$work_dir/source-import-$level-repeat.o"
+    cc -Wall -Wextra -Werror \
+      "$project_root/examples/ffi/harness_source_import.c" \
+      "$work_dir/source-import-$level.o" -o "$work_dir/source-import-$level"
+    "$work_dir/source-import-$level"
+  done
+  run_host "$work_dir/pslcc-native-slice$host_suffix" \
+    "$project_root/tests/include/entry.lisp" "$work_dir/include-c-source.o"
+  cc -Wall -Wextra -Werror "$project_root/tests/include/harness.c" \
+    "$work_dir/include-c-source.o" -o "$work_dir/include-c-source"
+  "$work_dir/include-c-source"
+  check_cli_failure 2 "$project_root/tests/include/missing_c_source.lisp" \
+    "$work_dir/missing-c-source.o"
+  grep -q 'cannot read source' "$work_dir/cli.err"
+  test ! -e "$work_dir/missing-c-source.o"
+  check_cli_failure 2 "$project_root/tests/include/duplicate_c_source.lisp" \
+    "$work_dir/duplicate-c-source.o"
+  grep -q 'duplicate C source' "$work_dir/cli.err"
+  test ! -e "$work_dir/duplicate-c-source.o"
+  check_cli_failure 2 "$project_root/tests/include/invalid_c_source.lisp" \
+    "$work_dir/invalid-c-source.o"
+  grep -q 'cannot write object' "$work_dir/cli.err"
+  test ! -e "$work_dir/invalid-c-source.o"
+fi
 for level in 0 1; do
   run_host "$work_dir/pslcc-native-slice$host_suffix" "-O$level" \
     "$project_root/tests/bootstrap_optimizer.lisp" "$work_dir/optimizer-$level.o"
@@ -982,6 +1016,7 @@ if test "$host_target" != x86_64-linux-gnu; then
     -o "$work_dir/native-reference-diagnostics.o"
   cc -Wall -Wextra -Werror "$project_root/bootstrap/driver.c" \
     "$project_root/bootstrap/host/platform_stdio.c" \
+    "$project_root/bootstrap/host/platform_toolchain.c" \
     "$work_dir/native-reference-core.o" "$work_dir/native-reference-host.o" \
     "$work_dir/native-reference-source.o" "$work_dir/native-reference-input.o" \
     "$work_dir/native-reference-path.o" \
@@ -1123,6 +1158,7 @@ run_host "$work_dir/source-unit-O0-check$host_suffix"
 run_host "$work_dir/driver-O0-check$host_suffix"
 "$host_compiler" -Wall -Wextra -Werror "$project_root/bootstrap/driver.c" \
   "$project_root/bootstrap/host/platform_stdio.c" \
+  "$project_root/bootstrap/host/platform_toolchain.c" \
   "$work_dir/native-core-O0.o" "$work_dir/native-host-O0.o" "$work_dir/native-source-O0.o" \
   "$work_dir/native-input-O0.o" "$work_dir/native-path-O0.o" \
   "$work_dir/native-driver-O0.o" "$work_dir/native-output-O0.o" \

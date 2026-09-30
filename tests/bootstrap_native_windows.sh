@@ -39,6 +39,23 @@ check_fixture() {
   run_windows "$work_dir/reference.exe"
 }
 
+check_c_source() {
+  level=$1
+  "$compiler" "-O$level" --target="$target" \
+    "$project_root/examples/ffi/source_import.lisp" \
+    "$work_dir/source-import-$level.o"
+  "$compiler" --target="$target" "-O$level" \
+    "$project_root/examples/ffi/source_import.lisp" \
+    "$work_dir/source-import-$level-repeat.o"
+  cmp "$work_dir/source-import-$level.o" \
+    "$work_dir/source-import-$level-repeat.o"
+  "$cross_objdump" -f "$work_dir/source-import-$level.o" | grep -q 'pe-x86-64'
+  "$cross_cc" -Wall -Wextra -Werror \
+    "$project_root/examples/ffi/harness_source_import.c" \
+    "$work_dir/source-import-$level.o" -o "$work_dir/source-import-$level.exe"
+  run_windows "$work_dir/source-import-$level.exe"
+}
+
 for level in 0 1; do
   for name in answer two_functions local_calls six_arguments usize integer_types \
       mixed_integers bitops pointers stack_arguments foreign_calls void_calls \
@@ -46,6 +63,7 @@ for level in 0 1; do
       data_import data_export c_string; do
     check_fixture "$name" "$level"
   done
+  check_c_source "$level"
 done
 
 "$cross_objdump" -r "$work_dir/foreign_calls-1.o" | grep -q 'IMAGE_REL_AMD64_REL32.*foreign_seven'
@@ -112,6 +130,7 @@ compile_modules() {
   test "$("$cross_nm" -u "$work_dir/core-$generation.o" | wc -l)" -eq 0
   "$cross_cc" -Wall -Wextra -Werror "$project_root/bootstrap/driver.c" \
     "$project_root/bootstrap/host/platform_stdio.c" \
+    "$project_root/bootstrap/host/platform_toolchain.c" \
     "$work_dir/core-$generation.o" "$work_dir/host-$generation.o" \
     "$work_dir/source-$generation.o" "$work_dir/driver-$generation.o" \
     "$work_dir/input-$generation.o" "$work_dir/path-$generation.o" \

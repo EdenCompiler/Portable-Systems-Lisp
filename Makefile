@@ -22,7 +22,7 @@ NATIVE_DRIVER := $(BUILD_DIR)/native-driver.o
 NATIVE_OUTPUT := $(BUILD_DIR)/native-output.o
 NATIVE_DIAGNOSTICS := $(BUILD_DIR)/native-diagnostics.o
 NATIVE_OBJECTS := $(NATIVE_CORE) $(NATIVE_HOST) $(NATIVE_SOURCE) $(NATIVE_INPUT) $(NATIVE_PATH) $(NATIVE_DRIVER) $(NATIVE_OUTPUT) $(NATIVE_DIAGNOSTICS)
-HOST_SOURCES := bootstrap/driver.c bootstrap/host/platform_stdio.c
+HOST_SOURCES := bootstrap/driver.c bootstrap/host/platform_stdio.c bootstrap/host/platform_toolchain.c
 HOST_HEADERS := bootstrap/native_api.h bootstrap/host/source.h bootstrap/host/compiler.h
 
 .PHONY: all compiler native stage0 compile example test test-native test-static-data test-self-core \

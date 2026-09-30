@@ -1,6 +1,17 @@
 (include "compiler_diagnostics.lisp")
 (include "../target.lisp")
 
+(defun compiler_release_c_sources (state)
+  (declare (type (ptr native_compiler_state) state) (returns c-int))
+  (while (< 0 (ptr-address (deref (field-pointer state 'c_sources))))
+    (let ((entry (deref (field-pointer state 'c_sources))))
+      (store (field-pointer state 'c_sources)
+             (ptr-cast (ptr native_c_source_path)
+                       (deref (field-pointer entry 'next))))
+      (ffi:call free (ptr-cast (ptr void) (deref (field-pointer entry 'path))))
+      (ffi:call free (ptr-cast (ptr void) entry))))
+  1)
+
 (defun compiler_emit_object (state source_path output_path)
   (declare (type (ptr native_compiler_state) state) (type (ptr u8) source_path output_path)
            (returns c-int))
@@ -12,8 +23,14 @@
           (compiler_report_unit_error driver result)
           (ffi:call native_host_report_error 3 source_path 0 0)
           1)
-        (if (= (ffi:call native_host_write_object output_path
-                         (field-pointer driver 'object)) 0)
+        (if (= (if (= (ptr-address
+                       (deref (field-pointer state 'c_sources))) 0)
+                   (ffi:call native_host_write_object output_path
+                             (field-pointer driver 'object))
+                   (ffi:call native_host_merge_c_sources
+                             output_path (field-pointer driver 'object)
+                             (deref (field-pointer state 'c_sources))
+                             (deref (field-pointer state 'target)))) 0)
             (compiler_path_error 4 output_path)
             0))))
 
@@ -22,7 +39,8 @@
            (returns c-int))
   (let ((driver (field-pointer state 'driver)))
     (store (field-pointer driver 'source)
-      (ffi:call native_read_source_unit source_path (field-pointer driver 'length)))
+      (ffi:call native_read_source_unit source_path (field-pointer driver 'length)
+                (field-pointer state 'c_sources)))
     (if (= (ptr-address (deref (field-pointer driver 'source))) 0)
         (compiler_path_error 1 source_path)
         (if (= (ffi:call native_prepare_driver driver) 0)
@@ -45,6 +63,7 @@
           (store (field-pointer state 'target) target)
           (let ((status (compiler_load_and_prepare state source_path output_path)))
             (ffi:call native_release_driver (field-pointer state 'driver))
+            (compiler_release_c_sources state)
             (ffi:call free (ptr-cast (ptr void) state))
             status)))))
 

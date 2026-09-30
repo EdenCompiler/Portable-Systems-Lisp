@@ -329,8 +329,8 @@ the native subset's types and spelling rules.
 Explicit libc imports such as `malloc` and `free` work; they do not become
 implicit runtime dependencies of other units.
 
-Native `ffi:source`, managed strings/named general byte data, floating/aggregate
-signatures, and pointer qualifiers remain unsupported. Import effect annotations and
+Managed strings/named general byte data, floating/aggregate signatures, and
+pointer qualifiers remain unsupported by the native subset. Import effect annotations and
 allocation-effect certification are implemented for the documented direct-call
 subset; unannotated imports remain unknown.
 
@@ -358,7 +358,8 @@ it does not yet accept Stage 0's other options. Supported native targets are
 success, 1 for rejected language input, and 2 for usage, I/O, or allocation
 failure. Arguments are inspected only for the expected count. Repeated run
 calls allocate independent state and release it on every return. The temporary
-C adapter writes objects and renders messages selected by the PSL driver.
+C adapters write objects, render messages selected by the PSL driver, and
+invoke the selected conventional C compiler for explicit `ffi:source` units.
 `bootstrap/driver.c` is only a `main` trampoline.
 
 Top-level lowercase `(include "relative-file.lisp")` now splices source into
@@ -366,13 +367,22 @@ the same unit. A native PSL parser identifies include forms and decodes their
 filenames. The hosted PSL loader resolves relative include paths, deduplicates
 canonical files, rejects active cycles, and assembles forms in source order.
 Its PSL host units read files and canonicalize paths; a temporary C adapter
-renders errors. Nested paths are relative to the file naming them. Reader and
-include failures produce no
-object. `native_read_source_unit` returns an owned, NUL-terminated byte buffer
-and its length; the caller releases it with a free-compatible allocator. An
-empty unit returns an owned empty buffer. Errors return null and release partial
+renders errors. Nested paths are relative to the file naming them. The loader
+also recognizes top-level `ffi:source`, resolves each C path relative to its
+declaring Lisp file, preserves declaration order, and rejects duplicate
+canonical C files. It returns the owned C path list separately from the
+flattened Lisp bytes. The Linux-host native driver compiles those sources with
+the selected target C compiler and merges them with the PSL object through a
+relocatable link. Reader and include failures produce no object.
+`native_read_source_unit` returns an owned, NUL-terminated byte buffer
+and its length plus an owned C path list; the caller releases them with a
+free-compatible allocator. An empty unit returns an owned empty buffer. Errors
+return null and release partial
 frames, paths, syntax arrays, and assembled bytes. The loader is a separate PSL
 translation unit using the core parser/include exports through their C ABI.
+Native C-source merging is currently verified from the x86-64 Linux compiler
+host for all four hosted output targets. Target-hosted generated compilers are
+not yet required to launch a C toolchain during bootstrap comparison.
 
 It does not yet support packages, general host macro execution, qualifiers,
 floating accesses, or structure values. Its

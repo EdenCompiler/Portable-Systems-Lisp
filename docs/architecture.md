@@ -65,6 +65,7 @@ bootstrap/
     compiler.h        compiler diagnostic ABI constants
     diagnostics.lisp  compiler/source diagnostic wording and rendering
     platform_stdio.c  stderr and primitive host writes
+    platform_toolchain.c  process adapter for explicit C-source compilation
     output.lisp         hosted object-file output through C file primitives
     driver.lisp         owned storage preparation and initialization coordinator
     driver_types.lisp   driver and storage record layouts
@@ -75,6 +76,7 @@ bootstrap/
     source_paths.lisp  relative/absolute include paths and platform path policy
     source_buffers.lisp  assembled bytes and canonical file ownership
     source_frames.lisp  per-file scanner/parser state and cleanup
+    source_c_files.lisp  ordered canonical C-source ownership
     source_imports.lisp, source_types.lisp  typed host/core ABI and loader records
     source_io.lisp      hosted incremental file input through C stream primitives
     source_path_posix.lisp, source_path_windows.lisp
@@ -229,16 +231,22 @@ alignment, and field offsets against compiled C structures. Typed field
 pointers can access nested structure fields; loads and stores support integers
 and pointers. Structure values, floating accesses, and pointer qualifiers
 remain outside the native function subset.
-Native source inclusion uses `frontend/source.lisp` for include recognition
-and Lisp string decoding. `host/source_unit.lisp` owns traversal, active-cycle
-checks, and ordered assembly. Its path, buffer, and frame helpers own relative
+Native source inclusion uses `frontend/source.lisp` for `include` and
+`ffi:source` recognition and Lisp string decoding. `host/source_unit.lisp` owns
+traversal, active-cycle checks, and ordered assembly. Its path, buffer, and
+frame helpers own relative
 paths, canonical file records, syntax arrays, and partial cleanup. The separately
 compiled loader imports the core's exported parser/include functions through
 explicit typed C ABI declarations. The PSL `host/diagnostics.lisp` unit
 selects and renders source errors. Its `platform_stdio.c` adapter only
 exposes the host `stderr` stream and primitive byte/integer writes.
 Separate PSL units read files, canonicalize names, and report platform path
-policy. The PSL loader preserves order and suppresses repeated canonical files.
+policy. The PSL loader preserves Lisp form order, suppresses repeated canonical
+include files, and returns an ordered canonical C-source list. Duplicate C
+sources are errors. `platform_toolchain.c` is the conventional tool boundary:
+it compiles only declared C files, performs a relocatable merge into a temporary
+object, and atomically replaces the requested output after success. Machine
+encoding and ELF/COFF writing remain in PSL.
 The driver allocates signature and layout tables according to the source size;
 it no longer has a 256-function ceiling. The ELF writer bounds counts by its
 symbol/name field widths rather than that old development limit.
@@ -311,8 +319,8 @@ phase/location selection.
 This permits forward calls and recursion. It is a restricted source-to-object
 proof, not Stage 1: general symbol interpretation, macro expansion, full
 semantic analysis, managed values and indirect effects, floating and aggregate
-ABIs, `ffi:source`, general static byte data, and source string literals still
-run in SBCL or remain outside the native subset. Native ELF and COFF writers
+ABIs, general static byte data, and managed source string values still run in
+SBCL or remain outside the native subset. Native ELF and COFF writers
 handle the documented integer/pointer code, calls, unwind metadata, initialized
 scalar data, and imported data relocations without an assembler.
 

@@ -8,6 +8,7 @@ trap 'rm -rf "$work_dir"' EXIT HUP INT TERM
 build_driver() {
   cc -Wall -Wextra -Werror "$project_root/bootstrap/driver.c" \
     "$project_root/bootstrap/host/platform_stdio.c" \
+    "$project_root/bootstrap/host/platform_toolchain.c" \
     "$1" "$2" "$3" "$4" "$5" "$6" "$7" "$8" -o "$9"
 }
 

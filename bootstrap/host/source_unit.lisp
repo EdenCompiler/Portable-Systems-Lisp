@@ -1,4 +1,5 @@
 (include "source_paths.lisp")
+(include "source_c_files.lisp")
 (include "source_buffers.lisp")
 (include "source_frames.lisp")
 
@@ -47,6 +48,7 @@
                       (deref (field-pointer frame 'root)))))
     (cond
       ((= kind 2) (source_load_include unit frame))
+      ((= kind 3) (source_record_c_path unit frame))
       ((= kind 1) (source_append_frame_form unit frame))
       (t (ffi:call native_source_report_error 3
                   (deref (field-pointer (deref (field-pointer frame 'file)) 'path)))
@@ -120,8 +122,9 @@
         (ptr-cast (ptr u8) (ffi:call calloc 1 1))
         bytes)))
 
-(defun native_read_source_unit (path length)
+(defun native_read_source_unit (path length c_sources)
   (declare (type (ptr u8) path) (type (ptr usize) length)
+           (type (ptr (ptr native_c_source_path)) c_sources)
            (returns (ptr u8)) (c-export :c))
   (let ((unit (ptr-cast (ptr native_source_unit)
                (ffi:call calloc 1 (sizeof 'native_source_unit)))))
@@ -133,5 +136,8 @@
                              (ffi:call free
                                (ptr-cast (ptr void) (deref (field-pointer unit 'bytes))))
                              (ptr-from-address (ptr u8) 0)))))
+            (if (= status 1)
+                (source_take_c_paths unit c_sources)
+                (source_release_c_paths (field-pointer unit 'c_sources)))
             (ffi:call free (ptr-cast (ptr void) unit))
             bytes)))))

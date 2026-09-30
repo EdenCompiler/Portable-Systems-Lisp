@@ -1,5 +1,6 @@
 #include "../bootstrap/native_api.h"
 #include "../bootstrap/host/compiler.h"
+#include "../bootstrap/host/source.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,9 +40,11 @@ void __wrap_free(void *memory) {
 }
 #endif
 
-uint8_t *native_read_source_unit(const char *path, size_t *length) {
+uint8_t *native_read_source_unit(const char *path, size_t *length,
+                                 struct native_c_source_path **c_sources) {
     uint8_t *source;
     assert(strcmp(path, "source.lisp") == 0);
+    assert(c_sources && !*c_sources);
     ++reads;
     if (scenario == READ_FAILURE) return NULL;
     source = malloc(4);
@@ -94,6 +97,18 @@ int native_host_write_object(const uint8_t *path, const struct byte_buffer *obje
     assert(strcmp((const char *)path, "result.o") == 0);
     assert(object->data == object_bytes && object->length == sizeof object_bytes);
     return scenario != WRITE_FAILURE;
+}
+
+int native_host_merge_c_sources(const uint8_t *path,
+                                const struct byte_buffer *object,
+                                const struct native_c_source_path *sources,
+                                uint32_t target) {
+    (void)path;
+    (void)object;
+    (void)sources;
+    (void)target;
+    assert(!"unexpected C-source merge in compiler controller fixture");
+    return 0;
 }
 
 int native_release_driver(struct native_driver *driver) {

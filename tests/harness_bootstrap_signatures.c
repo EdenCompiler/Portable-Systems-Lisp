@@ -1,5 +1,6 @@
 #include "../bootstrap/native_api.h"
 #include "../bootstrap/host/source.h"
+#include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -65,7 +66,9 @@ static int check_module(const char *path, size_t expected_functions,
     size_t length;
     int ok = 1;
 
-    source = native_read_source_unit(path, &length);
+    struct native_c_source_path *c_sources = NULL;
+    source = native_read_source_unit(path, &length, &c_sources);
+    assert(!c_sources);
     if (!source) return 0;
     nodes = calloc(length + 1, sizeof *nodes);
     if (!nodes) { free(source); return 0; }

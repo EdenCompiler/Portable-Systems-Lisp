@@ -101,7 +101,7 @@
 
 (defun source_error_kind_p (kind)
   (declare (type u32 kind) (returns c-int))
-  (if (< kind 1) 0 (if (< 4 kind) 0 1)))
+  (if (< kind 1) 0 (if (< 5 kind) 0 1)))
 
 (defun source_error_prefix (kind)
   (declare (type u32 kind) (returns (ptr u8)))
@@ -110,6 +110,7 @@
     ((= kind 2) (ffi:c-string "circular source include: "))
     ((= kind 3) (ffi:c-string "invalid include form: "))
     ((= kind 4) (ffi:c-string "reader error: "))
+    ((= kind 5) (ffi:c-string "duplicate C source: "))
     (t (ffi:c-string ""))))
 
 (defun native_source_report_error (kind path)

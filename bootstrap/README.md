@@ -90,8 +90,10 @@ The native modules currently implement:
   pipeline. Exported integers accept range-checked literals; exported pointers
   accept zero. x86-64 ELF, AArch64 ELF, RISC-V ELF, and AMD64 COFF objects carry
   initialized data, symbols, and target relocation forms and link against the
-  same C harness. `ffi:source`, floating/aggregate signatures, and pointer
-  qualifiers still need native ports; allocation-effect annotations use the
+  same C harness. The native loader collects `ffi:source` paths and the Linux
+  host driver compiles and merges them for each hosted target. Floating/
+  aggregate signatures and pointer qualifiers still need native ports;
+  allocation-effect annotations use the
   native certification pass described below.
   It accepts `t`, `nil`, `if`, lexical `let`, `progn`, and test-and-body `cond`
   clauses. Integer zero is true in a condition; only Boolean `nil` is false.
@@ -250,14 +252,24 @@ these are core generations, not complete Stage 1–3 compilers.
 
 The source loader is compiled as its own PSL unit. It calls core parser/include
 exports through their typed C ABI and explicitly imports string/memory and OS
-services. `native_read_source_unit(path, length)` returns an owned NUL-terminated
-buffer, including a valid empty buffer for an empty unit. Failed loads release
-all partial state. The source-unit harness uses an independent in-memory OS
-adapter to compare flattened bytes, include deduplication/cycles, reader errors,
+services. `native_read_source_unit(path, length, c_sources)` returns an owned
+NUL-terminated buffer and an ordered list of canonical C sources, including a
+valid empty buffer for an empty unit. A C source is resolved relative to the
+Lisp file that declares it; duplicate canonical declarations are rejected.
+Failed loads release all partial state. The source-unit harness uses an
+independent in-memory OS adapter to compare flattened bytes,
+include deduplication/cycles, reader errors,
 POSIX/Windows path rules, and reuse after failure. On Linux it injects failure
-at every malloc/calloc/realloc in both ordinary and empty loads and verifies
+at every malloc/calloc/realloc in ordinary, empty, and C-source loads and verifies
 complete cleanup. The real OS adapter is exercised by the native compiler's
 nested/repeated/symlink include fixtures on the supported hosts.
+
+On an x86-64 Linux host, the native compiler passes collected C sources to a
+small process adapter. It invokes the selected conventional C compiler without
+a shell, merges the resulting objects with the PSL-owned object through `-r`,
+and renames a complete temporary result into place. Deterministic linked tests
+cover x86-64 Linux and Windows, AArch64 Linux, and RISC-V64 Linux. Generated
+target-host compilers are not yet expected to launch this adapter.
 
 The compiler controller is also its own PSL unit. `native_run_compiler(source,
 output)` returns 0 for success, 1 for rejected source, or 2 for usage/host/

@@ -49,6 +49,23 @@ check_fixture() {
   run_target "$work_dir/reference"
 }
 
+check_c_source() {
+  level=$1
+  "$compiler" "-O$level" --target="$target" \
+    "$project_root/examples/ffi/source_import.lisp" \
+    "$work_dir/source-import-$level.o"
+  "$compiler" --target="$target" "-O$level" \
+    "$project_root/examples/ffi/source_import.lisp" \
+    "$work_dir/source-import-$level-repeat.o"
+  cmp "$work_dir/source-import-$level.o" \
+    "$work_dir/source-import-$level-repeat.o"
+  readelf -h "$work_dir/source-import-$level.o" | grep -q "$machine"
+  "$cross_cc" -Wall -Wextra -Werror \
+    "$project_root/examples/ffi/harness_source_import.c" \
+    "$work_dir/source-import-$level.o" -o "$work_dir/source-import-$level"
+  run_target "$work_dir/source-import-$level"
+}
+
 for level in 0 1; do
   for name in answer two_functions local_calls six_arguments usize integer_types \
       mixed_integers bitops pointers stack_arguments foreign_calls void_calls \
@@ -59,6 +76,7 @@ for level in 0 1; do
   if test "$target" = riscv64-linux-gnu; then
     check_fixture riscv64_abi "$level"
   fi
+  check_c_source "$level"
 done
 readelf -r "$work_dir/foreign_calls-1.o" | grep -q "$relocation"
 if test "$target" = aarch64-linux-gnu; then
@@ -121,6 +139,7 @@ compile_modules() {
   test "$(nm -u "$work_dir/core-$generation.o" | wc -l)" -eq 0
   "$cross_cc" -Wall -Wextra -Werror "$project_root/bootstrap/driver.c" \
     "$project_root/bootstrap/host/platform_stdio.c" \
+    "$project_root/bootstrap/host/platform_toolchain.c" \
     "$work_dir/core-$generation.o" "$work_dir/host-$generation.o" \
     "$work_dir/source-$generation.o" "$work_dir/driver-$generation.o" \
     "$work_dir/input-$generation.o" "$work_dir/path-$generation.o" \

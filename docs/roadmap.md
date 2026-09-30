@@ -17,13 +17,13 @@ is updated. Dates and staffing are deliberately unspecified.
 | x86-64 Windows / Microsoft x64 / COFF | M5 complete for documented subset | Four positional GP/SSE argument registers, shadow space, stack arguments, direct small structs and indirect structs up to 16 bytes, and COFF unwind records. MinGW-w64 links `.exe`, `.a`, and `.dll`; Wine runs the C interoperability corpus. |
 | AArch64 Linux / AAPCS64 / ELF64 | M6 complete for documented subset | Self-encoded AArch64 instructions, AAPCS64 GP/FP and stack calls, small C structs including homogeneous float aggregates, ELF call/GOT relocations, GNU cross linking, and QEMU execution. Larger aggregates and varargs remain unsupported. |
 | C layout and data symbols | Working on supported hosted targets | `defcstruct` matches C size, alignment, and offsets for supported fields, including LP64 versus LLP64 `long`. ELF uses PIC GOT relocations; COFF uses relative data relocations. |
-| Local C source inclusion | Working on supported hosted targets | `ffi:source` compiles a `.c` file with the selected C compiler and merges it into the target relocatable object. |
+| Local C source inclusion | Working on supported hosted targets | `ffi:source` resolves relative to its declaring Lisp file, compiles with the selected C compiler, and merges into the target relocatable object. The native path is verified from an x86-64 Linux host. |
 | Hosted dynamic runtime | M4 complete for documented subset | Versioned 64-bit tagged values, conses, UTF-8 byte strings, symbols, packages, one-argument lexical closures, two values, and a single-threaded mark-and-sweep collector. See the [runtime contract](runtime.md) for limits. |
 | Allocation effect checks | Working M4 slice | `without-allocation` checks transitive direct calls; unknown imports and indirect calls fail unless a trusted import effect is declared. |
 | x86-64 none / ELF64 | M7 executable subset | Runtime-free static image with an explicit entry or generated `linux-exit` startup, linker script, and map. QEMU user-mode executes the explicit Linux-syscall startup without libc. |
 | RISC-V64 Linux / LP64D / ELF64 | M7 complete for documented subset | Self-encoded machine code, GP/FP and stack calls, small C structs, ELF call/GOT relocations, GNU cross linking, and QEMU execution. Larger aggregates, variadics, and `long double` remain unsupported. |
 | RISC-V64 none / ELF64 | M7 executable subset | QEMU `virt` image with explicit startup, stack setup, UART access from Lisp, and SiFive Test exit status; no firmware, OS, libc, or hosted runtime is linked. Other boards require their own startup and memory map. |
-| Self hosting | M8 in progress | Native PSL modules cover source loading, diagnostics, typed integer/pointer analysis, verified HIR/SSA/LIR, effects and optimization, four hosted target encoders, ELF/COFF calls, unwind metadata, imported data relocations, initialized exported scalar data, and private C strings. Three native subset generations reproduce compiler modules and interop fixtures across x86-64 Linux/Windows, AArch64, and RISC-V. General macros/packages, managed and broader ABI types, managed strings/named general static bytes, a complete Stage 1, and the full corpus gate remain open. |
+| Self hosting | M8 in progress | Native PSL modules cover source loading and C-source collection, diagnostics, typed integer/pointer analysis, verified HIR/SSA/LIR, effects and optimization, four hosted target encoders, ELF/COFF calls, unwind metadata, imported data relocations, initialized exported scalar data, and private C strings. Three native subset generations reproduce compiler modules and interop fixtures across x86-64 Linux/Windows, AArch64, and RISC-V. General macros/packages, managed and broader ABI types, managed strings/named general static bytes, a complete Stage 1, and the full corpus gate remain open. |
 | Hosted ANSI Common Lisp | Pending M9 | `--profile=hosted` has an M4 managed-value subset; numeric tower, conditions, CLOS, streams, `eval`, and conformance remain pending. |
 | Executables and libraries | Working on supported hosted targets | `pslcc` invokes the selected GCC linker for executables and shared libraries, and `ar` for deterministic `.a`; dynamic source selects only required runtime objects. |
 | macOS and Wasm | Pending M10 | No object writer or code generation for these targets yet. |
@@ -278,6 +278,63 @@ the bootstrap representation permits bit-for-bit matching.
    all three stages. Compare diagnostics and linked behavior, then compare
    generated object bytes wherever the bootstrap format is deterministic.
 
+**Execution strategy for the remaining work**
+
+The remaining port follows four established compiler practices:
+
+- Keep the build-host compilation environment separate from target runtime
+  state. The Common Lisp compilation model requires macros to expand in the
+  compilation environment, and top-level definitions such as `defmacro`,
+  `defpackage`, and `deftype` affect later compilation. SBCL uses a portable
+  ANSI Common Lisp host and an explicit host-expander bridge during its own
+  cross compilation. PSL will give packages, symbols, macros, and `eval-when`
+  one target-independent compilation-environment interface rather than adding
+  target exceptions to the reader or analyzer. See the
+  [Common Lisp compilation rules](https://www.lispworks.com/documentation/HyperSpec/Body/03_b.htm)
+  and [SBCL's cross-host macro bridge](https://github.com/sbcl/sbcl/blob/master/src/code/macros.lisp).
+- Add one explicit source or IR transition per slice, with a verifier on the
+  receiving representation. This follows the Nanopass practice of small passes
+  over well-defined intermediate languages. PSL will keep its handwritten
+  representations and verifiers; it does not add the Nanopass implementation
+  as a dependency. See the
+  [Nanopass framework overview](https://docs.racket-lang.org/nanopass/).
+- Maintain a fast development gate and a release bootstrap gate. A feature
+  first passes focused Stage 0/native behavior, rejection, and deterministic
+  object checks on x86-64 Linux. The release gate then runs the complete corpus,
+  all targets, and three compiler stages. GCC likewise uses three stages and
+  compares the later stages to expose self-compilation defects. See the
+  [GCC bootstrap procedure](https://gcc.gnu.org/install/build.html).
+- Record the bootstrap seed and compare the full compiler, not selected
+  fixtures, before declaring M8 complete. The final gate builds Stage 1 from
+  the documented SBCL seed, Stage 2 from Stage 1, and Stage 3 from Stage 2;
+  Stage 2 and Stage 3 must agree on deterministic artifacts and observable
+  behavior.
+
+The implementation order is:
+
+1. Add target-independent symbol, package, and compilation-environment records,
+   including exact source spelling and package-qualified identity. Make the
+   reader produce those identities before semantic collection.
+2. Add native macro-function registration, macro lambda-list binding,
+   `macroexpand-1`, repeated expansion, and the required top-level `eval-when`
+   rules. Run expanders in the build-host process and pass only expanded forms
+   into language analysis.
+3. Connect the existing hosted value/runtime modules needed by compiler data:
+   managed strings, symbols, conses, vectors or growable tables, multiple
+   values, conditions needed for diagnostics, and precise compiler roots.
+   Keep each dependency explicit and retain the allocation-effect gate.
+4. Port the remaining frontend types and calls used by the compiler, especially
+   floating and aggregate ABI values, managed values, general static data, and
+   indirect calls. Each addition must cross HIR, SSA, LIR, backend, object, and
+   linked behavior gates as applicable.
+5. Replace the bootstrap subset manifest with the complete compiler source
+   manifest. Build one Stage 1 executable that owns reading, expansion,
+   analysis, optimization, encoding, object writing, and diagnostics.
+6. Build Stage 2 and Stage 3 from that same manifest. Compare accepted and
+   rejected corpus results, IR dumps, diagnostics, target objects, runtime
+   module selection, and linked execution on every supported hosted target.
+   M8 closes only when Stage 2 and Stage 3 reach the documented fixed point.
+
 The first ported components are the byte emitter, arena, scanner, parser,
 integer-atom reader, and first ELF64 writer slice in `bootstrap/`. Compiled
 PSL emits and patches little-endian bytes, manages caller-owned storage, scans
@@ -302,7 +359,9 @@ Data-only ELF64 and COFF objects now preserve caller-provided bytes, alignment,
 and local/global object symbols. Stage 0 and native writer builds produce the
 same linked data behavior on all hosted targets. Native source also imports C
 objects and emits x86-64, AArch64, RISC-V, or COFF code-to-data relocations;
-initialized/exported source data and other relocation families remain pending.
+initialized exported integer and null-pointer data works on all four hosted
+targets. General named byte data, floating/aggregate initializers, read-only
+sections, and other relocation families remain pending.
 `sh tests/bootstrap_native_compiler.sh [HOST_TARGET]` builds a native executable from PSL
 compiler components plus a temporary C file-I/O wrapper. It parses a source
 file, accepts machine-integer functions with independently typed parameters,
@@ -388,8 +447,14 @@ foreign-source rejection diagnostics. The same pipeline now accepts typed
 `ffi:import-data`, `ffi:export-data`, and `ffi:address-of` declarations. It
 emits only referenced imported C objects, keeps every exported scalar
 definition visible, lays out initialized `.data`, and validates GOT or COFF
-relative fixups on all four hosted output targets. Native `ffi:source`, source
-managed strings, named general byte data, floating/aggregate signatures, and
+relative fixups on all four hosted output targets. Native source loading now
+collects explicit `ffi:source` declarations, resolves them relative to the
+declaring Lisp file, rejects canonical duplicates, and omits them from the
+flattened Lisp unit. The Linux-host driver compiles the ordered C files with
+the selected target compiler and performs a relocatable merge. Native and
+cross-target gates link and execute that merged object at `-O0` and `-O1`.
+Target-host toolchain invocation, source managed strings, named general byte
+data, floating/aggregate signatures, and
 managed/indirect effects still need ports. Explicit `ffi:c-string` expressions
 now lower `(ptr u8)` C literals to private NUL-terminated static bytes on all
 four hosted output targets; linked C fixtures check both native stages at

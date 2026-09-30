@@ -1,4 +1,5 @@
 (include "../frontend/parser_types.lisp")
+(include "c_source_types.lisp")
 
 ;; NEXT is opaque because the native layout pass registers earlier types only.
 (defcstruct native_source_file
@@ -11,6 +12,8 @@
   (length usize)
   (capacity usize)
   (files (ptr native_source_file))
+  (c_sources (ptr native_c_source_path))
+  (c_source_tail (ptr native_c_source_path))
   (search_cursor (ptr native_source_file))
   (search_result (ptr native_source_file)))
 

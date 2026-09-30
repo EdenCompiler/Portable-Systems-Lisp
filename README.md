@@ -56,6 +56,8 @@ POSIX path service, driver, output writer, and diagnostic renderer into `build/n
 `build/native-host.o`, `build/native-source.o`, `build/native-input.o`,
 `build/native-path.o`, `build/native-driver.o`, `build/native-output.o`, and
 `build/native-diagnostics.o`, then links the process entry and primitive stdio adapter.
+The small C toolchain adapter is used only when a unit explicitly declares
+`ffi:source`; PSL still encodes its own machine code and object records.
 `build/pslcc-native [-O0|-O1] [--target=TARGET] SOURCE OUTPUT.o` accepts the
 [documented bootstrap subset](bootstrap/README.md); it is not yet the complete
 Stage 0 compiler. `make example` uses Stage 0 to build and run a pure Lisp
@@ -102,7 +104,9 @@ package prefix. C boundaries have explicit `ffi:` forms:
   (wrap+ (ffi:call scale_c value 2) 2))
 ```
 
-`ffi:source` includes a local C file in the generated object. Imported C
+`ffi:source` includes a local C file in the generated object. Paths are
+resolved relative to the Lisp file that contains the declaration, including
+files reached through `include`. Imported C
 functions use `ffi:call`; calls between PSL functions use ordinary Lisp call
 syntax. Data symbols use `ffi:import-data`, `ffi:export-data`, and
 `ffi:address-of`. Use `(ffi:c-string "text")` when an imported function expects

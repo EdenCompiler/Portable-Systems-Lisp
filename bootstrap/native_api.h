@@ -355,6 +355,9 @@ extern uint32_t native_source_form_kind(struct psl_parser *, const uint8_t *, ui
 extern uintptr_t native_source_include_size(struct psl_parser *, const uint8_t *, uintptr_t);
 extern int native_source_include_copy(struct psl_parser *, const uint8_t *, uintptr_t,
                                       uint8_t *, uintptr_t);
+extern uintptr_t native_source_ffi_size(struct psl_parser *, const uint8_t *, uintptr_t);
+extern int native_source_ffi_copy(struct psl_parser *, const uint8_t *, uintptr_t,
+                                  uint8_t *, uintptr_t);
 extern int predeclare_scalar_form(struct native_compile_context *context,
                                   struct native_signature *signature,
                                   struct native_function *function);
