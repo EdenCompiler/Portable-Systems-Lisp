@@ -1,6 +1,8 @@
-#include "source.h"
+#include "../bootstrap/host/source.h"
 #include <stdio.h>
 
+/* Isolated source-loader tests provide the diagnostic callback that the full
+   native compiler supplies from bootstrap/host/diagnostics.lisp. */
 void native_source_report_error(uint32_t kind, const uint8_t *path) {
     const char *message;
     switch (kind) {

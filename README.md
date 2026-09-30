@@ -52,10 +52,10 @@ make test
 ```
 
 `make` compiles the PSL native core, hosted storage, source loader, source input,
-POSIX path service, driver, and output writer into `build/native-core.o`,
+POSIX path service, driver, output writer, and diagnostic renderer into `build/native-core.o`,
 `build/native-host.o`, `build/native-source.o`, `build/native-input.o`,
-`build/native-path.o`, `build/native-driver.o`, and `build/native-output.o`, then
-links the remaining temporary diagnostic adapters.
+`build/native-path.o`, `build/native-driver.o`, `build/native-output.o`, and
+`build/native-diagnostics.o`, then links the process entry and primitive stdio adapter.
 `build/pslcc-native [-O0|-O1] [--target=TARGET] SOURCE OUTPUT.o` accepts the
 [documented bootstrap subset](bootstrap/README.md); it is not yet the complete
 Stage 0 compiler. `make example` uses Stage 0 to build and run a pure Lisp
@@ -180,11 +180,12 @@ Its compilation-unit pipeline is written in PSL and exposed as an in-memory
 API. Native `-O1` inlines small pure functions, folds integer constants, prunes
 unreachable branches, and removes unused pure computations through verified SSA;
 `-O0` keeps the baseline lowering. Allocation, initialization, cleanup, include traversal, argument
-validation, compilation control, diagnostic selection, and allocation-effect
+validation, compilation control, diagnostic rendering, and allocation-effect
 checks are in PSL. Native `without-allocation` verifies direct call graphs;
 C imports require explicit `:no-allocation` annotations within these regions.
-File I/O, path canonicalization, and diagnostic rendering still use a temporary
-C adapter; the broader language and target corpus remains to be ported,
+File I/O and path canonicalization use explicit host library imports; the
+stdio adapter only exposes stderr and primitive writes. The broader language
+and target corpus remains to be ported,
 so full self hosting is still in progress.
 See the [roadmap](docs/roadmap.md) for milestone status.
 

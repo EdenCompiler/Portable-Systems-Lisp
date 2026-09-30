@@ -329,7 +329,7 @@ the native subset's types and spelling rules.
 Explicit libc imports such as `malloc` and `free` work; they do not become
 implicit runtime dependencies of other units.
 
-Native `ffi:source`, source strings/general byte data, floating/aggregate
+Native `ffi:source`, managed strings/named general byte data, floating/aggregate
 signatures, and pointer qualifiers remain unsupported. Import effect annotations and
 allocation-effect certification are implemented for the documented direct-call
 subset; unannotated imports remain unknown.

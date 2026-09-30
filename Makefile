@@ -20,8 +20,9 @@ NATIVE_INPUT := $(BUILD_DIR)/native-input.o
 NATIVE_PATH := $(BUILD_DIR)/native-path.o
 NATIVE_DRIVER := $(BUILD_DIR)/native-driver.o
 NATIVE_OUTPUT := $(BUILD_DIR)/native-output.o
-NATIVE_OBJECTS := $(NATIVE_CORE) $(NATIVE_HOST) $(NATIVE_SOURCE) $(NATIVE_INPUT) $(NATIVE_PATH) $(NATIVE_DRIVER) $(NATIVE_OUTPUT)
-HOST_SOURCES := bootstrap/driver.c bootstrap/host/source.c bootstrap/host/compiler.c
+NATIVE_DIAGNOSTICS := $(BUILD_DIR)/native-diagnostics.o
+NATIVE_OBJECTS := $(NATIVE_CORE) $(NATIVE_HOST) $(NATIVE_SOURCE) $(NATIVE_INPUT) $(NATIVE_PATH) $(NATIVE_DRIVER) $(NATIVE_OUTPUT) $(NATIVE_DIAGNOSTICS)
+HOST_SOURCES := bootstrap/driver.c bootstrap/host/platform_stdio.c
 HOST_HEADERS := bootstrap/native_api.h bootstrap/host/source.h bootstrap/host/compiler.h
 
 .PHONY: all compiler native stage0 compile example test test-native test-static-data test-self-core \
@@ -67,6 +68,9 @@ $(NATIVE_DRIVER): $(BOOTSTRAP_SOURCES) $(STAGE0_SOURCES) | $(BUILD_DIR)
 
 $(NATIVE_OUTPUT): $(BOOTSTRAP_SOURCES) $(STAGE0_SOURCES) | $(BUILD_DIR)
 	$(PSLCC) $(PSLFLAGS) -c bootstrap/host/output.lisp -o "$@"
+
+$(NATIVE_DIAGNOSTICS): $(BOOTSTRAP_SOURCES) $(STAGE0_SOURCES) | $(BUILD_DIR)
+	$(PSLCC) $(PSLFLAGS) -c bootstrap/host/diagnostics.lisp -o "$@"
 
 # Build the native compiler host for the current Linux typed subset.
 $(NATIVE_COMPILER): $(NATIVE_OBJECTS) $(HOST_SOURCES) $(HOST_HEADERS)

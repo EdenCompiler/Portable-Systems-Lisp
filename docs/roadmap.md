@@ -23,7 +23,7 @@ is updated. Dates and staffing are deliberately unspecified.
 | x86-64 none / ELF64 | M7 executable subset | Runtime-free static image with an explicit entry or generated `linux-exit` startup, linker script, and map. QEMU user-mode executes the explicit Linux-syscall startup without libc. |
 | RISC-V64 Linux / LP64D / ELF64 | M7 complete for documented subset | Self-encoded machine code, GP/FP and stack calls, small C structs, ELF call/GOT relocations, GNU cross linking, and QEMU execution. Larger aggregates, variadics, and `long double` remain unsupported. |
 | RISC-V64 none / ELF64 | M7 executable subset | QEMU `virt` image with explicit startup, stack setup, UART access from Lisp, and SiFive Test exit status; no firmware, OS, libc, or hosted runtime is linked. Other boards require their own startup and memory map. |
-| Self hosting | M8 in progress | Native PSL modules cover source loading, typed integer/pointer analysis, verified HIR/SSA/LIR, effects and optimization, four hosted target encoders, ELF/COFF calls, unwind metadata, imported data relocations, and initialized exported scalar data. Three native subset generations reproduce compiler modules and interop fixtures across x86-64 Linux/Windows, AArch64, and RISC-V. General macros/packages, managed and broader ABI types, source strings/general static bytes, a complete Stage 1, and the full corpus gate remain open. |
+| Self hosting | M8 in progress | Native PSL modules cover source loading, diagnostics, typed integer/pointer analysis, verified HIR/SSA/LIR, effects and optimization, four hosted target encoders, ELF/COFF calls, unwind metadata, imported data relocations, initialized exported scalar data, and private C strings. Three native subset generations reproduce compiler modules and interop fixtures across x86-64 Linux/Windows, AArch64, and RISC-V. General macros/packages, managed and broader ABI types, managed strings/named general static bytes, a complete Stage 1, and the full corpus gate remain open. |
 | Hosted ANSI Common Lisp | Pending M9 | `--profile=hosted` has an M4 managed-value subset; numeric tower, conditions, CLOS, streams, `eval`, and conformance remain pending. |
 | Executables and libraries | Working on supported hosted targets | `pslcc` invokes the selected GCC linker for executables and shared libraries, and `ar` for deterministic `.a`; dynamic source selects only required runtime objects. |
 | macOS and Wasm | Pending M10 | No object writer or code generation for these targets yet. |
@@ -434,11 +434,11 @@ The hosted driver now uses these primitives for allocation and initialization.
 initializers and allocation/release helpers. Declaration-only layout modules
 are shared with the core without linking its algorithms into the hosted unit.
 This unit explicitly imports `calloc`/`free`; the native core still has no
-unresolved symbols. The remaining C adapters handle diagnostic rendering;
-argument validation and compilation flow are now in PSL. A C harness checks allocation sizes and context links,
+unresolved symbols. Argument validation, compilation flow, and diagnostic
+rendering are now in PSL. A C harness checks allocation sizes and context links,
 rejects overflowing capacities before allocation, compiles in memory, and checks
 repeated cleanup and driver reuse. Linux linker fault injection fails each of
-its 19 allocations, including the later inline cache, and verifies that partial
+its 22 allocations, including data storage and the inline cache, and verifies that partial
 buffers and the source are freed.
 The core-generation gate now builds both PSL objects at each generation and
 compares their artifacts, behavior, and rejection diagnostics. `make` builds
@@ -562,12 +562,11 @@ for byte. Core objects have no unresolved symbols; rejected-source diagnostics
 match exactly across generations. Signature/layout tables no longer have
 the old 256-entry ceiling, and the ELF writer permits the complete core.
 Each generation also compiles its hosted storage, source loader, source input,
-path service, driver, and output units;
-successive hosted objects match byte for byte. The same temporary C
-diagnostic adapter is linked to each generation.
+path service, driver, output, and diagnostic units; successive hosted objects
+match byte for byte.
 This is a core reproduction gate; the broader Stage 0 corpus, the remaining
 optimization for broader types and managed/indirect effects, remaining target/ABI/object features, and the remaining PSL
-CLI/target selection and diagnostic services are still open. Full Stage 1, Stage 2, and Stage 3 compiler builds remain open,
+CLI/target selection services are still open. Full Stage 1, Stage 2, and Stage 3 compiler builds remain open,
 as does the M8 gate.
 The scalar source path accepts lowercase hyphenated internal function and local
 names; C exports still require C-compatible names. Its deterministic object
@@ -663,7 +662,7 @@ these changes.
 `make test-native-riscv64` runs the shared native ELF gate at O0/O1 against
 Stage 0 behavior, C-built register/stack/pointer tests, raw unsigned-32 ABI and
 unaligned-memory checks, ELF/relocation inspection, static/shared libraries,
-three QEMU native subset generations of all seven compiler units, and artifact
+three QEMU native subset generations of all eight compiler units, and artifact
 comparisons on RISC-V and x86-64 output. `make test-native-aarch64` uses the same
 runner; each target has a small wrapper. Native COFF, broader ABI/data/runtime
 features, general source packages/macros, remaining host services, and complete
@@ -703,32 +702,41 @@ at both optimization levels against Stage 0 using C programs, including
 eleven-argument callbacks and source-order side effects. It checks deterministic
 objects, symbol and relocation inspection, linked `RtlVirtualUnwind`, static
 archives, shared DLLs, public writer mutation rejection, and three successive
-Windows native subset generations of all seven compiler units. Each generation
-reproduces Windows fixture and x86-64 Linux objects. The target compiler still
-uses temporary C diagnostic adapters, and full Stage 1–3 plus broader
+Windows native subset generations of all eight compiler units. Each generation
+reproduces Windows fixture and x86-64 Linux objects. Full Stage 1–3 plus broader
 language/runtime/ABI/data support remain open M8 work.
 
 ### M8 hosted object output port
 
 The native compiler now compiles `bootstrap/host/output.lisp` as a separate PSL
 unit. It owns opening, writing, closing, and error reporting for object output
-through explicit hosted C file imports. `bootstrap/host/compiler.c` now only
-renders selected diagnostics. The output unit is included in native generation
-comparisons on Linux, Windows, AArch64, and RISC-V64. Diagnostic rendering, the
-C entry trampoline, and broader
+through explicit hosted C file imports. The output unit is included in native
+generation comparisons on Linux, Windows, AArch64, and RISC-V64. The C entry
+trampoline and broader
 source/runtime support remain to be ported before full Stage 1–3.
 
 ### M8 hosted source input port
 
 `bootstrap/host/source_io.lisp` now owns source file opening, incremental reads,
 checked buffer growth, NUL termination, and partial cleanup. The unit imports
-only hosted C stream and allocation primitives; `bootstrap/host/source.c` no
-longer reads files. An independent harness checks empty, binary, boundary, and
+only hosted C stream and allocation primitives. An independent harness checks
+empty, binary, boundary, and
 multi-buffer inputs, missing files, and every allocation failure. Linux,
 Windows, AArch64, and RISC-V64 native gates compile this PSL unit through three
-generations and compare its artifacts. Diagnostic rendering, broader
-source/runtime support, and the complete
+generations and compare its artifacts. Broader source/runtime support and the complete
 Stage 1–3 corpus remain open M8 work.
+
+### M8 hosted diagnostic rendering port
+
+`bootstrap/host/diagnostics.lisp` now owns compiler and source diagnostic
+wording, path and function-name rendering, newlines, and byte positions. Fixed
+messages use private `ffi:c-string` data. `platform_stdio.c` only exposes the
+platform `stderr` macro and primitive byte and integer writes; it contains no
+compiler error policy. The diagnostic unit is the eighth PSL host module in
+Linux, Windows, AArch64, and RISC-V native generation comparisons.
+Rejected-source output remains byte-identical across successive generations.
+Broader source/runtime support and the complete M8 Stage 1–3 corpus remain
+open.
 
 ### M8 hosted canonical path port
 

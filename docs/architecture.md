@@ -62,7 +62,9 @@ bootstrap/
     compiler.lisp      CLI argument validation and compilation flow
     compiler_diagnostics.lisp  failure phase and source-location selection
     compiler_types.lisp, compiler_imports.lisp  state and typed module/host ABI
-    compiler.c, compiler.h  temporary diagnostic rendering
+    compiler.h        compiler diagnostic ABI constants
+    diagnostics.lisp  compiler/source diagnostic wording and rendering
+    platform_stdio.c  stderr and primitive host writes
     output.lisp         hosted object-file output through C file primitives
     driver.lisp         owned storage preparation and initialization coordinator
     driver_types.lisp   driver and storage record layouts
@@ -77,7 +79,7 @@ bootstrap/
     source_io.lisp      hosted incremental file input through C stream primitives
     source_path_posix.lisp, source_path_windows.lisp
                        canonical file identity and host path policy
-    source.c, source.h temporary source diagnostic rendering
+    source.h           source diagnostic ABI constants
   frontend/
     reader.lisp, parser.lisp, atoms.lisp, source.lisp
                        byte scanning, syntax, integer atoms, and include decoding
@@ -232,9 +234,11 @@ and Lisp string decoding. `host/source_unit.lisp` owns traversal, active-cycle
 checks, and ordered assembly. Its path, buffer, and frame helpers own relative
 paths, canonical file records, syntax arrays, and partial cleanup. The separately
 compiled loader imports the core's exported parser/include functions through
-explicit typed C ABI declarations. The temporary `host/source.c` adapter only
-reads files, canonicalizes names, reports platform path policy, and renders
-errors. The PSL loader preserves order and suppresses repeated canonical files.
+explicit typed C ABI declarations. The PSL `host/diagnostics.lisp` unit
+selects and renders source errors. Its `platform_stdio.c` adapter only
+exposes the host `stderr` stream and primitive byte/integer writes.
+Separate PSL units read files, canonicalize names, and report platform path
+policy. The PSL loader preserves order and suppresses repeated canonical files.
 The driver allocates signature and layout tables according to the source size;
 it no longer has a 256-function ceiling. The ELF writer bounds counts by its
 symbol/name field widths rather than that old development limit.
@@ -370,14 +374,14 @@ Managed/indirect effects, remaining ABI/backend features, and the
 full Stage 1–3 comparison remain pending M8 work. The x86-64 Linux
 `bootstrap_self_core.sh` gate now compiles the complete native core through
 three native generations and runs the full native subset suite on each. The
-core, hosted storage, source loader, input, path, compiler driver, and output
-objects match byte for byte. A C harness compares
+core, hosted storage, source loader, input, path, compiler driver, output, and
+diagnostic objects match byte for byte. A C harness compares
 arena sizes and context links, injects failure at every allocation on Linux,
 and checks overflow rejection, idempotent cleanup, and reuse. A separate mock
 provider checks driver statuses, every diagnostic phase/location, valid/invalid
 argument counts, state-allocation failure, and cleanup after all outcomes.
-Their C entry trampoline and diagnostic adapters are shared temporary host
-code, so this does not establish full self hosting.
+The C entry trampoline and primitive stdio adapter remain host code, so this
+does not establish full self hosting.
 
 The native output target is selected in the compilation context. Backend
 `dispatch.lisp` chooses x86-64 SysV, Microsoft x64, AArch64 AAPCS64, or
