@@ -25,7 +25,7 @@ NATIVE_OBJECTS := $(NATIVE_CORE) $(NATIVE_HOST) $(NATIVE_SOURCE) $(NATIVE_INPUT)
 HOST_SOURCES := bootstrap/driver.c bootstrap/host/platform_stdio.c bootstrap/host/platform_toolchain.c
 HOST_HEADERS := bootstrap/native_api.h bootstrap/host/source.h bootstrap/host/compiler.h
 
-.PHONY: all compiler native stage0 compile example test test-native test-static-data test-self-core \
+.PHONY: all compiler native stage0 compile example test test-native test-static-data test-self-core test-bootstrap-corpus \
         test-windows test-native-win64-frame test-native-windows test-aarch64 test-native-aarch64 test-native-riscv64 test-riscv64 clean help
 
 all: compiler
@@ -94,6 +94,9 @@ test-static-data:
 test-self-core:
 	sh tests/bootstrap_self_core.sh
 
+test-bootstrap-corpus: native
+	python3 tests/bootstrap_corpus.py --native "$(NATIVE_COMPILER)"
+
 test-windows:
 	sh tests/windows.sh
 
@@ -132,6 +135,7 @@ help:
 	@echo 'make test-native       Check native compilation and C interoperability'
 	@echo 'make test-static-data  Check native ELF static data output on x86-64 Linux'
 	@echo 'make test-self-core    Compare successive native core generations'
+	@echo 'make test-bootstrap-corpus Audit every example against Stage 0 at O0/O1 (Python 3 required)'
 	@echo 'make test-windows      Run Windows checks (MinGW-w64 and Wine required)'
 	@echo 'make test-native-win64-frame Check native Win64 frame, LIR, and unwind encoding'
 	@echo 'make test-native-windows Check native Windows COFF output and generations with Wine'

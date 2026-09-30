@@ -649,7 +649,7 @@ for source in bootstrap_answer bootstrap_answer_hex \
     bootstrap_answer_arithmetic bootstrap_answer_overflow \
     bootstrap_conditionals bootstrap_recursion bootstrap_layouts \
     bootstrap_bitops bootstrap_lexical \
-    bootstrap_declaration_order bootstrap_lisp_names; do
+    bootstrap_declaration_order bootstrap_lisp_names bootstrap_symbols; do
   run_host "$work_dir/pslcc-native-slice$host_suffix" "$project_root/tests/$source.lisp" \
     "$work_dir/$source.o"
   readelf -h "$work_dir/$source.o" | grep -q 'REL (Relocatable file)'
@@ -850,6 +850,22 @@ for module in binary arena reader atoms; do
   cmp "$work_dir/$module-module.o" "$work_dir/$module-module-repeat.o"
 done
 
+# Keep the qualifier and packed-layout fixtures in the native bootstrap gate.
+# These compile and run on the selected host/output target and compare with
+# Stage 0, while checking deterministic native output.
+PSL_NATIVE_COMPILER=$work_dir/pslcc-native-slice$host_suffix \
+PSL_NATIVE_COMPILER_HOST_TARGET=$host_target \
+  sh "$project_root/tests/bootstrap_packed.sh" "$host_target"
+PSL_NATIVE_COMPILER_HOST_TARGET=$host_target \
+  sh "$project_root/tests/bootstrap_pointer_qualifiers.sh" \
+    "$work_dir/pslcc-native-slice$host_suffix" "$host_target"
+PSL_NATIVE_COMPILER_HOST_TARGET=$host_target \
+  sh "$project_root/tests/bootstrap_c_aliases.sh" \
+    "$work_dir/pslcc-native-slice$host_suffix" "$host_target"
+PSL_NATIVE_COMPILER_HOST_TARGET=$host_target \
+  sh "$project_root/tests/bootstrap_data_only.sh" \
+    "$work_dir/pslcc-native-slice$host_suffix" "$host_target"
+
 if test "$host_target" = x86_64-linux-gnu; then
   PATH=/nonexistent "$work_dir/pslcc-native-slice$host_suffix" \
     "$project_root/bootstrap/binary.lisp" "$work_dir/binary-no-tools.o"
@@ -936,21 +952,41 @@ if run_host "$work_dir/pslcc-native-slice$host_suffix" \
 fi
 test ! -e "$work_dir/duplicate.o"
 
-if run_host "$work_dir/pslcc-native-slice$host_suffix" \
-    "$project_root/tests/bootstrap_uppercase_export.lisp" \
-    "$work_dir/uppercase.o" >"$work_dir/stdout" 2>"$work_dir/stderr"; then
-  echo 'native slice accepted an unnormalized export name' >&2
-  exit 1
-fi
-test ! -e "$work_dir/uppercase.o"
+run_host "$work_dir/pslcc-native-slice$host_suffix" \
+    "$project_root/tests/bootstrap_symbols.lisp" "$work_dir/symbols.o"
+nm -g --defined-only "$work_dir/symbols.o" | grep -q ' T answer$'
+nm --defined-only "$work_dir/symbols.o" | grep -q ' t helper-one$'
+"$host_compiler" -Wall -Wextra -Werror "$project_root/tests/harness_bootstrap_symbols.c" \
+  "$work_dir/symbols.o" -o "$work_dir/symbols$host_suffix"
+run_host "$work_dir/symbols$host_suffix"
+"$project_root/pslcc" --target="$host_target" -c \
+  "$project_root/tests/bootstrap_symbols.lisp" \
+  -o "$work_dir/symbols-stage0.o"
+"$host_compiler" -Wall -Wextra -Werror \
+  "$project_root/tests/harness_bootstrap_symbols.c" \
+  "$work_dir/symbols-stage0.o" -o "$work_dir/symbols-stage0$host_suffix"
+run_host "$work_dir/symbols-stage0$host_suffix"
+run_host "$work_dir/pslcc-native-slice$host_suffix" \
+    "$project_root/tests/bootstrap_symbols.lisp" "$work_dir/symbols-repeat.o"
+cmp "$work_dir/symbols.o" "$work_dir/symbols-repeat.o"
+for source in "$project_root"/tests/bootstrap_symbol_errors/*.lisp; do
+  if run_host "$work_dir/pslcc-native-slice$host_suffix" "$source" \
+      "$work_dir/invalid-symbol.o" >"$work_dir/stdout" 2>"$work_dir/stderr"; then
+    echo "native slice accepted invalid symbol identity source: $source" >&2
+    exit 1
+  fi
+  test ! -e "$work_dir/invalid-symbol.o"
+done
 
-if run_host "$work_dir/pslcc-native-slice$host_suffix" \
+run_host "$work_dir/pslcc-native-slice$host_suffix" \
+    "$project_root/tests/bootstrap_uppercase_export.lisp" \
+    "$work_dir/uppercase.o"
+nm -g "$work_dir/uppercase.o" | grep -q ' T answer$'
+
+run_host "$work_dir/pslcc-native-slice$host_suffix" \
     "$project_root/tests/bootstrap_export_hyphen.lisp" \
-    "$work_dir/export-hyphen.o" >"$work_dir/stdout" 2>"$work_dir/stderr"; then
-  echo 'native slice accepted a hyphenated C export' >&2
-  exit 1
-fi
-test ! -e "$work_dir/export-hyphen.o"
+    "$work_dir/export-hyphen.o"
+nm -g "$work_dir/export-hyphen.o" | grep -q ' T exported-name$'
 
 if run_host "$work_dir/pslcc-native-slice$host_suffix" \
     "$project_root/tests/bootstrap_empty_call.lisp" \
@@ -1099,7 +1135,7 @@ if test "$host_target" != x86_64-linux-gnu; then
   cmp "$work_dir/bootstrap_recursion.o" \
     "$work_dir/native-reference-recursion.o"
   for source in bootstrap_bitops bootstrap_lexical \
-      bootstrap_declaration_order bootstrap_lisp_names; do
+      bootstrap_declaration_order bootstrap_lisp_names bootstrap_symbols; do
     "$work_dir/native-reference" "$project_root/tests/$source.lisp" \
       "$work_dir/native-reference-$source.o"
     cmp "$work_dir/$source.o" "$work_dir/native-reference-$source.o"
@@ -1195,7 +1231,7 @@ run_host "$work_dir/pslcc-native-O0$host_suffix" \
   "$work_dir/recursion-O0.o"
 cmp "$work_dir/bootstrap_recursion.o" "$work_dir/recursion-O0.o"
 for source in bootstrap_bitops bootstrap_lexical \
-    bootstrap_declaration_order bootstrap_lisp_names; do
+    bootstrap_declaration_order bootstrap_lisp_names bootstrap_symbols; do
   run_host "$work_dir/pslcc-native-O0$host_suffix" \
     "$project_root/tests/$source.lisp" "$work_dir/$source-O0.o"
   cmp "$work_dir/$source.o" "$work_dir/$source-O0.o"

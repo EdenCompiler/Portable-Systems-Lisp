@@ -24,39 +24,45 @@
         (ast_long_word_p parser source (ast_first parser root)
                          #x6f7078653a696666 #x617461642d7472 15))))
 
-(defun native_data_name_matches_p (context name index)
+(defun native_data_name_matches_p (context name index imported)
   (declare (type (ptr native_compile_context) context)
-           (type usize name index) (returns c-int))
+           (type usize name index) (type u8 imported) (returns c-int))
   (let ((node (parser_node (deref (field-pointer context 'parser)) name))
         (entry (native_data_import_at context index))
         (source (deref (field-pointer context 'source))))
     (if (= (deref (field-pointer entry 'global)) 0) 0
         (if (= (deref (field-pointer node 'length))
            (deref (field-pointer entry 'name_length)))
-            (same_name_bytes_p
-             (pointer+ source
-                       (wrap-cast isize (deref (field-pointer node 'start))))
-             (deref (field-pointer entry 'name))
-             (deref (field-pointer entry 'name_length)))
+            (if (= imported 1)
+                (same_name_bytes_p
+                 (pointer+ source
+                           (wrap-cast isize (deref (field-pointer node 'start))))
+                 (deref (field-pointer entry 'name))
+                 (deref (field-pointer entry 'name_length)))
+                (source_foreign_name_p
+                 (pointer+ source
+                           (wrap-cast isize (deref (field-pointer node 'start))))
+                 (deref (field-pointer entry 'name))
+                 (deref (field-pointer entry 'name_length))))
             0))))
 
-(defun native_data_name_used_from (context name index)
+(defun native_data_name_used_from (context name imported index)
   (declare (type (ptr native_compile_context) context)
-           (type usize name index) (returns c-int))
+           (type usize name index) (type u8 imported) (returns c-int))
   (if (= index (deref (field-pointer context 'data_count))) 0
-      (if (= (native_data_name_matches_p context name index) 1) 1
-          (native_data_name_used_from context name (wrap+ index 1)))))
+      (if (= (native_data_name_matches_p context name index imported) 1) 1
+          (native_data_name_used_from context name imported (wrap+ index 1)))))
 
 (defun native_latest_signature_data_name_free_p (context)
   (declare (type (ptr native_compile_context) context) (returns c-int))
   (let ((signatures (deref (field-pointer context 'signatures))))
     (let ((count (deref (field-pointer signatures 'signature_count))))
       (if (= count 0) 0
-          (if (= (native_data_name_used_from
-                  context
-                  (deref (field-pointer
-                          (native_signature_at signatures (wrap- count 1)) 'name))
-                  0) 0) 1 0)))))
+          (let ((signature (native_signature_at signatures (wrap- count 1))))
+            (if (= (native_data_name_used_from
+                    context (deref (field-pointer signature 'name))
+                    (deref (field-pointer signature 'imported)) 0) 0)
+                1 0))))))
 
 (defun native_initialize_data_entry (context entry name type shape initial defined)
   (declare (type (ptr native_compile_context) context)
@@ -85,8 +91,8 @@
   (declare (type (ptr native_compile_context) context)
            (type (ptr native_signature_context) signatures)
            (type usize name) (returns c-int))
-  (if (= (signature_name_used_p signatures name 0) 1) 0
-      (if (= (native_data_name_used_from context name 0) 1) 0 1)))
+  (if (= (signature_foreign_name_used_p signatures name 0) 1) 0
+      (if (= (native_data_name_used_from context name 1 0) 1) 0 1)))
 
 (defun native_parse_data_type (context type shape)
   (declare (type (ptr native_compile_context) context)
@@ -183,7 +189,7 @@
   (declare (type (ptr native_compile_context) context)
            (type usize name index) (returns usize))
   (if (= index (deref (field-pointer context 'data_count))) 0
-      (if (= (native_data_name_matches_p context name index) 1)
+      (if (= (native_data_name_matches_p context name index 1) 1)
           (wrap+ index 1)
           (native_find_data_import_from context name (wrap+ index 1)))))
 

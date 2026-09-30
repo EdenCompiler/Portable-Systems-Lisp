@@ -81,11 +81,13 @@
     (let ((length (deref (field-pointer node 'length))))
       (if (= (deref (field-pointer node 'kind)) 8)
           (if (= length (deref (field-pointer function 'name_length)))
-              (same_name_bytes_p
-               (pointer+ source
-                         (wrap-cast isize
-                                    (deref (field-pointer node 'start))))
-               (deref (field-pointer function 'name)) length)
+              (if (= (deref (field-pointer function 'imported)) 1)
+                  (source_foreign_name_p
+                   (pointer+ source (wrap-cast isize (deref (field-pointer node 'start))))
+                   (deref (field-pointer function 'name)) length)
+                  (source_same_name_p
+                   (pointer+ source (wrap-cast isize (deref (field-pointer node 'start))))
+                   (deref (field-pointer function 'name)) length))
               0)
           0))))
 

@@ -89,6 +89,11 @@ bootstrap/
                        imported C object records, declarations, and addresses
     layout.lisp, signatures.lisp, ffi.lisp
                        C layout, ordinary signatures, and explicit C imports
+    layout_packed.lisp  packed-record registration through shared field validation
+    integer_names.lisp  machine and ABI-dependent C integer source names
+    symbols.lisp, symbol_names.lisp
+                       source spelling and canonical function names before encoding
+    pointer_references.lisp  storage qualifiers on compiler pointee references
     scalar_syntax.lisp, scalar_types.lisp, scalar_resolve.lisp, pointer_types.lisp
                        source navigation, type equality, and symbol lookup
     hir_analyze_*.lisp integer, pointer, layout query, call, control, and lexical analysis
@@ -201,8 +206,9 @@ per-node integer type codes and pointer pointee references, verifies references,
 arity, node shapes, lexical
 scope, and source-type relationships, then lowers to verified typed SSA and
 flat LIR before emitting x86-64 instructions.
-Its restricted symbol handling accepts lowercase hyphenated Lisp names for
-internal functions and locals, while C exports retain C-compatible names.
+Its restricted symbol handling folds ordinary ASCII Lisp names, including
+hyphenated exported names. Canonical source function names are copied into
+caller storage when needed; explicit C strings and object API names remain exact.
 Call arguments form backward links in the portable type catalog. SSA lowers
 argument expressions in source order. The baseline x86-64 LIR encoder saves
 six incoming System V registers and stores each virtual register in its own
@@ -226,10 +232,17 @@ source type equality and C layout metadata, and a separate verifier checks
 loads, stores, pointer arithmetic, casts, field offsets, and Boolean loops
 before encoding. These operations use the same runtime-free caller-owned
 storage as the compiled modules.
-The source pass records `defcstruct` layouts; a C harness compares size,
+The source pass records natural `defcstruct` and alignment-one
+`defstruct/packed` layouts; a C harness compares size,
 alignment, and field offsets against compiled C structures. Typed field
 pointers can access nested structure fields; loads and stores support integers
-and pointers. Structure values, floating accesses, and pointer qualifiers
+and pointers. Pointer qualifiers occupy reserved compiler-reference metadata
+bits and are stripped before AST lookup; they never alter target addresses.
+Type checks compare qualifiers, field pointers propagate them, and HIR/SSA/LIR
+memory checks reject const stores. All loads remain optimizer effect roots.
+The layout context carries the selected output target; `integer_names.lisp`
+uses its ABI contract to resolve C long widths before layout and analysis.
+Structure values and floating accesses
 remain outside the native function subset.
 Native source inclusion uses `frontend/source.lisp` for `include` and
 `ffi:source` recognition and Lisp string decoding. `host/source_unit.lisp` owns

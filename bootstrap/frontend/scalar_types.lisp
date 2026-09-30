@@ -8,20 +8,12 @@
   (declare (type (ptr native_signature_context) signatures)
            (type usize type)
            (returns u32))
-  (cond
-    ((= (signature_word_p signatures type #x343675 3) 1) 1) ; u64
-    ((= (signature_word_p signatures type #x657a697375 5) 1) 2) ; usize
-    ((= (signature_word_p signatures type #x3875 2) 1) 3) ; u8
-    ((= (signature_word_p signatures type #x363175 3) 1) 4) ; u16
-    ((= (signature_word_p signatures type #x323375 3) 1) 5) ; u32
-    ((= (signature_word_p signatures type #x3873 2) 1) 6) ; s8
-    ((= (signature_word_p signatures type #x363173 3) 1) 7) ; s16
-    ((= (signature_word_p signatures type #x323373 3) 1) 8) ; s32
-    ((= (signature_word_p signatures type #x746e692d63 5) 1) 8) ; c-int
-    ((= (signature_word_p signatures type #x343673 3) 1) 9) ; s64
-    ((= (signature_word_p signatures type #x657a697369 5) 1) 10) ; isize
-    ((= (signature_word_p signatures type #x64696f76 4) 1) 12) ; void result
-    (t (if (= (source_type_pointee signatures type) 0) 0 11))))
+  (let ((type (source_pointer_base type))
+        (layouts (deref (field-pointer signatures 'layouts))))
+    (let ((code (layout_integer_code layouts type)))
+      (if (< 0 code) code
+          (if (= (signature_word_p signatures type #x64696f76 4) 1) 12
+              (if (= (source_type_pointee signatures type) 0) 0 11))))))
 
 (defun scalar_literal_code (expected integer)
   (declare (type u32 expected)

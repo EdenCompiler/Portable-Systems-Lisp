@@ -36,7 +36,7 @@ static int compile_source_options(struct fixture *f, const uint8_t *source, uint
     f->scanner = (struct psl_scanner){source, strlen((const char *)source), 0, 0};
     f->parser = (struct psl_parser){&f->scanner, &f->token, 0, f->syntax, 0, 256, 0};
     f->layouts = (struct native_layout_context){
-        &f->parser, source, NULL, 0, 0, NULL, 0, 0, &f->shape, 0
+        &f->parser, source, NULL, 0, 0, NULL, 0, 0, &f->shape, 0, 0
     };
     f->signature_context = (struct native_signature_context){
         &f->layouts, f->signatures, 0, 1, f->parameters, 0, 2, 0
@@ -109,6 +109,55 @@ static int check_dead_values(struct fixture *f) {
     for (uintptr_t i = 0; i < f->ssa.value_count; ++i)
         if (f->ssa_values[i].live != 1) return 10;
     return 0;
+}
+
+static int check_const_store_mutations(struct fixture *f) {
+    static const uint8_t source[] =
+        "(defun write_value (address)"
+        " (declare (type (ptr u64) address) (returns u64))"
+        " (store address 1) (deref address))";
+    if (!compile_source_options(f, source, 0)) return 1;
+    uintptr_t store = 0;
+    for (uintptr_t i = 0; i < f->ssa.value_count; ++i)
+        if (f->ssa_values[i].kind == 25) store = i + 1;
+    if (!store) return 2;
+    uintptr_t pointer = f->ssa_values[store - 1].left;
+    if (!pointer || pointer > f->ssa.value_count) return 3;
+    uintptr_t saved = f->types[pointer - 1].pointee;
+    f->types[pointer - 1].pointee |= UINT64_C(0x4000000000000000);
+    if (ssa_verify_function(&f->context)) return 4;
+    f->types[pointer - 1].pointee = saved;
+    if (!ssa_verify_function(&f->context) || !lir_verify_function(&f->context)) return 5;
+
+    pointer = 0;
+    for (uintptr_t i = 0; i < f->lir.count; ++i)
+        if (f->lir_instructions[i].kind == 25)
+            pointer = f->lir_instructions[i].left;
+    if (!pointer || pointer > f->lir.value_count) return 6;
+    saved = f->lir.types[pointer - 1].pointee;
+    f->lir.types[pointer - 1].pointee |= UINT64_C(0x4000000000000000);
+    if (lir_verify_function(&f->context)) return 7;
+    f->lir.types[pointer - 1].pointee = saved;
+    return lir_verify_function(&f->context) ? 0 : 8;
+}
+
+static int check_discarded_volatile_load(struct fixture *f) {
+    static const uint8_t source[] =
+        "(defun read_then_return (address)"
+        " (declare (type (ptr u64 :volatile) address) (returns u64))"
+        " (deref address) 42)";
+    if (!compile_source_options(f, source, 1)) return 1;
+    uintptr_t load = 0;
+    for (uintptr_t i = 0; i < f->ssa.value_count; ++i) {
+        if (f->ssa_values[i].kind == 24) {
+            load = i + 1;
+            if (!f->ssa_values[i].live) return 2;
+        }
+    }
+    if (!load || !ssa_verify_liveness(&f->context)) return 3;
+    for (uintptr_t i = 0; i < f->lir.count; ++i)
+        if (f->lir_instructions[i].kind == 24) return 0;
+    return 4;
 }
 
 static int check_cfg_copy(struct fixture *f) {
@@ -282,6 +331,16 @@ int main(void) {
     if (check_ssa_mutations(&fixture)) return 3;
     if (check_lir_mutations(&fixture)) return 4;
     if (check_void_mutations(&fixture)) return 5;
+    int const_status = check_const_store_mutations(&fixture);
+    if (const_status) {
+        fprintf(stderr, "const-store mutation verification failed: %d\n", const_status);
+        return 10;
+    }
+    int volatile_status = check_discarded_volatile_load(&fixture);
+    if (volatile_status) {
+        fprintf(stderr, "discarded volatile-load liveness failed: %d\n", volatile_status);
+        return 11;
+    }
     int dead_status = check_dead_values(&fixture);
     if (dead_status) {
         fprintf(stderr, "dead-value verification failed: %d\n", dead_status);

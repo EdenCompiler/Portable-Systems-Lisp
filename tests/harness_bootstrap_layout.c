@@ -69,6 +69,7 @@ struct native_layout_context {
     uintptr_t field_capacity;
     struct native_type_shape *scratch;
     uint32_t error;
+    uint32_t target;
 };
 
 extern uintptr_t parser_next(struct psl_parser *parser);
@@ -114,7 +115,7 @@ static int check_layouts(void) {
     };
     struct native_layout_context context = {
         &parser, (const uint8_t *)source, layouts, 0, 8,
-        fields, 0, 16, &scratch, 0
+        fields, 0, 16, &scratch, 0, 0
     };
 
     for (int i = 0; i < 3; ++i) {
@@ -157,7 +158,7 @@ static int rejected(const char *source) {
     };
     struct native_layout_context context = {
         &parser, (const uint8_t *)source, layouts, 0, 4,
-        fields, 0, 8, &scratch, 0
+        fields, 0, 8, &scratch, 0, 0
     };
     uintptr_t root = parser_next(&parser);
     return root && native_layout_form_p(&context, root) &&

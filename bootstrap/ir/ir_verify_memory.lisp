@@ -16,7 +16,9 @@
                       (if (= (deref (field-pointer op 'value)) (wrap-cast u64 (deref (field-pointer field 'offset))))
                           (if (= (deref (field-pointer op 'scalar_code)) 11)
                               (source_ast_type_equal_p context (deref (field-pointer op 'pointee))
-                                                       (deref (field-pointer field 'type_ast)) 0) 0) 0) 0))
+                                                       (source_pointer_with_flags
+                                                        (deref (field-pointer field 'type_ast))
+                                                        (deref (field-pointer left 'pointee))) 0) 0) 0) 0))
                 0)))))
 
 (defun ir_verify_access_type (context types op)
@@ -27,12 +29,14 @@
         (signatures (deref (field-pointer context 'signatures))))
     (if (= (deref (field-pointer left 'scalar_code)) 11)
         (let ((type (deref (field-pointer left 'pointee))))
+          (if (= (if (= (deref (field-pointer op 'kind)) 25)
+                        (source_pointer_const_p type) (wrap-cast c-int 0)) 1) 0
           (if (= (source_types_equal_p context (deref (field-pointer op 'scalar_code))
                    (deref (field-pointer op 'pointee)) (scalar_type_code signatures type)
                    (source_type_pointee signatures type)) 0) 0
               (if (= (deref (field-pointer op 'value)) (wrap-cast u64 (source_type_size context type)))
                   (if (= (deref (field-pointer op 'kind)) 24) 1
-                      (ir_operand_matches_op_p context types (deref (field-pointer op 'right)) op)) 0))) 0)))
+                      (ir_operand_matches_op_p context types (deref (field-pointer op 'right)) op)) 0)))) 0)))
 
 (defun ir_verify_pointer_add_type (context types op)
   (declare (type (ptr native_compile_context) context)

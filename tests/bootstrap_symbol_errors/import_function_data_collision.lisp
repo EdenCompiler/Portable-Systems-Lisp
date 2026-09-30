@@ -1,0 +1,5 @@
+(ffi:import-function "ExactName" () -> u64)
+(ffi:import-data "ExactName" u64)
+(defun answer ()
+  (declare (returns u64))
+  42)

@@ -43,7 +43,7 @@ The native modules currently implement:
   errors through the primitive stdio adapter.
   Missing files, malformed includes, and reader errors prevent object output.
 - C-compatible structure layouts in caller-owned tables. The native source
-  pass accepts `defcstruct`, computes field offsets, size, and alignment for
+  pass accepts `defcstruct` and `defstruct/packed`, computes field offsets, size, and alignment for
   the current 64-bit target slice, and resolves scalar, pointer, and earlier
   structure types. A C harness checks the layouts against compiled C structs.
 - A typed signature pass for ordinary `defun` declarations. It records
@@ -67,9 +67,12 @@ The native modules currently implement:
 - A restricted native compiler that accepts independently typed machine-integer
   parameters, locals, and results.
   Types are `u8`, `u16`, `u32`, `u64`, `s8`, `s16`, `s32`, `s64`,
-  `usize`, `isize`, or `c-int` (an alias for `s32` in this slice).
+  `usize`, `isize`, and the documented C integer aliases. The selected ABI
+  supplies C long widths, including Windows LLP64.
   Raw `(ptr TYPE)` parameters, locals, and results also work, including
-  nested pointer types and pointers to earlier C structures.
+  nested pointer types and pointers to earlier C or packed structures.
+  `:const` and `:volatile` qualifiers participate in type checking; const
+  stores are rejected and field pointers retain their storage qualifiers.
   It accepts range-checked literals, nested binary `wrap+`, `wrap-`, `wrap*`,
   and `bits-and` forms, `=` and typed `<` comparisons, explicit `wrap-cast`,
   and calls to functions defined anywhere in the same source file. Every call
@@ -91,8 +94,9 @@ The native modules currently implement:
   accept zero. x86-64 ELF, AArch64 ELF, RISC-V ELF, and AMD64 COFF objects carry
   initialized data, symbols, and target relocation forms and link against the
   same C harness. The native loader collects `ffi:source` paths and the Linux
-  host driver compiles and merges them for each hosted target. Floating/
-  aggregate signatures and pointer qualifiers still need native ports;
+  host driver compiles and merges them for each hosted target. Data-only
+  units emit empty-code objects without adding a function. Floating/
+  aggregate signatures still need native ports;
   allocation-effect annotations use the
   native certification pass described below.
   It accepts `t`, `nil`, `if`, lexical `let`, `progn`, and test-and-body `cond`

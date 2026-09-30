@@ -60,7 +60,7 @@ for level in 0 1; do
   for name in answer two_functions local_calls six_arguments usize integer_types \
       mixed_integers bitops pointers stack_arguments foreign_calls void_calls \
       layout_queries optimizer cfg_optimizer effects inline integer_stack_ffi \
-      data_import data_export c_string; do
+      data_import data_export c_string symbols; do
     check_fixture "$name" "$level"
   done
   check_c_source "$level"
@@ -141,10 +141,24 @@ compile_modules() {
 for generation in 1 2 3; do
   compile_modules "$generation"
   for name in stack_arguments foreign_calls cfg_optimizer inline integer_stack_ffi \
-      data_import data_export c_string; do
+      data_import data_export c_string symbols; do
     run_windows "$work_dir/compiler-$generation.exe" --target="$target" \
       "$project_root/tests/bootstrap_$name.lisp" "$work_dir/target-$name.o"
     cmp "$work_dir/$name-1.o" "$work_dir/target-$name.o"
+  done
+  for level in 0 1; do
+    for name in packed pointer_qualifiers c_aliases data_only; do
+      run_windows "$work_dir/compiler-$generation.exe" "-O$level" --target="$target" \
+        "$project_root/tests/bootstrap_$name.lisp" \
+        "$work_dir/generation-$generation-$name-$level.o"
+      if test "$generation" -eq 1; then
+        cp "$work_dir/generation-$generation-$name-$level.o" \
+          "$work_dir/generation-reference-$name-$level.o"
+      else
+        cmp "$work_dir/generation-reference-$name-$level.o" \
+          "$work_dir/generation-$generation-$name-$level.o"
+      fi
+    done
   done
   "$compiler" "$project_root/tests/bootstrap_stack_arguments.lisp" "$work_dir/x86-reference.o"
   run_windows "$work_dir/compiler-$generation.exe" \
@@ -173,5 +187,14 @@ run_windows "$work_dir/api-linked.exe"
   "$project_root/tests/harness_bootstrap_coff_link.c" "$work_dir/overflow-linux.o" \
   -o "$work_dir/overflow-linked.exe"
 run_windows "$work_dir/overflow-linked.exe"
+
+PSL_NATIVE_COMPILER=$compiler PSL_NATIVE_COMPILER_HOST_TARGET=${PSL_NATIVE_COMPILER_HOST_TARGET:-x86_64-linux-gnu} \
+  sh "$project_root/tests/bootstrap_packed.sh" "$target"
+PSL_NATIVE_COMPILER_HOST_TARGET=${PSL_NATIVE_COMPILER_HOST_TARGET:-x86_64-linux-gnu} \
+  sh "$project_root/tests/bootstrap_pointer_qualifiers.sh" "$compiler" "$target"
+PSL_NATIVE_COMPILER_HOST_TARGET=${PSL_NATIVE_COMPILER_HOST_TARGET:-x86_64-linux-gnu} \
+  sh "$project_root/tests/bootstrap_c_aliases.sh" "$compiler" "$target"
+PSL_NATIVE_COMPILER_HOST_TARGET=${PSL_NATIVE_COMPILER_HOST_TARGET:-x86_64-linux-gnu} \
+  sh "$project_root/tests/bootstrap_data_only.sh" "$compiler" "$target"
 
 echo 'PSL native Windows COFF output, C interoperability, and subset generations passed'

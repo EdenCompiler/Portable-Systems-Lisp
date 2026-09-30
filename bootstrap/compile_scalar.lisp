@@ -23,6 +23,7 @@
 (include "frontend/ffi.lisp")
 (include "frontend/data.lisp")
 (include "frontend/c_strings.lisp")
+(include "frontend/symbol_names.lisp")
 (include "object/elf64_calls.lisp")
 (include "object/elf64_data_imports.lisp")
 (include "object/coff64_calls.lisp")
@@ -55,12 +56,12 @@
           (if (= (scalar_function_name_p
                   source node (deref (field-pointer signature 'exported))
                   (deref (field-pointer signature 'imported))) 1)
+              (if (= (source_record_function_name
+                      context function
+                      (pointer+ source (wrap-cast isize (deref (field-pointer node 'start))))
+                      (deref (field-pointer node 'length))
+                      (deref (field-pointer signature 'imported))) 0) 0
               (progn
-                (store (field-pointer function 'name)
-                       (pointer+ source
-                                 (wrap-cast isize
-                                            (deref (field-pointer node
-                                                                  'start)))))
                 (store (field-pointer function 'name_length)
                        (deref (field-pointer node 'length)))
                 (store (field-pointer function 'referenced) 0)
@@ -76,7 +77,7 @@
                        (wrap-cast usize
                                   (deref (field-pointer signature
                                                         'exported))))
-                1)
+                1))
               0)
           0))))
 
@@ -88,10 +89,7 @@
   (let ((start (deref (field-pointer node 'start)))
         (length (deref (field-pointer node 'length))))
     (if (= imported 1) (simple_import_name_p source start length)
-        (if (= (simple_source_name_p source start length) 0) 0
-            (if (= exported 1)
-                (simple_export_name_p source start length)
-                1)))))
+        (simple_source_name_p source start length))))
 
 (defun predeclare_scalar_form (context signature function)
   (declare (type (ptr native_compile_context) context)

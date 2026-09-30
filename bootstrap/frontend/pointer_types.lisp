@@ -15,7 +15,7 @@
            (type usize type) (returns usize))
   (let ((layouts (deref (field-pointer signatures 'layouts))))
     (let ((shape (deref (field-pointer layouts 'scratch))))
-      (if (= (native_resolve_pointer_type layouts type shape) 0)
+      (if (= (native_resolve_pointer_type layouts (source_pointer_base type) shape) 0)
           0
           (deref (field-pointer shape 'pointee))))))
 
@@ -24,7 +24,7 @@
            (type usize type) (returns usize))
   (let ((layouts (source_layouts context)))
     (let ((shape (deref (field-pointer layouts 'scratch))))
-      (if (= (native_resolve_type layouts type shape) 0)
+      (if (= (native_resolve_type layouts (source_pointer_base type) shape) 0)
           0
           (deref (field-pointer shape 'size))))))
 
@@ -38,7 +38,7 @@
 (defun source_pointer_pointee_p (context pointee)
   (declare (type (ptr native_compile_context) context)
            (type usize pointee) (returns c-int))
-  (if (= (source_type_reference_p context pointee) 0) 0
+  (if (= (source_type_reference_p context (source_pointer_base pointee)) 0) 0
       (if (= (scalar_type_code (deref (field-pointer context 'signatures)) pointee) 12)
           1
           (if (= (source_type_size context pointee) 0) 0 1))))
@@ -64,9 +64,12 @@
   (declare (type (ptr native_compile_context) context)
            (type usize left right depth) (returns c-int))
   (if (< 128 depth) 0
-      (if (= (source_type_reference_p context left) 0) 0
-          (if (= (source_type_reference_p context right) 0) 0
-              (source_resolved_types_equal_p context left right depth)))))
+      (if (= (source_type_reference_p context (source_pointer_base left)) 0) 0
+          (if (= (source_type_reference_p context (source_pointer_base right)) 0) 0
+              (if (= (source_pointer_flags left) (source_pointer_flags right))
+                  (source_resolved_types_equal_p context
+                   (source_pointer_base left) (source_pointer_base right) depth)
+                  0)))))
 
 (defun source_types_equal_p (context left_code left_pointee right_code right_pointee)
   (declare (type (ptr native_compile_context) context)
@@ -124,7 +127,7 @@
   (declare (type (ptr native_compile_context) context)
            (type usize pointee name) (returns usize))
   (let ((layouts (source_layouts context)))
-    (let ((index (native_find_layout layouts pointee)))
+    (let ((index (native_find_layout layouts (source_pointer_base pointee))))
       (if (= index 0)
           0
           (let ((layout (native_layout_at layouts (wrap- index 1))))

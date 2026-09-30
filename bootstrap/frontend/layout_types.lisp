@@ -31,4 +31,5 @@
   (field_count usize)
   (field_capacity usize)
   (scratch (ptr native_type_shape))
-  (error u32))
+  (error u32)
+  (target u32))

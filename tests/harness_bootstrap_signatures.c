@@ -75,7 +75,7 @@ static int check_module(const char *path, size_t expected_functions,
     scanner = (struct psl_scanner){source, length, 0, 0};
     parser = (struct psl_parser){&scanner, &token, 0, nodes, 0, length + 1, 0};
     layout_context = (struct native_layout_context){
-        &parser, source, layouts, 0, 32, fields, 0, 128, &shape, 0
+        &parser, source, layouts, 0, 32, fields, 0, 128, &shape, 0, 0
     };
     signature_context = (struct native_signature_context){
         &layout_context, signatures, 0, 128, parameters, 0, 256, 0
@@ -114,7 +114,7 @@ static int rejected(const char *source) {
     };
     struct native_layout_context layout_context = {
         &parser, (const uint8_t *)source, layouts, 0, 4,
-        fields, 0, 8, &shape, 0
+        fields, 0, 8, &shape, 0, 0
     };
     struct native_signature_context context = {
         &layout_context, signatures, 0, 4, parameters, 0, 8, 0

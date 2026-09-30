@@ -648,6 +648,46 @@ the same signature records and accepts declarations in different clause orders
 and multiple body forms. The native body compiler still accepts only the documented integer/pointer
 subset; the signature pass does not make Stage 1 viable.
 
+### M8 native source and scalar contract parity
+
+The native frontend now folds ordinary ASCII source names and recognizes
+implemented `cl:`/`psl:` qualifications without aliasing foreign packages.
+Defined function linker names are canonicalized before encoding; C string
+names and public object writer names retain exact spelling. Case-folded
+Lisp function/data collisions are rejected while distinct C string names stay
+distinct. Escaped symbols and general user packages remain pending.
+The native frontend also supports packed structure registration, raw pointer
+qualifiers, all documented C integer aliases, and data-only compilation units.
+Packed fields use alignment one with no source-order padding, including nested
+records; existing target encoders implement their unaligned accesses. Const
+and volatile qualifiers are compiler metadata, participate in type equality,
+propagate through field pointers, and are checked by the HIR/SSA/LIR memory
+verifiers. Const stores fail before encoding; all loads remain effect roots.
+The explicit output-target ABI supplies Linux LP64 or Windows LLP64 long widths.
+Data-only ELF/COFF objects retain scalar initialization and alignment, omit
+unused imports, and link with C without an artificial code definition.
+
+`tests/bootstrap_packed.sh`, `tests/bootstrap_pointer_qualifiers.sh`,
+`tests/bootstrap_c_aliases.sh`, and `tests/bootstrap_data_only.sh` compare
+native and Stage 0 behavior at O0/O1, check deterministic native objects,
+and run independent C harnesses. The symbol fixture also checks source spelling,
+foreign C names, and deterministic output in the native compiler gate.
+`sh tests/smoke.sh` and the complete Linux
+native-core generation gate pass, including 101 error fixtures with identical
+exit status and diagnostics across three native generations. The AArch64 native
+ELF gate also passes the qualifier, packed, alias, and data-only fixtures and
+three target generations. C aliases and data-only C linkage additionally pass
+on Windows under Wine. Target generation gates use separate compiler-host and
+output-target runners.
+The development example corpus audit inventories every example, compares
+accepted linked behavior and generated objects, and reports remaining gaps.
+All three Linux native generations accept 15 of 30 examples at O0/O1, with
+Stage 0 matching linked behavior and deterministic native output.
+It advances coverage without replacing the complete M8 source/object/interop gate.
+General compilation environments/macros/packages, managed values, floating and
+aggregate ABI ports, broader CLI/profile parity, and the full Stage 1–3 release
+gate remain required.
+
 ## M9 — Hosted ANSI Common Lisp completion · Pending
 
 **Dependencies:** M4 dynamic runtime and a self-host-capable compiler core.

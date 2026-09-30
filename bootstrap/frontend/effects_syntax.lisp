@@ -4,11 +4,16 @@
   (if (= reference 0) 0
       (let ((node (parser_node parser reference)))
         (if (= (deref (field-pointer node 'kind)) 8)
-            (if (= (deref (field-pointer node 'length)) 18)
-                (let ((start (deref (field-pointer node 'start))))
-                  (if (= (ascii_matches source start #x2d74756f68746977 8) 0) 0
-                      (if (= (ascii_matches source (wrap+ start 8) #x697461636f6c6c61 8) 0) 0
-                          (ascii_matches source (wrap+ start 16) #x6e6f 2)))) 0) 0))))
+            (let ((offset (source_builtin_offset source
+                    (deref (field-pointer node 'start))
+                    (deref (field-pointer node 'length)) 18 2)))
+              (if (= offset 0) 0
+                  (let ((start (wrap+ (deref (field-pointer node 'start))
+                                     (wrap- offset 1))))
+                    (if (= (ascii_matches source start #x2d74756f68746977 8) 0) 0
+                        (if (= (ascii_matches source (wrap+ start 8) #x697461636f6c6c61 8) 0) 0
+                            (ascii_matches source (wrap+ start 16) #x6e6f 2))))))
+            0))))
 
 (defun analyze_allocation_region (context body depth)
   (declare (type (ptr native_compile_context) context) (type usize body depth)

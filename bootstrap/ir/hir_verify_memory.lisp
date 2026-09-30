@@ -58,7 +58,9 @@
         (if (= (deref (field-pointer node 'value))
                (wrap-cast u64 (deref (field-pointer field 'offset))))
             (source_ast_type_equal_p context (deref (field-pointer node 'pointee))
-                                     (deref (field-pointer field 'type_ast)) 0)
+                                     (source_pointer_with_flags
+                                      (deref (field-pointer field 'type_ast))
+                                      (hir_pointee arena left)) 0)
             0)
         0)))
 
@@ -95,7 +97,9 @@
         (arena (deref (field-pointer context 'hir))))
     (if (= (hir_pointer_child_p context left) 0) 0
         (let ((type (hir_pointee arena left)))
-          (if (= (source_type_reference_p context type) 0) 0
+          (if (= (if (= (deref (field-pointer node 'kind)) 25)
+                        (source_pointer_const_p type) (wrap-cast c-int 0)) 1) 0
+          (if (= (source_type_reference_p context (source_pointer_base type)) 0) 0
               (if (= (hir_memory_result_p context node type) 0) 0
                   (if (= (deref (field-pointer node 'value))
                          (wrap-cast u64 (source_type_size context type)))
@@ -104,7 +108,7 @@
                           (if (= (hir_source_matches_node_p
                                   context (deref (field-pointer node 'right)) node) 0) 0
                               (hir_verify_scalar_pair context node depth)))
-                      0)))))))
+                      0))))))))
 
 (defun hir_verify_loop (context node depth)
   (declare (type (ptr native_compile_context) context)

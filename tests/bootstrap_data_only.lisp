@@ -1,0 +1,7 @@
+(ffi:import-function "unused_function" () -> c-int)
+(ffi:import-data "unused_data" u64)
+(ffi:export-data "only_byte" u8 255)
+(ffi:export-data "only_short" u16 65535)
+(ffi:export-data "only_signed" s32 -2147483648)
+(ffi:export-data "only_word" u64 18446744073709551615)
+(ffi:export-data "only_pointer" (ptr u8) 0)

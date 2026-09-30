@@ -271,14 +271,34 @@ objects for integer and raw pointer functions. The first six (x86-64) or eight
 padding after the final argument to preserve call alignment. Narrow values
 are normalized on entry. Arguments are evaluated in source order before their
 saved values are placed in ABI locations; nested and recursive calls work.
-Pointers use unqualified `(ptr TYPE)` forms, with earlier C structures and
-nested pointers as pointees. It supports `pointer+`, `deref`, `store`,
+Ordinary ASCII source names fold case, including function, parameter, local,
+structure, and field names. Defined linker names use lowercase spelling,
+including hyphenated exports. `cl:` qualifies implemented Common Lisp forms
+and `psl:` qualifies implemented extensions; unrelated package prefixes do
+not alias those names. Explicit C function and data strings remain exact.
+Escaped symbols and general user packages still require a native port.
+Pointers use `(ptr TYPE)` forms with optional `:const` and `:volatile`, with
+earlier C or packed structures and nested pointers as pointees. Qualifier order
+does not affect type equality; duplicate and unknown qualifiers are rejected.
+`pointer+` and `field-pointer` retain storage qualifiers. Stores through const
+pointers are rejected; an explicit `ptr-cast` may select different qualifiers.
+Loads remain effect roots, including discarded volatile reads, at both
+optimization levels. It supports `pointer+`, `deref`, `store`,
 `field-pointer`, `ptr-cast`, `ptr-from-address`, and Boolean `while` in addition
 to its integer, lexical, call, and conditional forms. Memory operations
 preserve Stage 0's width, signed extension, evaluation order, and result rules.
 Field designators may use `'field` or `(quote field)`. Pointee types remain
 part of call, local, and result checking; integer zero cannot implicitly
 become a pointer. Raw pointers, including address zero, are true in `if`.
+
+Native `defstruct/packed` records use source-order fields, alignment one, and
+no padding, including previously declared nested records. C structures keep
+natural alignment. Both kinds support the existing integer and pointer field
+operations and layout queries. Packed records passed by value remain unsupported.
+All documented C integer aliases resolve through the selected target ABI,
+including 32-bit `c-long`/`c-ulong` on Windows and 64-bit long types on the
+Linux targets. `c-float` and `c-double` can appear in layout declarations;
+floating expressions and signatures still require a native port.
 
 Native C calls use `ffi:import-function` declarations and explicit `ffi:call`
 expressions, with the same integer and raw pointer source types as ordinary
@@ -303,6 +323,9 @@ by `deref`, `store`, and the existing pointer operations. C names are
 case-sensitive identifier strings, and an exact mixed-case string may be used
 as the address designator. Exported integer literals are checked against their
 declared width and signedness; exported pointer objects accept only zero.
+Units containing only data declarations emit valid objects with empty code
+sections. Unreferenced imports leave no undefined symbols, and exported
+definitions link and remain writable from C without a placeholder function.
 Duplicate function/data names, malformed declarations, invalid initializers,
 unknown objects, and address type mismatches are rejected. Only referenced
 imports receive undefined symbols; every exported definition remains visible
@@ -329,8 +352,8 @@ the native subset's types and spelling rules.
 Explicit libc imports such as `malloc` and `free` work; they do not become
 implicit runtime dependencies of other units.
 
-Managed strings/named general byte data, floating/aggregate signatures, and
-pointer qualifiers remain unsupported by the native subset. Import effect annotations and
+Managed strings/named general byte data and floating/aggregate signatures
+remain unsupported by the native subset. Import effect annotations and
 allocation-effect certification are implemented for the documented direct-call
 subset; unannotated imports remain unknown.
 
@@ -384,7 +407,7 @@ Native C-source merging is currently verified from the x86-64 Linux compiler
 host for all four hosted output targets. Target-hosted generated compilers are
 not yet required to launch a C toolchain during bootstrap comparison.
 
-It does not yet support packages, general host macro execution, qualifiers,
+It does not yet support general source packages or host macro execution,
 floating accesses, or structure values. Its
 implemented subset now passes verified HIR, typed CFG/SSA, and flat LIR; the
 backend consumes virtual registers and explicit labels. Native `-O1` (the

@@ -21,6 +21,10 @@
   (declare (type u32 target) (returns u32))
   (if (= target 3) 2 (wrap-cast u32 1))) ; Linux / Windows
 
+(defun native_target_c_long_bits (target)
+  (declare (type u32 target) (returns u32))
+  (if (= (native_target_abi target) 4) 32 (wrap-cast u32 64))) ; LLP64 / LP64
+
 (defun native_target_elf_machine (target)
   (declare (type u32 target) (returns u16))
   (cond

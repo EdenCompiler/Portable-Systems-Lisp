@@ -47,6 +47,12 @@
            (returns c-int))
   (valid_function_spans_from functions 0 count 0 code_size))
 
+(defun empty_function_output_p (code_size buffer)
+  (declare (type usize code_size) (type (ptr byte_buffer) buffer) (returns c-int))
+  (if (= code_size 0)
+      (if (= (deref (field-pointer buffer 'length)) 0) 1 0)
+      0))
+
 (defun multi_name_bytes_from (functions index count)
   (declare (type (ptr native_function) functions)
            (type usize index count)

@@ -77,16 +77,42 @@
 
 (defun signature_name_used_p (context name index)
   (declare (type (ptr native_signature_context) context)
-           (type usize name index)
+           (type usize name index) (returns c-int))
+  (signature_linker_name_used_p context name 0 index))
+
+(defun signature_foreign_name_used_p (context name index)
+  (declare (type (ptr native_signature_context) context)
+           (type usize name index) (returns c-int))
+  (signature_linker_name_used_p context name 1 index))
+
+(defun signature_linker_name_used_p (context name imported index)
+  (declare (type (ptr native_signature_context) context)
+           (type usize name index) (type u8 imported) (returns c-int))
+  (if (= index (deref (field-pointer context 'signature_count))) 0
+      (let ((prior (native_signature_at context index)))
+        (if (= (signature_linker_names_equal_p context name imported
+                 (deref (field-pointer prior 'name))
+                 (deref (field-pointer prior 'imported))) 1)
+            1
+            (signature_linker_name_used_p context name imported (wrap+ index 1))))))
+
+(defun signature_linker_names_equal_p (context left left_imported right right_imported)
+  (declare (type (ptr native_signature_context) context)
+           (type usize left right) (type u8 left_imported right_imported)
            (returns c-int))
-  (if (= index (deref (field-pointer context 'signature_count)))
-      0
-      (if (= (signature_names_equal_p
-              context name
-              (deref (field-pointer (native_signature_at context index)
-                                    'name))) 1)
-          1
-          (signature_name_used_p context name (wrap+ index 1)))))
+  (let ((parser (signature_parser context))
+        (source (deref (field-pointer (deref (field-pointer context 'layouts)) 'source))))
+    (let ((a (parser_node parser left)) (b (parser_node parser right)))
+      (let ((length (deref (field-pointer a 'length))))
+        (if (= length (deref (field-pointer b 'length)))
+            (let ((x (pointer+ source (wrap-cast isize (deref (field-pointer a 'start)))))
+                  (y (pointer+ source (wrap-cast isize (deref (field-pointer b 'start))))))
+              (if (= left_imported 1)
+                  (if (= right_imported 1) (source_exact_name_p x y length)
+                      (source_foreign_name_p y x length))
+                  (if (= right_imported 1) (source_foreign_name_p x y length)
+                      (source_same_name_p x y length))))
+            0)))))
 
 (defun signature_parameter_index (context signature name index)
   (declare (type (ptr native_signature_context) context)

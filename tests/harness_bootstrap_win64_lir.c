@@ -69,7 +69,7 @@ static int check_lir_body(void) {
     struct psl_parsed_integer integer = {0};
     struct native_type_shape shape = {0};
     struct native_layout_context layouts = {&parser, source, NULL, 0, 0,
-                                             NULL, 0, 0, &shape, 0};
+                                             NULL, 0, 0, &shape, 0, 0};
     struct native_signature signature = {0};
     struct native_parameter parameters[5] = {{0}};
     struct native_signature_context signatures = {&layouts, &signature, 0, 1,

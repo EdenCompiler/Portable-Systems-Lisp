@@ -1,55 +1,32 @@
 (include "parser.lisp")
+(include "symbols.lisp")
 
 ;; Source-unit loading uses this parser interface. The host supplies file I/O
 ;; and canonical paths; PSL recognizes include forms and decodes their strings.
 (defun source_include_head_p (parser source root)
   (declare (type (ptr psl_parser) parser) (type (ptr u8) source)
            (type usize root) (returns c-int))
+  (source_builtin_head_p parser source root #x6564756c636e69 0 7))
+
+(defun source_builtin_head_p (parser source root first last length)
+  (declare (type (ptr psl_parser) parser) (type (ptr u8) source)
+           (type usize root length) (type u64 first last) (returns c-int))
   (let ((form (parser_node parser root)))
     (if (= (deref (field-pointer form 'kind)) 1)
         (let ((head (deref (field-pointer form 'first))))
           (if (= head 0) 0
               (let ((node (parser_node parser head)))
                 (if (= (deref (field-pointer node 'kind)) 8)
-                    (if (= (deref (field-pointer node 'length)) 7)
-                        (source_include_name_p source (deref (field-pointer node 'start)) 0)
-                        0)
+                    (source_builtin_word_p source
+                      (deref (field-pointer node 'start))
+                      (deref (field-pointer node 'length)) first last length)
                     0))))
         0)))
-
-(defun source_include_name_p (source start index)
-  (declare (type (ptr u8) source) (type usize start index) (returns c-int))
-  (if (= index 7) 1
-      (if (= (deref (pointer+ source (wrap-cast isize (wrap+ start index))))
-             (wrap-cast u8 (shr64 #x6564756c636e69 (wrap* (wrap-cast u64 index) 8))))
-          (source_include_name_p source start (wrap+ index 1))
-          0)))
-
-(defun source_ffi_name_p (source start index)
-  (declare (type (ptr u8) source) (type usize start index) (returns c-int))
-  (if (= index 10) 1
-      (let ((word (if (< index 8) #x72756f733a696666 #x6563))
-            (shift (if (< index 8) index (wrap- index 8))))
-        (if (= (deref (pointer+ source (wrap-cast isize (wrap+ start index))))
-               (wrap-cast u8 (shr64 word (wrap* (wrap-cast u64 shift) 8))))
-            (source_ffi_name_p source start (wrap+ index 1))
-            0))))
 
 (defun source_ffi_head_p (parser source root)
   (declare (type (ptr psl_parser) parser) (type (ptr u8) source)
            (type usize root) (returns c-int))
-  (let ((form (parser_node parser root)))
-    (if (= (deref (field-pointer form 'kind)) 1)
-        (let ((head (deref (field-pointer form 'first))))
-          (if (= head 0) 0
-              (let ((node (parser_node parser head)))
-                (if (= (deref (field-pointer node 'kind)) 8)
-                    (if (= (deref (field-pointer node 'length)) 10)
-                        (source_ffi_name_p
-                         source (deref (field-pointer node 'start)) 0)
-                        0)
-                    0))))
-        0)))
+  (source_builtin_head_p parser source root #x72756f733a696666 #x6563 10))
 
 (defun source_include_string (parser root)
   (declare (type (ptr psl_parser) parser) (type usize root) (returns usize))

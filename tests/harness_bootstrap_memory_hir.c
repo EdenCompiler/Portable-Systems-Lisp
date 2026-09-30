@@ -47,6 +47,11 @@ int main(void) {
     nodes[4].right = 5;
     if (valid(&context, 5)) return 5;
     nodes[4].right = 4;
+    /* Constness is carried in reference metadata and forbids writes while
+       leaving the same pointer valid for reads. */
+    nodes[1].pointee = UINT64_C(0x4000000000000001);
+    if (!valid(&context, 3) || valid(&context, 5)) return 8;
+    nodes[1].pointee = 1;
     nodes[5].scalar_code = 2;
     if (valid(&context, 7)) return 6;
     nodes[5].scalar_code = 10;

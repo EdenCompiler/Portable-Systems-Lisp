@@ -106,7 +106,7 @@
       (let ((arrow (signature_next context parameters)))
         (let ((result (signature_next context arrow)))
           (if (= name 0) 0
-              (if (= (signature_name_used_p context name 0) 1) 0
+              (if (= (signature_foreign_name_used_p context name 0) 1) 0
                   (if (= (signature_list_p context parameters) 0) 0
                       (if (= (signature_word_p context arrow #x3e2d 2) 0) 0
                           (if (= result 0) 0

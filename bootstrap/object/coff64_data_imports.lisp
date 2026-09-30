@@ -311,7 +311,8 @@
            (type (ptr byte_buffer) buffer)
            (type usize code_size function_count import_count)
            (returns c-int) (c-export :c))
-  (if (= (coff_functions_shape_p code code_size functions function_count buffer) 0) 0
+  (if (= (if (= function_count 0) (empty_function_output_p code_size buffer)
+             (coff_functions_shape_p code code_size functions function_count buffer)) 0) 0
       (if (= (coff_fixups_shape_p code code_size functions function_count calls) 0) 0
           (if (= (coff_fixup_arena_p data_fixups) 0) 0
               (if (= (valid_data_imports_from imports 0 import_count) 0) 0

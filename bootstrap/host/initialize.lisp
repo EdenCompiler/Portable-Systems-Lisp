@@ -67,6 +67,7 @@
     (store (field-pointer record 'field_capacity) capacity)
     (store (field-pointer record 'scratch) (field-pointer driver 'shape))
     (store (field-pointer record 'error) 0)
+    (store (field-pointer record 'target) 0)
     1))
 
 (defun native_initialize_signature_context (driver capacity)

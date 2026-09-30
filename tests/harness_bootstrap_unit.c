@@ -34,7 +34,7 @@ static int compile_memory_target(const char *source, uint32_t target, uintptr_t 
     struct native_type_shape shape = {0};
     struct native_layout_context layouts = {
         &parser, (const uint8_t *)source, storage.layouts, 0, CAPACITY,
-        storage.fields, 0, CAPACITY, &shape, 0
+        storage.fields, 0, CAPACITY, &shape, 0, 0
     };
     struct native_signature_context signatures = {
         &layouts, storage.signatures, 0, CAPACITY,

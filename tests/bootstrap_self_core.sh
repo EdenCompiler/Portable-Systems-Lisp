@@ -21,37 +21,30 @@ compare_diagnostic() {
   if "$compiler" "$source" "$work_dir/rejected.o" >"$diagnostic.out" 2>"$diagnostic.err"; then
     echo "core generation $generation accepted invalid source: $source" >&2
     exit 1
+  else
+    printf '%s\n' "$?" >"$diagnostic.status"
   fi
   test ! -e "$work_dir/rejected.o"
   if test "$generation" != 0; then
     cmp "$work_dir/diagnostic-0-$key.out" "$diagnostic.out"
     cmp "$work_dir/diagnostic-0-$key.err" "$diagnostic.err"
+    cmp "$work_dir/diagnostic-0-$key.status" "$diagnostic.status"
   fi
 }
 
 compare_rejections() {
   compiler=$1
   generation=$2
-  for fixture in duplicate_exports uppercase_export export_hyphen empty_call \
+  for fixture in duplicate_exports empty_call \
       wrong_arity usize_cross_type integer_range unsigned_negative \
       mixed_operator mixed_argument cast_arity lexical_duplicate lexical_scope; do
     compare_diagnostic "$compiler" "$project_root/tests/bootstrap_$fixture.lisp" \
       "$fixture" "$generation"
   done
-  for source in "$project_root"/tests/bootstrap_pointer_errors/*.lisp; do
-    compare_diagnostic "$compiler" "$source" "pointer-${source##*/}" "$generation"
-  done
-  for source in "$project_root"/tests/bootstrap_foreign_errors/*.lisp; do
-    compare_diagnostic "$compiler" "$source" "foreign-${source##*/}" "$generation"
-  done
-  for source in "$project_root"/tests/bootstrap_void_errors/*.lisp; do
-    compare_diagnostic "$compiler" "$source" "void-${source##*/}" "$generation"
-  done
-  for source in "$project_root"/tests/bootstrap_query_errors/*.lisp; do
-    compare_diagnostic "$compiler" "$source" "query-${source##*/}" "$generation"
-  done
-  for source in "$project_root"/tests/bootstrap_effect_errors/*.lisp; do
-    compare_diagnostic "$compiler" "$source" "effect-${source##*/}" "$generation"
+  for source in "$project_root"/tests/bootstrap_*_errors/*.lisp; do
+    family=${source%/*}
+    family=${family##*/}
+    compare_diagnostic "$compiler" "$source" "$family-${source##*/}" "$generation"
   done
   for fixture in cycle-a missing invalid unterminated; do
     compare_diagnostic "$compiler" "$project_root/tests/include/native/$fixture.lisp" \
@@ -137,4 +130,7 @@ cmp "$work_dir/output-1.o" "$work_dir/output-2.o"
 cmp "$work_dir/output-2.o" "$work_dir/output-3.o"
 cmp "$work_dir/diagnostics-1.o" "$work_dir/diagnostics-2.o"
 cmp "$work_dir/diagnostics-2.o" "$work_dir/diagnostics-3.o"
+python3 "$project_root/tests/bootstrap_corpus.py" \
+  --native "$work_dir/compiler-0" --native "$work_dir/compiler-1" \
+  --native "$work_dir/compiler-2"
 echo 'PSL native core, storage, source loader/input/path, driver, output, and diagnostic generations reproduce identical objects'

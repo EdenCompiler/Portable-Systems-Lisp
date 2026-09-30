@@ -1,5 +1,8 @@
 (include "layout_types.lisp")
 (include "parser.lisp")
+(include "symbols.lisp")
+(include "pointer_references.lisp")
+(include "integer_names.lisp")
 
 ;; Native structure metadata uses parser references, not host Lisp objects.
 ;; Only earlier structures may appear in a type, matching Stage 0's layout
@@ -28,56 +31,33 @@
           1 0)))
 
 (defun layout_bytes_match (source start bits count)
-  (declare (type (ptr u8) source)
-           (type usize start count)
-           (type u64 bits)
-           (returns c-int))
-  (if (= count 0)
-      1
-      (if (= (deref (pointer+ source (wrap-cast isize start)))
-             (wrap-cast u8 bits))
-          (layout_bytes_match source (wrap+ start 1) (shr64 bits 8)
-                              (wrap- count 1))
-          0)))
+  (declare (type (ptr u8) source) (type usize start count)
+           (type u64 bits) (returns c-int))
+  (source_bytes_match source start bits count))
 
 (defun layout_word_p (context reference bits length)
   (declare (type (ptr native_layout_context) context)
-           (type usize reference length)
-           (type u64 bits)
-           (returns c-int))
+           (type usize reference length) (type u64 bits) (returns c-int))
   (let ((parser (deref (field-pointer context 'parser))))
-    (if (= (layout_atom_p parser reference) 0)
-        0
+    (if (= (layout_atom_p parser reference) 0) 0
         (let ((node (parser_node parser reference)))
-          (if (= (deref (field-pointer node 'length)) length)
-              (layout_bytes_match
-               (deref (field-pointer context 'source))
-               (deref (field-pointer node 'start)) bits length)
-              0)))))
+          (source_builtin_word_p (deref (field-pointer context 'source))
+             (deref (field-pointer node 'start))
+             (deref (field-pointer node 'length)) bits 0 length)))))
 
 (defun native_layout_form_p (context root)
-  (declare (type (ptr native_layout_context) context)
-           (type usize root)
-           (returns c-int)
-           (c-export :c))
+  (declare (type (ptr native_layout_context) context) (type usize root)
+           (returns c-int) (c-export :c))
   (let ((parser (deref (field-pointer context 'parser))))
-    (if (= root 0)
-        0
+    (if (= root 0) 0
         (if (= (deref (field-pointer (parser_node parser root) 'kind)) 1)
-            (let ((head (deref (field-pointer (parser_node parser root)
-                                              'first))))
-              (if (= (layout_atom_p parser head) 0)
-                  0
+            (let ((head (deref (field-pointer (parser_node parser root) 'first))))
+              (if (= (layout_atom_p parser head) 0) 0
                   (let ((node (parser_node parser head)))
-                    (if (= (deref (field-pointer node 'length)) 10)
-                        (let ((start (deref (field-pointer node 'start)))
-                              (source (deref (field-pointer context 'source))))
-                          (if (= (layout_bytes_match source start
-                                                     #x7572747363666564 8) 1)
-                              (layout_bytes_match source (wrap+ start 8)
-                                                  #x7463 2)
-                              0))
-                        0))))
+                    (source_builtin_word_p (deref (field-pointer context 'source))
+                       (deref (field-pointer node 'start))
+                       (deref (field-pointer node 'length))
+                       #x7572747363666564 #x7463 10))))
             0))))
 
 (defun layout_names_equal_p (context left right)
@@ -99,17 +79,21 @@
                      (deref (field-pointer b 'start)) length)
                     0)))))))
 
+(defun layout_source_identifier_p (context reference)
+  (declare (type (ptr native_layout_context) context)
+           (type usize reference) (returns c-int))
+  (let ((parser (deref (field-pointer context 'parser))))
+    (if (= (layout_atom_p parser reference) 0) 0
+        (let ((node (parser_node parser reference)))
+          (source_simple_identifier_p
+           (deref (field-pointer context 'source))
+           (deref (field-pointer node 'start))
+           (deref (field-pointer node 'length)))))))
+
 (defun layout_same_bytes_p (source left right count)
-  (declare (type (ptr u8) source)
-           (type usize left right count)
-           (returns c-int))
-  (if (= count 0)
-      1
-      (if (= (deref (pointer+ source (wrap-cast isize left)))
-             (deref (pointer+ source (wrap-cast isize right))))
-          (layout_same_bytes_p source (wrap+ left 1) (wrap+ right 1)
-                               (wrap- count 1))
-          0)))
+  (declare (type (ptr u8) source) (type usize left right count) (returns c-int))
+  (source_same_name_p (pointer+ source (wrap-cast isize left))
+                      (pointer+ source (wrap-cast isize right)) count))
 
 (defun native_find_layout (context name)
   (declare (type (ptr native_layout_context) context)
@@ -143,23 +127,15 @@
 
 (defun layout_primitive_size (context type)
   (declare (type (ptr native_layout_context) context)
-           (type usize type)
-           (returns usize))
-  (cond
-    ((= (layout_word_p context type #x3875 2) 1) 1) ; u8
-    ((= (layout_word_p context type #x3873 2) 1) 1) ; s8
-    ((= (layout_word_p context type #x363175 3) 1) 2) ; u16
-    ((= (layout_word_p context type #x363173 3) 1) 2) ; s16
-    ((= (layout_word_p context type #x323375 3) 1) 4) ; u32
-    ((= (layout_word_p context type #x323373 3) 1) 4) ; s32
-    ((= (layout_word_p context type #x746e692d63 5) 1) 4) ; c-int
-    ((= (layout_word_p context type #x323366 3) 1) 4) ; f32
-    ((= (layout_word_p context type #x343675 3) 1) 8) ; u64
-    ((= (layout_word_p context type #x343673 3) 1) 8) ; s64
-    ((= (layout_word_p context type #x657a697375 5) 1) 8) ; usize
-    ((= (layout_word_p context type #x657a697369 5) 1) 8) ; isize
-    ((= (layout_word_p context type #x343666 3) 1) 8) ; f64
-    (t 0)))
+           (type usize type) (returns usize))
+  (let ((code (layout_integer_code context type)))
+    (if (< 0 code) (wrap-cast usize (shr64 (wrap-cast u64 (scalar_type_bits code)) 3))
+        (cond
+          ((= (layout_word_p context type #x323366 3) 1) 4) ; f32
+          ((= (layout_type_word_p context type #x74616f6c662d63 0 7) 1) 4)
+          ((= (layout_word_p context type #x343666 3) 1) 8) ; f64
+          ((= (layout_type_word_p context type #x656c62756f642d63 0 8) 1) 8)
+          (t 0)))))
 
 (defun native_resolve_type (context type output)
   (declare (type (ptr native_layout_context) context)
@@ -185,14 +161,48 @@
                        index))))))
         (native_resolve_pointer_type context type output)))))
 
+(defun layout_pointer_keyword (context reference)
+  (declare (type (ptr native_layout_context) context)
+           (type usize reference) (returns usize))
+  (if (= (layout_word_p context reference #x74736e6f633a 6) 1) 1
+      (let ((parser (deref (field-pointer context 'parser))))
+        (if (= (layout_atom_p parser reference) 0) 0
+            (let ((node (parser_node parser reference)))
+              (if (= (deref (field-pointer node 'length)) 9)
+                  (let ((source (deref (field-pointer context 'source)))
+                        (start (deref (field-pointer node 'start))))
+                    (if (= (layout_bytes_match source start #x6c6974616c6f763a 8) 1)
+                        (if (= (layout_bytes_match source (wrap+ start 8) #x65 1) 1)
+                            2 0)
+                        0))
+                  0))))))
+
+(defun layout_pointer_qualifiers (context reference flags)
+  (declare (type (ptr native_layout_context) context)
+           (type usize reference flags) (returns usize))
+  (if (= reference 0) flags
+      (let ((keyword (layout_pointer_keyword context reference)))
+        (if (= keyword 0) 4
+            (if (= (bits-and flags keyword) 0)
+                (layout_pointer_qualifiers
+                 context
+                 (deref (field-pointer
+                         (parser_node (deref (field-pointer context 'parser)) reference)
+                         'next))
+                 (wrap+ flags keyword))
+                4)))))
+
+(defun layout_qualified_pointee (pointee flags)
+  (declare (type usize pointee flags) (returns usize))
+  (wrap+ pointee (wrap* flags #x4000000000000000)))
+
 (defun native_resolve_pointer_type (context type output)
   (declare (type (ptr native_layout_context) context)
            (type usize type)
            (type (ptr native_type_shape) output)
            (returns c-int))
   (let ((parser (deref (field-pointer context 'parser))))
-    (if (= type 0)
-        0
+    (if (= type 0) 0
         (let ((node (parser_node parser type)))
           (if (= (deref (field-pointer node 'kind)) 1)
               (let ((head (deref (field-pointer node 'first))))
@@ -200,15 +210,16 @@
                                    (deref (field-pointer
                                            (parser_node parser head) 'next)))))
                   (if (= (layout_word_p context head #x727470 3) 1)
-                      (if (< 0 pointee)
-                          (if (= (deref (field-pointer
-                                  (parser_node parser pointee) 'next)) 0)
-                              (if (= (native_resolve_type
-                                      context pointee output) 1)
-                                  (layout_set_shape output 8 8 2 pointee)
-                                  0)
-                              0)
-                          0)
+                      (if (= pointee 0) 0
+                          (let ((flags (layout_pointer_qualifiers
+                                        context
+                                        (deref (field-pointer
+                                                (parser_node parser pointee) 'next)) 0)))
+                            (if (= flags 4) 0
+                                (if (= (native_resolve_type context pointee output) 1)
+                                    (layout_set_shape output 8 8 2
+                                     (layout_qualified_pointee pointee flags))
+                                    0))))
                       0)))
               0)))))
 
@@ -240,7 +251,7 @@
         (if (= (deref (field-pointer (parser_node parser field) 'kind)) 1)
             (let ((name (deref (field-pointer (parser_node parser field)
                                              'first))))
-              (if (= (layout_atom_p parser name) 0)
+              (if (= (layout_source_identifier_p context name) 0)
                   0
                   (let ((type (deref (field-pointer (parser_node parser name)
                                                     'next))))
@@ -252,11 +263,12 @@
                             0)))))
             0))))
 
-(defun layout_add_named_field (context name layout shape)
+(defun layout_add_named_field (context name layout shape packed)
   (declare (type (ptr native_layout_context) context)
            (type usize name)
            (type (ptr native_layout) layout)
            (type (ptr native_type_shape) shape)
+           (type u8 packed)
            (returns c-int))
   (if (= (layout_field_already_p
           context (deref (field-pointer layout 'first))
@@ -268,14 +280,15 @@
                           'next))))
         (if (= (native_resolve_type context type shape) 1)
             (if (= (deref (field-pointer shape 'kind)) 4) 0
-                (layout_commit_field context layout name type shape))
+                (layout_commit_field context layout name type shape packed))
             0))))
 
-(defun layout_add_field (context field layout shape)
+(defun layout_add_field (context field layout shape packed)
   (declare (type (ptr native_layout_context) context)
            (type usize field)
            (type (ptr native_layout) layout)
            (type (ptr native_type_shape) shape)
+           (type u8 packed)
            (returns c-int))
   (if (= (deref (field-pointer context 'field_count))
          (deref (field-pointer context 'field_capacity)))
@@ -283,16 +296,18 @@
       (let ((name (layout_field_name context field)))
         (if (= name 0)
             0
-            (layout_add_named_field context name layout shape)))))
+            (layout_add_named_field context name layout shape packed)))))
 
-(defun layout_commit_field (context layout name type shape)
+(defun layout_commit_field (context layout name type shape packed)
   (declare (type (ptr native_layout_context) context)
            (type (ptr native_layout) layout)
            (type usize name type)
            (type (ptr native_type_shape) shape)
+           (type u8 packed)
            (returns c-int))
   (let ((size (deref (field-pointer shape 'size)))
-        (alignment (deref (field-pointer shape 'alignment)))
+        (alignment (if (= packed 1) (wrap-cast usize 1)
+                       (deref (field-pointer shape 'alignment))))
         (offset (deref (field-pointer layout 'size))))
     (let ((aligned (layout_round_up offset alignment)))
       (if (< aligned offset)
@@ -317,20 +332,21 @@
                     (wrap-cast usize 0))
                 1))))))
 
-(defun layout_add_fields (context layout field shape)
+(defun layout_add_fields (context layout field shape packed)
   (declare (type (ptr native_layout_context) context)
            (type (ptr native_layout) layout)
            (type usize field)
            (type (ptr native_type_shape) shape)
+           (type u8 packed)
            (returns c-int))
   (if (= field 0)
       1
-      (if (= (layout_add_field context field layout shape) 1)
+      (if (= (layout_add_field context field layout shape packed) 1)
           (layout_add_fields
            context layout
            (deref (field-pointer
                    (parser_node (deref (field-pointer context 'parser)) field)
-                   'next)) shape)
+                   'next)) shape packed)
           0)))
 
 (defun native_register_layout (context root)
@@ -344,7 +360,7 @@
         (let ((head (deref (field-pointer (parser_node parser root) 'first))))
           (let ((name (deref (field-pointer (parser_node parser head)
                                           'next))))
-            (if (= (layout_atom_p parser name) 0)
+            (if (= (layout_source_identifier_p context name) 0)
                 0
                 (if (< 0 (native_find_layout context name))
                     0
@@ -358,7 +374,13 @@
 
 (defun native_register_layout_body (context name first_field)
   (declare (type (ptr native_layout_context) context)
+           (type usize name first_field) (returns c-int))
+  (native_register_layout_mode context name first_field 0))
+
+(defun native_register_layout_mode (context name first_field packed)
+  (declare (type (ptr native_layout_context) context)
            (type usize name first_field)
+           (type u8 packed)
            (returns c-int))
   (if (= first_field 0)
       0
@@ -371,7 +393,7 @@
         (store (field-pointer layout 'size) 0)
         (store (field-pointer layout 'alignment) 1)
         (if (= (layout_add_fields context layout first_field
-                                 (deref (field-pointer context 'scratch))) 0)
+                                 (deref (field-pointer context 'scratch)) packed) 0)
             (progn (store (field-pointer context 'error) 1) 0)
             (let ((size (deref (field-pointer layout 'size)))
                   (alignment (deref (field-pointer layout 'alignment))))

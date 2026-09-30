@@ -228,6 +228,7 @@ struct native_layout_context {
     uintptr_t field_capacity;
     struct native_type_shape *scratch;
     uint32_t error;
+    uint32_t target;
 };
 
 struct native_parameter {

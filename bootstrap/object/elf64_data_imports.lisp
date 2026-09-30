@@ -611,7 +611,9 @@
            (type u32 output_target)
            (returns c-int) (c-export :c))
   (if (= (native_target_object_format output_target) 2) 0
-      (if (= (elf_calls_output_shape_p code_size functions function_count buffer) 0) 0
+      (if (= (native_target_valid_p output_target) 0) 0
+      (if (= (if (= function_count 0) (empty_function_output_p code_size buffer)
+                 (elf_calls_output_shape_p code_size functions function_count buffer)) 0) 0
           (if (= (elf_calls_arena_p calls) 0) 0
               (if (= (elf_calls_arena_p data_fixups) 0) 0
                   (if (= (valid_data_imports_from imports 0 import_count) 0) 0
@@ -630,7 +632,7 @@
                                           (emit_elf64_calls_data
                                            output_target code code_size functions
                                            function_count calls imports import_count
-                                           data_fixups buffer))))))))))))
+                                           data_fixups buffer)))))))))))))
 
 (defun write_elf64_calls_data (code code_size functions function_count calls
                                imports import_count data_fixups buffer)

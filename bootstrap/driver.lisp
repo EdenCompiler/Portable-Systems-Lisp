@@ -1,6 +1,7 @@
 (include "compile_scalar.lisp")
 
 (include "unit_types.lisp")
+(include "frontend/layout_packed.lisp")
 
 (defun native_unit_fail (result phase)
   (declare (type (ptr native_unit_result) result) (type usize phase)
@@ -15,6 +16,9 @@
         (form (deref (field-pointer result 'form))))
     (let ((layouts (deref (field-pointer signatures 'layouts))))
       (cond
+        ((= (native_packed_layout_form_p layouts form) 1)
+         (if (= (native_register_packed_layout layouts form) 1) 1
+             (native_unit_fail result 1)))
         ((= (native_layout_form_p layouts form) 1)
          (if (= (native_register_layout layouts form) 1) 1
              (native_unit_fail result 1)))
@@ -50,7 +54,8 @@
           (let ((layouts (deref (field-pointer signatures 'layouts))))
             (if (= (deref (field-pointer parser 'error)) 0)
                 (if (= (deref (field-pointer layouts 'error)) 0)
-                    (if (< 0 (deref (field-pointer signatures 'signature_count)))
+                    (if (if (< 0 (deref (field-pointer signatures 'signature_count)))
+                            t (< 0 (deref (field-pointer context 'data_count))))
                         1 (native_unit_fail result 4))
                     (native_unit_fail result 4))
                 (native_unit_fail result 4))))
@@ -162,6 +167,9 @@
   (store (field-pointer result 'index) 0)
   (if (= (native_target_valid_p (deref (field-pointer context 'target))) 0)
       (native_unit_fail result 10)
+      (progn
+      (store (field-pointer (source_layouts context) 'target)
+             (deref (field-pointer context 'target)))
       (if (= (native_collect_unit context result) 0) 0
           (let ((signatures (deref (field-pointer context 'signatures))))
             (let ((count (deref (field-pointer signatures 'signature_count))))
@@ -169,4 +177,4 @@
                   (if (= (native_certify_effects context result count) 0) 0
                       (if (= (native_prepare_inline_unit context result count) 0) 0
                           (if (= (native_compile_unit_bodies context result count) 0) 0
-                              (native_finish_unit context result count object))))))))))
+                              (native_finish_unit context result count object)))))))))))

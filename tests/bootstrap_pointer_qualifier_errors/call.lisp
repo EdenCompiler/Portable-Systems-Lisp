@@ -1,0 +1,6 @@
+(defun read_value (pointer)
+  (declare (type (ptr u8) pointer) (returns u8))
+  (deref pointer))
+(defun bad (pointer)
+  (declare (type (ptr u8 :volatile) pointer) (returns u8))
+  (read_value pointer))

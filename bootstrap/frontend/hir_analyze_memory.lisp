@@ -97,7 +97,9 @@
                            (hir_new_scalar arena 23
                             (wrap-cast u64 (deref (field-pointer field 'offset)))
                             pointer 0 index body 11)
-                           (deref (field-pointer field 'type_ast)))))))))))))
+                           (source_pointer_with_flags
+                            (deref (field-pointer field 'type_ast))
+                            (hir_pointee arena pointer)))))))))))))
 
 (defun analyze_memory_access (context body kind depth)
   (declare (type (ptr native_compile_context) context)
@@ -122,6 +124,8 @@
             (pointee (source_type_pointee signatures type))
             (size (source_type_size context type)))
         (if (= (source_valid_code_p code) 0) 0
+            (if (= (if (= kind 25) (source_pointer_const_p type)
+                       (wrap-cast c-int 0)) 1) 0
             (let ((value (if (= kind 24) (wrap-cast usize 0)
                             (analyze_source_expected context value_ast code pointee
                                                      (wrap+ depth 1)))))
@@ -132,7 +136,7 @@
                                        pointer value 0 body code) pointee))
                   (hir_with_pointee arena
                    (hir_new_scalar arena kind (wrap-cast u64 size)
-                                   pointer 0 0 body code) pointee))))))))
+                                   pointer 0 0 body code) pointee)))))))))
 
 (defun analyze_loop_body (context first body depth)
   (declare (type (ptr native_compile_context) context)
