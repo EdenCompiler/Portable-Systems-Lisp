@@ -86,7 +86,7 @@
           (deref (field-pointer context 'source))
           (deref (field-pointer parameter 'name))) 0)
       0
-      (scalar_abi_parameter_code_p
+      (source_valid_code_p
        (scalar_type_code (deref (field-pointer context 'signatures))
                          (deref (field-pointer parameter 'type_ast))))))
 
@@ -113,12 +113,4 @@
            (type (ptr native_signature) signature)
            (returns c-int))
   (let ((code (scalar_signature_type_code context signature)))
-    (if (= code 0) 0
-        (if (= (source_float_code_p code) 1) 0
-            (scalar_parameter_types_p context signature 0)))))
-
-;; Floating payloads may live in locals/memory/data. Floating ABI signatures
-;; remain gated until each target implements and verifies register transport.
-(defun scalar_abi_parameter_code_p (code)
-  (declare (type u32 code) (returns c-int))
-  (if (= (source_float_code_p code) 1) 0 (source_valid_code_p code)))
+    (if (= code 0) 0 (scalar_parameter_types_p context signature 0))))

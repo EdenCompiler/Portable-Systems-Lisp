@@ -42,7 +42,7 @@ static uintptr_t small_frame, large_frame, second_start, small_prologue, large_p
 static int build_callee(void) {
     small_frame = win64_frame_bytes(1, 32);
     small_prologue = win64_function_prologue(&code, small_frame, 32);
-    return small_frame == 80 && small_prologue == 11 &&
+    return small_frame == 112 && small_prologue == 11 &&
            win64_load_parameter(&code, 32, small_frame, 5) &&
            win64_store_local(&code, 32, 1, 1) &&
            win64_load_parameter(&code, 32, small_frame, 1) &&
@@ -56,7 +56,7 @@ static int build_caller(void) {
     second_start = code.length;
     large_frame = win64_frame_bytes(1020, 48);
     large_prologue = win64_function_prologue(&code, large_frame, 48);
-    if (large_frame != 8256 || large_prologue != 67 ||
+    if (large_frame != 8288 || large_prologue != 67 ||
         !win64_load_parameter(&code, 48, large_frame, 1) ||
         !win64_register_argument(&code, 1) ||
         !win64_load_parameter(&code, 48, large_frame, 5) ||
@@ -73,7 +73,7 @@ static int check_unwind_bytes(void) {
     if (!win64_write_unwind(&unwind, small_frame, small_prologue)) return 0;
     if (unwind.length != 12 || data[0] != 1 || data[1] != 11 ||
         data[2] != 3 || data[3] != 5 || data[4] != 11 || data[5] != 3 ||
-        data[6] != 8 || data[7] != 0x92 || data[8] != 1 || data[9] != 0x50) return 0;
+        data[6] != 8 || data[7] != 0xd2 || data[8] != 1 || data[9] != 0x50) return 0;
     unwind.length = 0;
     if (!win64_write_unwind(&unwind, large_frame, large_prologue)) return 0;
     if (unwind.length != 12 || data[0] != 1 || data[1] != 67 ||

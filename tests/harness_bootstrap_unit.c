@@ -95,10 +95,12 @@ static int check_failures(void) {
         {"(defun broken () 42)", NATIVE_UNIT_SIGNATURE, 0},
         {"", NATIVE_UNIT_COLLECTION, 0},
         {"(defun", NATIVE_UNIT_COLLECTION, 0},
-        {"(defun broken () (declare (returns f32)) 1.0)", NATIVE_UNIT_PREDECLARE, 0},
+        {"(defcstruct pair (x u64))"
+         "(defun broken () (declare (returns pair)) 0)", NATIVE_UNIT_PREDECLARE, 0},
         {"(defun broken () (declare (returns u64)) (unknown))", NATIVE_UNIT_BODY, 0},
         {"(defun first () (declare (returns u64)) 42)"
-         "(defun broken () (declare (returns f32)) 1.0)", NATIVE_UNIT_PREDECLARE, 1},
+         "(defcstruct pair (x u64))"
+         "(defun broken () (declare (returns pair)) 0)", NATIVE_UNIT_PREDECLARE, 1},
         {"(defun first () (declare (returns u64)) 42)"
          "(defun broken () (declare (returns u64)) (unknown))", NATIVE_UNIT_BODY, 1},
         {"(ffi:import-function \"unknown\" () -> u64)"

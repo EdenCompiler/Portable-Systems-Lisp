@@ -98,8 +98,9 @@ The native modules currently implement:
   units emit empty-code objects without adding a function. Floating literals,
   locals, conditional joins, and pointer/field loads and stores preserve IEEE
   payloads, including signed zero, subnormals, and NaNs copied from C memory.
-  Decimal conversion runs in PSL with caller-owned scratch. Floating/
-  aggregate signatures still need native ports;
+  Decimal conversion runs in PSL with caller-owned scratch. Scalar floating
+  parameters, calls, and results use the selected C ABI. Aggregate signatures
+  still need native ports;
   allocation-effect annotations use the
   native certification pass described below.
   It accepts `t`, `nil`, `if`, lexical `let`, `progn`, and test-and-body `cond`
@@ -189,8 +190,8 @@ checks reject void values used as literals, PHIs, or return-register operands.
 
 Its structure declarations use ordinary ASCII case folding and the primitive
 types handled by `layout.lisp`. Field pointers support nested structures and
-quoted field names, and retain pointer qualifiers. Structure values, floating
-function signatures, user packages, and general macro expansion remain outside
+quoted field names, and retain pointer qualifiers. Structure values,
+user packages, and general macro expansion remain outside
 this native slice. Include forms use the implemented PSL source spelling.
 
 The native frontend implements `(sizeof 'TYPE)`, `(alignof 'TYPE)`, and
@@ -427,7 +428,7 @@ optimization levels, compares behavior against Stage 0, inspects ELF/relocations
 links a shared library, and rebuilds all eight PSL compiler units across three
 AArch64 native subset generations. It compares those units and fixture objects,
 and confirms an AArch64 compiler host still produces identical x86-64 output.
-The native core has no undefined runtime imports. Floating-point/aggregate ABIs,
+The native core has no undefined runtime imports. Aggregate ABIs,
 general packages/macros, and the complete
 Stage 0 corpus remain open parts of M8.
 
@@ -448,11 +449,13 @@ and [ELF for AArch64](https://github.com/ARM-software/abi-aa/blob/main/aaelf64/a
 `--target=riscv64-linux-gnu` selects native target ID 2 (RISC-V64 / LP64D /
 Linux / ELF64). Like the AArch64 target, it covers the documented native machine
 integer, pointer, Boolean, void, direct-call, control-flow, and memory subset.
-The generated ISA is RV64IM; ELF flags declare the LP64D link ABI (flag 4),
-without compressed instructions. Floating-point/aggregate source signatures
-are still rejected by native analysis.
+Integer-only functions emit RV64IM; floating signatures also use F/D payload
+moves. ELF flags declare the LP64D link ABI (flag 4), without compressed
+instructions. Aggregate source signatures remain unsupported.
 
-The encoder uses a0–a7 for arguments and a0 for results, preserves s0/ra,
+The encoder uses fa0–fa7 for floating arguments and fa0 for floating results,
+a0–a7 for integer arguments and a0 for integer results. Exhausted FP arguments
+use available GP registers before stack slots. It preserves s0/ra,
 keeps SP sixteen-byte aligned, and leaves gp/tp untouched. s0 points at the
 entry SP; the saved frame pointer and return address lie at s0-16/-8.
 Narrow inputs/results are normalized internally. Unsigned 32-bit values are

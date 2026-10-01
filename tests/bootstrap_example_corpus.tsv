@@ -3,7 +3,7 @@
 # A gap may start accepting as a port progresses; an accepted row may not regress.
 examples/abi/aarch64_hfa.lisp	gap	floating and aggregate ABI values	harness
 examples/abi/aggregate.lisp	gap	floating and aggregate ABI values	harness
-examples/abi/float.lisp	gap	floating ABI signatures	harness
+examples/abi/float.lisp	accepted	-	harness
 examples/abi/layout.lisp	accepted	-	harness
 examples/abi/riscv64_edges.lisp	gap	floating and aggregate ABI values	harness
 examples/abi/stack.lisp	accepted	-	harness
@@ -14,7 +14,7 @@ examples/basic/program.lisp	accepted	-	main
 examples/basic/standalone.lisp	accepted	-	harness
 examples/ffi/data_import.lisp	accepted	-	harness
 examples/ffi/data_only.lisp	accepted	-	harness
-examples/ffi/shared_data.lisp	gap	floating ABI signatures	harness
+examples/ffi/shared_data.lisp	accepted	-	harness
 examples/ffi/source_import.lisp	accepted	-	harness
 examples/freestanding/virt_uart.lisp	accepted	-	object
 examples/hosted/closure.lisp	gap	managed values and lexical closures	main

@@ -866,11 +866,13 @@ PSL_NATIVE_COMPILER_HOST_TARGET=$host_target \
   sh "$project_root/tests/bootstrap_data_only.sh" \
     "$work_dir/pslcc-native-slice$host_suffix" "$host_target"
 
-PSL_NATIVE_COMPILER_HOST_TARGET=$host_target \
-  sh "$project_root/tests/bootstrap_float_memory.sh" \
-    "$work_dir/pslcc-native-slice$host_suffix" "$host_target"
+for check in float_abi float_memory; do
+  PSL_NATIVE_COMPILER_HOST_TARGET=$host_target \
+    sh "$project_root/tests/bootstrap_$check.sh" \
+      "$work_dir/pslcc-native-slice$host_suffix" "$host_target"
+done
 # Preserve floating objects in the generation snapshot, including both modes.
-for name in float_reader float_memory; do
+for name in float_reader float_memory float_abi; do
   for level in 0 1; do
     run_host "$work_dir/pslcc-native-slice$host_suffix" "-O$level" \
       "$project_root/tests/bootstrap_$name.lisp" "$work_dir/$name-$level.o"

@@ -286,8 +286,10 @@ integer arithmetic and round-to-nearest, ties-to-even, including subnormals
 and signed zero; overflow is rejected. Literal precision must match its
 expected type. Payload copies preserve NaNs read from memory. Floating zero
 is true in a condition. Wrapping arithmetic and integer casts reject floating
-operands. Floating function signatures and register ABI transport remain
-gated until the separate backend port is verified.
+operands. Floating function parameters, imported and internal calls, and
+results use the selected scalar ABI. SysV and AAPCS64 track GP and FP registers
+independently; Win64 uses the parameter position; LP64D falls back to GP
+registers after exhausting FP registers, then stack slots.
 Pointers use `(ptr TYPE)` forms with optional `:const` and `:volatile`, with
 earlier C or packed structures and nested pointers as pointees. Qualifier order
 does not affect type equality; duplicate and unknown qualifiers are rejected.
@@ -309,11 +311,11 @@ operations and layout queries. Packed records passed by value remain unsupported
 All documented C integer aliases resolve through the selected target ABI,
 including 32-bit `c-long`/`c-ulong` on Windows and 64-bit long types on the
 Linux targets. `c-float` and `c-double` support layout declarations and
-typed memory access; floating ABI signatures remain gated.
+typed memory access, function arguments, and results.
 
 Native C calls use `ffi:import-function` declarations and explicit `ffi:call`
-expressions, with the same integer and raw pointer source types as ordinary
-functions, including opaque `(ptr void)` arguments/results and `void` results.
+expressions, with the same integer, floating, and raw pointer source types
+as ordinary functions, including opaque `(ptr void)` arguments/results and `void` results.
 Imported names are case-sensitive C-compatible strings. Lowercase imports use
 the natural `(ffi:call name ...)` spelling; mixed-case imports use their exact
 string spelling at the call site.
@@ -363,7 +365,7 @@ the native subset's types and spelling rules.
 Explicit libc imports such as `malloc` and `free` work; they do not become
 implicit runtime dependencies of other units.
 
-Managed strings/named general byte data and floating/aggregate signatures
+Managed strings/named general byte data and aggregate signatures
 remain unsupported by the native subset. Import effect annotations and
 allocation-effect certification are implemented for the documented direct-call
 subset; unannotated imports remain unknown.
@@ -419,7 +421,7 @@ host for all four hosted output targets. Target-hosted generated compilers are
 not yet required to launch a C toolchain during bootstrap comparison.
 
 It does not yet support general source packages or host macro execution,
-floating ABI signatures, or structure values. Its
+or structure values. Its
 implemented subset now passes verified HIR, typed CFG/SSA, and flat LIR; the
 backend consumes virtual registers and explicit labels. Native `-O1` (the
 default) now folds wrapping arithmetic, bitwise AND, masked U64 shifts, signed/
@@ -489,17 +491,18 @@ The CLI accepts either supported `--target=...`, optionally together with
 `-O0`/`-O1` in either order, before `SOURCE OUTPUT.o`.
 
 All three ELF output targets share frontend and HIR/SSA/LIR verification
-for integer/pointer/Boolean/void signatures and floating locals, memory, and data. AArch64 uses eight
+for scalar signatures, floating locals, memory, and data. AArch64 uses eight
 integer argument registers, 8-byte stack argument slots, aligned frames with
 saved FP/LR, direct internal calls, and `R_AARCH64_CALL26` imports. The native
 writer emits machine 183 and a local `$x` mapping symbol. Its existing ELF call
 API defaults to x86-64; `write_elf64_calls_target` selects explicitly. Backend
 and ELF validation reject unaligned AArch64 call/function spans and malformed
-import placeholders. Floating ABI values, aggregate values, and general
+import placeholders. Aggregate values and general
 dynamic-language support remain pending.
 
-Native RISC-V64 emits RV64IM instructions with LP64D ELF machine 243 and flag
-4. Calls/jumps use fixed AUIPC/JALR pairs; imported calls use CALL_PLT (19),
+Native RISC-V64 emits RV64IM instructions for integer-only functions and
+F/D payload moves for floating signatures, with LP64D ELF machine 243 and flag 4.
+Calls/jumps use fixed AUIPC/JALR pairs; imported calls use CALL_PLT (19),
 zero addends, and no RELAX relocation. The writer rejects malformed pairs,
 unaligned functions/fixups, overlapping call spans, and inconsistent imports.
 Saved s0/ra and eight incoming argument registers occupy an aligned frame; s0

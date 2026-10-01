@@ -9,6 +9,63 @@
   (x86_load_local (deref (field-pointer context 'code)) reference
                   (deref (field-pointer (deref (field-pointer context 'lir)) 'value_count))))
 
+(defun x86_lir_load_xmm_slot (context register reference)
+  (declare (type (ptr native_compile_context) context)
+           (type usize register reference) (returns c-int))
+  (let ((code (deref (field-pointer context 'code)))
+        (disp (x86_local_displacement reference)))
+    (if (= (room_for code 8) 0) 0
+        (progn
+          (emit_byte_unchecked code #xf3)
+          (emit_byte_unchecked code #x0f)
+          (emit_byte_unchecked code #x7e)
+          (emit_byte_unchecked code (wrap-cast u8 (wrap+ #x85 (wrap* register 8))))
+          (emit_integer code disp 4)))))
+
+(defun x86_lir_argument_location (code gp fp stack)
+  (declare (type u32 code) (type usize gp fp stack) (returns usize))
+  (if (= (native_abi_float_p code) 1)
+      (if (< fp 8) (native_abi_location 2 fp)
+          (native_abi_location 3 stack))
+      (if (< gp 6) (native_abi_location 1 gp)
+          (native_abi_location 3 stack))))
+
+(defun x86_lir_param_location (context signature index cursor gp fp stack)
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_signature) signature)
+           (type usize index cursor gp fp stack) (returns usize))
+  (let ((code (scalar_signature_parameter_code
+               context signature cursor)))
+    (if (= cursor index) (x86_lir_argument_location code gp fp stack)
+        (let ((location (x86_lir_argument_location code gp fp stack)))
+          (x86_lir_param_location context signature index (wrap+ cursor 1)
+            (if (= (native_abi_location_class location) 1) (wrap+ gp 1) gp)
+            (if (= (native_abi_location_class location) 2) (wrap+ fp 1) fp)
+            (if (= (native_abi_location_class location) 3) (wrap+ stack 1) stack))))))
+
+(defun x86_lir_load_abi_parameter (context location)
+  (declare (type (ptr native_compile_context) context)
+           (type usize location) (returns c-int))
+  (let ((code (deref (field-pointer context 'code)))
+        (class (native_abi_location_class location))
+        (index (native_abi_location_index location)))
+    (if (= (room_for code 7) 0) 0
+        (progn
+          (emit_integer code #x858b48 3)
+          (emit_integer code
+            (wrap-cast u64
+              (if (= class 1) (wrap- 0 (wrap* (wrap+ index 1) 8))
+                  (if (= class 2) (wrap- 0 (wrap+ 56 (wrap* index 8)))
+                      (wrap+ 16 (wrap* index 8))))) 4)))))
+
+(defun x86_lir_load_argument (context op)
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_lir_instruction) op) (returns c-int))
+  (let ((location (x86_lir_param_location context
+                    (deref (field-pointer context 'current_signature))
+                    (wrap-cast usize (wrap- (deref (field-pointer op 'value)) 1)) 0 0 0 0)))
+    (x86_lir_load_abi_parameter context location)))
+
 (defun x86_lir_normalize (context op)
   (declare (type (ptr native_compile_context) context)
            (type (ptr native_lir_instruction) op) (returns c-int))
@@ -67,51 +124,105 @@
                (x86_load_unsigned code (wrap-cast usize (deref (field-pointer op 'value))))))
           (t 1)))))
 
-(defun x86_lir_push_arguments (context chain remaining)
+(defun x86_lir_call_stack_slots (context signature chain remaining largest)
   (declare (type (ptr native_compile_context) context)
+           (type (ptr native_signature) signature)
+           (type usize chain remaining largest) (returns usize))
+  (if (= chain 0) largest
+      (let ((types (deref (field-pointer (deref (field-pointer context 'lir)) 'types))))
+        (let ((link (ir_type_at types chain)))
+          (let ((location (x86_lir_param_location context signature
+                           (wrap- remaining 1) 0 0 0 0)))
+            (x86_lir_call_stack_slots context signature
+              (deref (field-pointer link 'right)) (wrap- remaining 1)
+              (if (= (native_abi_location_class location) 3)
+                  (if (< largest (wrap+ (native_abi_location_index location) 1))
+                      (wrap+ (native_abi_location_index location) 1) largest)
+                  largest)))))))
+
+(defun x86_lir_move_argument_gp (code index)
+  (declare (type (ptr byte_buffer) code) (type usize index) (returns c-int))
+  (cond
+    ((= index 0) (emit_integer code #xc78948 3))
+    ((= index 1) (emit_integer code #xc68948 3))
+    ((= index 2) (emit_integer code #xc28948 3))
+    ((= index 3) (emit_integer code #xc18948 3))
+    ((= index 4) (emit_integer code #xc08949 3))
+    ((= index 5) (emit_integer code #xc18949 3))
+    (t 0)))
+
+(defun x86_lir_store_stack_argument (code index)
+  (declare (type (ptr byte_buffer) code) (type usize index) (returns c-int))
+  (if (< 268435450 index) 0
+      (if (= (room_for code 8) 0) 0
+          (progn
+            (emit_integer code #x24848948 4)
+            (emit_integer code (wrap-cast u64 (wrap* index 8)) 4)))))
+
+(defun x86_lir_call_arguments (context signature chain remaining)
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_signature) signature)
            (type usize chain remaining) (returns c-int))
-  (if (= remaining 0) 1
-      (let ((link (ir_type_at (deref (field-pointer (deref (field-pointer context 'lir)) 'types)) chain)))
-        (if (= (x86_lir_push_arguments context (deref (field-pointer link 'right)) (wrap- remaining 1)) 0) 0
-            (if (= (x86_lir_load context (deref (field-pointer link 'left))) 0) 0
-                (x86_save_left (deref (field-pointer context 'code))))))))
+  (if (= chain 0) 1
+      (let ((types (deref (field-pointer (deref (field-pointer context 'lir)) 'types))))
+        (let ((link (ir_type_at types chain)))
+          (let ((argument (deref (field-pointer link 'left))))
+            (let ((location (x86_lir_param_location context signature
+                             (wrap- remaining 1) 0 0 0 0))
+                    (code (deref (field-pointer context 'code))))
+                (let ((class (native_abi_location_class location))
+                      (index (native_abi_location_index location)))
+                  (if (= class 1)
+                      (if (= (x86_lir_load context argument) 0) 0
+                          (if (= (x86_lir_move_argument_gp code index) 0) 0
+                              (x86_lir_call_arguments context signature
+                                (deref (field-pointer link 'right)) (wrap- remaining 1))))
+                      (if (= class 2)
+                          (if (= (x86_lir_load_xmm_slot context index argument) 0) 0
+                              (x86_lir_call_arguments context signature
+                                (deref (field-pointer link 'right)) (wrap- remaining 1)))
+                          (if (= (x86_lir_load context argument) 0) 0
+                              (if (= (x86_lir_store_stack_argument code index) 0) 0
+                                  (x86_lir_call_arguments context signature
+                                    (deref (field-pointer link 'right))
+                                    (wrap- remaining 1)))))))))))))
 
-(defun x86_lir_pop_arguments (context remaining)
-  (declare (type (ptr native_compile_context) context)
-           (type usize remaining) (returns c-int))
-  (if (= remaining 0) 1
-      (if (= (x86_pop_argument (deref (field-pointer context 'code)) remaining) 0) 0
-          (x86_lir_pop_arguments context (wrap- remaining 1)))))
+(defun x86_lir_float_result_to_rax (code)
+  (declare (type (ptr byte_buffer) code) (returns c-int))
+  (if (= (room_for code 5) 0) 0
+      (progn
+        (emit_byte_unchecked code #x66)
+        (emit_byte_unchecked code #x48)
+        (emit_byte_unchecked code #x0f)
+        (emit_byte_unchecked code #x7e)
+        (emit_byte_unchecked code #xc0))))
 
-(defun x86_lir_stack_arguments (context chain index)
-  (declare (type (ptr native_compile_context) context)
-           (type usize chain index) (returns usize))
-  (if (< index 7) chain
-      (let ((link (ir_type_at (deref (field-pointer (deref (field-pointer context 'lir)) 'types)) chain)))
-        (if (= (x86_lir_load context (deref (field-pointer link 'left))) 0) 0
-            (if (= (x86_store_stack_argument (deref (field-pointer context 'code)) index) 0) 0
-                (x86_lir_stack_arguments context (deref (field-pointer link 'right)) (wrap- index 1)))))))
-
-(defun x86_lir_call_arguments (context chain arity)
-  (declare (type (ptr native_compile_context) context)
-           (type usize chain arity) (returns c-int))
-  (let ((register_chain (x86_lir_stack_arguments context chain arity))
-        (register_count (if (< 6 arity) (wrap-cast usize 6) arity)))
-    (if (= register_chain 0)
-        (if (= arity 0) 1 0)
-        (if (= (x86_lir_push_arguments context register_chain register_count) 0) 0
-            (x86_lir_pop_arguments context register_count)))))
+(defun x86_lir_float_return_from_rax (code)
+  (declare (type (ptr byte_buffer) code) (returns c-int))
+  (if (= (room_for code 5) 0) 0
+      (progn
+        (emit_byte_unchecked code #x66)
+        (emit_byte_unchecked code #x48)
+        (emit_byte_unchecked code #x0f)
+        (emit_byte_unchecked code #x6e)
+        (emit_byte_unchecked code #xc0))))
 
 (defun x86_lir_call_reserved (context op target arity bytes)
   (declare (type (ptr native_compile_context) context)
            (type (ptr native_lir_instruction) op)
            (type usize target arity bytes) (returns c-int))
-  (let ((code (deref (field-pointer context 'code))))
+  (let ((code (deref (field-pointer context 'code)))
+        (chain (deref (field-pointer op 'left)))
+        (signature (native_signature_at (deref (field-pointer context 'signatures))
+                   (wrap- target 1))))
     (if (= (x86_adjust_stack code bytes 1) 0) 0
-        (if (= (x86_lir_call_arguments context (deref (field-pointer op 'left)) arity) 0) 0
+        (if (= (x86_lir_call_arguments context signature chain arity) 0) 0
             (if (= (emit_deferred_call code (deref (field-pointer context 'fixups)) target 0) 0) 0
                 (if (= (x86_adjust_stack code bytes 0) 0) 0
-                    (x86_lir_normalize context op)))))))
+                    (if (= (native_abi_float_p (deref (field-pointer op 'scalar_code))) 1)
+                        (if (= (x86_lir_float_result_to_rax code) 0) 0
+                            (x86_lir_normalize context op))
+                        (x86_lir_normalize context op))))))))
 
 (defun x86_lir_call (context op)
   (declare (type (ptr native_compile_context) context)
@@ -120,10 +231,13 @@
     (let ((function (native_function_at (deref (field-pointer context 'functions)) (wrap- target 1))))
       (store (field-pointer function 'referenced) 1)
       (let ((arity (deref (field-pointer function 'arity))))
-        (let ((count (x86_stack_argument_count arity)))
+        (let ((signature (native_signature_at (deref (field-pointer context 'signatures))
+                         (wrap- target 1))))
+        (let ((count (x86_lir_call_stack_slots context signature
+                       (deref (field-pointer op 'left)) arity 0)))
           ;; Limit the aligned byte reservation to a positive signed imm32.
           (if (< 268435454 count) 0
-              (x86_lir_call_reserved context op target arity (x86_stack_argument_bytes count))))))))
+              (x86_lir_call_reserved context op target arity (x86_stack_argument_bytes count)))))))))
 
 (defun x86_lir_data_address (context op)
   (declare (type (ptr native_compile_context) context)
@@ -155,8 +269,8 @@
     (cond
       ((= kind 1) (x86_load_immediate code (deref (field-pointer op 'value))))
       ((= kind 19) (x86_load_immediate code (deref (field-pointer op 'value))))
-      ((= kind 2)
-       (if (= (x86_load_parameter code (wrap-cast usize (deref (field-pointer op 'value)))) 0) 0
+          ((= kind 2)
+       (if (= (x86_lir_load_argument context op) 0) 0
            (x86_lir_normalize context op)))
       ((= kind 7) (x86_lir_call context op))
       ((= kind 34) (x86_lir_data_address context op))
@@ -190,7 +304,10 @@
                            (record_call_fixup jumps (wrap+ then_jump 1) (deref (field-pointer op 'target))))))))))
       ((= kind 103)
        (if (= (deref (field-pointer op 'scalar_code)) 12) (x86_return code)
-           (if (= (x86_lir_load context (deref (field-pointer op 'left))) 0) 0 (x86_return code))))
+           (if (= (x86_lir_load context (deref (field-pointer op 'left))) 0) 0
+               (if (= (native_abi_float_p (deref (field-pointer op 'scalar_code))) 1)
+                   (if (= (x86_lir_float_return_from_rax code) 0) 0 (x86_return code))
+                   (x86_return code)))))
       (t 0))))
 
 (defun x86_lir_emit_instructions (context index)
@@ -226,12 +343,19 @@
                               (wrap-cast s32 (wrap- target (wrap+ field 4)))) 0) 0
                 (x86_lir_patch_jumps context (wrap+ index 1))))))))
 
+(defun x86_lir_prologue (context)
+  (declare (type (ptr native_compile_context) context) (returns c-int))
+  (let ((code (deref (field-pointer context 'code))))
+    (if (= (x86_function_prologue code
+            (deref (field-pointer (deref (field-pointer context 'lir)) 'value_count))) 0) 0
+        (if (= (native_abi_float_parameters_p context 0) 1)
+            (x86_save_float_parameters code 0) 1))))
+
 (defun emit_lir_x86_function (context)
   (declare (type (ptr native_compile_context) context) (returns c-int))
   (let ((jumps (deref (field-pointer context 'jumps))))
     (store (field-pointer jumps 'count) 0)
     (store (field-pointer jumps 'error) 0)
-    (if (= (x86_function_prologue (deref (field-pointer context 'code))
-                                  (deref (field-pointer (deref (field-pointer context 'lir)) 'value_count))) 0) 0
+    (if (= (x86_lir_prologue context) 0) 0
         (if (= (x86_lir_emit_instructions context 1) 0) 0
             (x86_lir_patch_jumps context 0)))))

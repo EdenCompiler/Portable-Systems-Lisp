@@ -698,7 +698,7 @@ literal precision. Floating values pass through typed HIR, SSA, LIR, locals,
 conditional joins, pointer/field accesses, and imported/exported scalar data.
 Memory copies preserve C-supplied NaN payloads; floating zero remains true.
 Integer casts and wrapping operations reject floating types. Function signatures
-using floating ABI registers remain gated for the next backend slice.
+using floating ABI registers are covered by the following backend slice.
 
 `sh tests/bootstrap_float_memory.sh [COMPILER] [TARGET]` compares Stage 0 and
 native behavior at O0/O1, repeats native objects, and checks independent C
@@ -708,9 +708,29 @@ a distant rounding tail, million-digit exponent cancellation, malformed syntax,
 scratch bounds, and overflow. HIR/SSA/LIR mutation tests
 independently reject out-of-width payloads and invalid casts. Focused checks pass on x86-64 Linux, Windows under Wine, and AArch64/RISC-V64
 under QEMU. Native generation gates also retain both floating fixture
-objects for deterministic comparison. This advances the frontend/data port;
-floating and aggregate ABI values, compilation environments, managed values,
-and the complete M8 release gate remain open.
+objects for deterministic comparison. Aggregate ABI values, compilation
+environments, managed values, and the complete M8 release gate remain open.
+
+### M8 native scalar floating ABI transport
+
+Native `f32`/`f64` and C float/double signatures now support incoming parameters,
+internal and imported calls, and results on the four hosted targets. The backend
+uses separate SysV/AAPCS64 GP and FP register sequences, Win64 positional
+registers, and LP64D FP-to-GP fallback before stack allocation. Incoming FP saves
+are conditional, so integer-only code retains integer instructions. Narrow
+floating values are normalized to their binary32 payload inside IR word slots.
+
+`sh tests/bootstrap_float_abi.sh [COMPILER] [TARGET]` compares native and Stage 0
+objects through an independent C harness at O0/O1 and repeats native output.
+The harness exercises mixed register/stack overflow, internal calls, imports,
+returns, recursion, conditional joins, NaN payloads, and argument evaluation
+order. The existing Windows frame/stack and OS-unwind harnesses check the wider
+frame. Native generation gates retain the floating ABI fixture. The example
+corpus now accepts the float ABI and shared floating data examples (17/30).
+The smoke suite, Windows frame/unwind checks, and all four hosted native
+generation gates pass, including deterministic floating fixture objects.
+The complete compiler manifest, aggregate ABI, compilation environments, managed values,
+CLI/profile/IR-dump parity, and complete Stage 1–3 release gates remain pending.
 
 ## M9 — Hosted ANSI Common Lisp completion · Pending
 

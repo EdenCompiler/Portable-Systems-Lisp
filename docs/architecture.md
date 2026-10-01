@@ -137,6 +137,7 @@ bootstrap/
     win64_frame.lisp, win64_probe.lisp, win64_arguments.lisp,
     lir_emit_win64.lisp  native Microsoft x64 frame and LIR encoding
     dispatch.lisp       explicit target/ABI selection for LIR and call patching
+    scalar_abi.lisp     scalar GP/FP/stack location classes and signature queries
   object/
     elf64.lisp         first native cross-target ELF64 writer slice
     elf64_multi.lisp   native ELF64 symbol table for multiple functions
@@ -251,8 +252,10 @@ HIR/SSA/LIR independently validate their width and type relationships. Decimal
 conversion uses two caller-owned unsigned-word buffers and does not invoke a
 host float parser. The hosted driver reserves reusable scratch in its data
 arena; literal conversion does not advance its persistent data count.
-Structure values and floating ABI signatures remain outside the native function
-subset.
+Scalar ABI classification selects GP, FP, or stack locations per target.
+Incoming FP payloads are saved only for functions with floating parameters,
+and the LIR body keeps their raw bits in ordinary word slots. Structure values
+remain outside the native function subset.
 Native source inclusion uses `frontend/source.lisp` for `include` and
 `ffi:source` recognition and Lisp string decoding. `host/source_unit.lisp` owns
 traversal, active-cycle checks, and ordered assembly. Its path, buffer, and
@@ -340,7 +343,7 @@ imported C file primitives. The adapters contain no compilation control or
 phase/location selection.
 This permits forward calls and recursion. It is a restricted source-to-object
 proof, not Stage 1: general symbol interpretation, macro expansion, full
-semantic analysis, managed values and indirect effects, floating and aggregate
+semantic analysis, managed values and indirect effects, aggregate
 ABIs, general static byte data, and managed source string values still run in
 SBCL or remain outside the native subset. Native ELF and COFF writers
 handle the documented integer/pointer code, calls, unwind metadata, initialized

@@ -16,9 +16,9 @@
   (declare (type (ptr byte_buffer) code)
            (type usize local_count)
            (returns c-int))
-  (if (< 268435447 local_count)
+  (if (< 268435440 local_count)
       0
-      (let ((frame (wrap+ 48
+      (let ((frame (wrap+ 112
                           (wrap* 8 (bits-and (wrap+ local_count 1)
                                              (wrap- 0 2))))))
         (if (= (room_for code 35) 0)
@@ -33,11 +33,24 @@
               (emit_integer code #xe8558948 4) ; mov [rbp-24], rdx
               (emit_integer code #xe04d8948 4) ; mov [rbp-32], rcx
               (emit_integer code #xd845894c 4) ; mov [rbp-40], r8
-              (emit_integer code #xd04d894c 4)))))) ; mov [rbp-48], r9
+              (emit_integer code #xd04d894c 4) ; mov [rbp-48], r9
+              1)))))
 
 (defun x86_local_displacement (slot)
   (declare (type usize slot) (returns u64))
-  (wrap- 0 (wrap+ 48 (wrap* 8 (wrap-cast u64 slot)))))
+  (wrap- 0 (wrap+ 112 (wrap* 8 (wrap-cast u64 slot)))))
+
+(defun x86_save_float_parameters (code index)
+  (declare (type (ptr byte_buffer) code) (type usize index) (returns c-int))
+  (if (= index 8) 1
+      (if (= (room_for code 8) 0) 0
+          (progn
+            (emit_byte_unchecked code #x66)
+            (emit_byte_unchecked code #x0f)
+            (emit_byte_unchecked code #xd6)
+            (emit_byte_unchecked code (wrap-cast u8 (wrap+ #x85 (wrap* index 8))))
+            (emit_integer code (wrap-cast u64 (wrap- 0 (wrap+ 56 (wrap* index 8)))) 4)
+            (x86_save_float_parameters code (wrap+ index 1))))))
 
 (defun x86_store_local (code slot local_count)
   (declare (type (ptr byte_buffer) code)
@@ -180,4 +193,3 @@
               (if (= kind 11)
                   38
                   (if (= kind 12) 94 0))))))
-

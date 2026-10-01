@@ -40,6 +40,48 @@
     (if (= (a64_memory code (wrap-cast usize (deref (field-pointer op 'value))) 0 1 10 9) 0) 0
         (a64_register_op code #xaa000000 9 31 10))))
 
+(defun a64_lir_argument_location (scalar_code gp fp stack)
+  (declare (type u32 scalar_code) (type usize gp fp stack) (returns usize))
+  (if (= (native_abi_float_p scalar_code) 1)
+      (if (< fp 8) (native_abi_location 2 fp) (native_abi_location 3 stack))
+      (if (< gp 8) (native_abi_location 1 gp) (native_abi_location 3 stack))))
+
+(defun a64_lir_param_location (context signature index cursor gp fp stack)
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_signature) signature)
+           (type usize index cursor gp fp stack) (returns usize))
+  (let ((code (scalar_signature_parameter_code context signature cursor)))
+    (if (= cursor index) (a64_lir_argument_location code gp fp stack)
+        (let ((location (a64_lir_argument_location code gp fp stack)))
+          (a64_lir_param_location context signature index (wrap+ cursor 1)
+            (if (= (native_abi_location_class location) 1) (wrap+ gp 1) gp)
+            (if (= (native_abi_location_class location) 2) (wrap+ fp 1) fp)
+            (if (= (native_abi_location_class location) 3) (wrap+ stack 1) stack))))))
+
+(defun a64_lir_load_abi_parameter (context location)
+  (declare (type (ptr native_compile_context) context)
+           (type usize location) (returns c-int))
+  (let ((code (deref (field-pointer context 'code)))
+        (class (native_abi_location_class location))
+        (index (native_abi_location_index location)))
+    (if (= class 1)
+        (a64_load_frame code 9 (wrap* (wrap+ index 1) 8) 1)
+        (if (= class 2)
+            (a64_load_frame code 9 (wrap+ 72 (wrap* index 8)) 1)
+            (a64_load_frame code 9 (wrap+ 16 (wrap* index 8)) 0)))))
+
+(defun a64_lir_argument_next_gp (location gp)
+  (declare (type usize location gp) (returns usize))
+  (if (= (native_abi_location_class location) 1) (wrap+ gp 1) gp))
+
+(defun a64_lir_argument_next_fp (location fp)
+  (declare (type usize location fp) (returns usize))
+  (if (= (native_abi_location_class location) 2) (wrap+ fp 1) fp))
+
+(defun a64_lir_argument_next_stack (location stack)
+  (declare (type usize location stack) (returns usize))
+  (if (= (native_abi_location_class location) 3) (wrap+ stack 1) stack))
+
 (defun a64_lir_binary (context op)
   (declare (type (ptr native_compile_context) context) (type (ptr native_lir_instruction) op)
            (returns c-int))
@@ -62,7 +104,9 @@
       (let ((code (deref (field-pointer context 'code)))
             (kind (deref (field-pointer op 'kind))))
         (cond
-          ((= kind 18) (a64_normalize code 9 (deref (field-pointer op 'scalar_code))))
+          ((= kind 18)
+           (if (= (native_abi_float_p (deref (field-pointer op 'scalar_code))) 1) 1
+               (a64_normalize code 9 (deref (field-pointer op 'scalar_code)))))
           ((= kind 20) (a64_immediate code 9 1))
           ((= kind 23)
            (if (= (a64_immediate code 10 (deref (field-pointer op 'value))) 0) 0
@@ -71,42 +115,79 @@
                                    (scalar_type_signed_p (deref (field-pointer op 'scalar_code))) 0 9 9))
           (t 1)))))
 
-(defun a64_lir_arguments (context chain index)
-  (declare (type (ptr native_compile_context) context) (type usize chain index) (returns c-int))
+(defun a64_lir_arguments (context signature chain index)
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_signature) signature) (type usize chain index)
+           (returns c-int))
   (if (= index 0) 1
-      (let ((link (ir_type_at (deref (field-pointer (deref (field-pointer context 'lir)) 'types)) chain)))
-        (let ((reference (deref (field-pointer link 'left))))
-          (if (< 8 index)
-              (if (= (a64_lir_load context 9 reference) 0) 0
-                  (if (= (a64_store_stack_argument (deref (field-pointer context 'code)) 9 index) 0) 0
-                      (a64_lir_arguments context (deref (field-pointer link 'right)) (wrap- index 1))))
-              (if (= (a64_lir_load context (wrap-cast u64 (wrap- index 1)) reference) 0) 0
-                  (a64_lir_arguments context (deref (field-pointer link 'right)) (wrap- index 1))))))))
+      (let ((types (deref (field-pointer (deref (field-pointer context 'lir)) 'types))))
+        (let ((link (ir_type_at types chain)))
+          (let ((argument (deref (field-pointer link 'left))))
+            (let ((type (ir_type_at types argument)))
+              (let ((location (a64_lir_param_location context signature
+                               (wrap- index 1) 0 0 0 0))
+                    (code (deref (field-pointer context 'code))))
+                (if (= (native_abi_location_class location) 1)
+                    (if (= (a64_lir_load context (wrap-cast u64 (native_abi_location_index location)) argument) 0) 0
+                        (a64_lir_arguments context signature (deref (field-pointer link 'right))
+                          (wrap- index 1)))
+                    (if (= (native_abi_location_class location) 2)
+                        (if (= (a64_lir_load context 9 argument) 0) 0
+                            (if (= (a64_general_to_float code
+                                      (native_abi_location_index location) 9
+                                      (deref (field-pointer type 'scalar_code))) 0) 0
+                                (a64_lir_arguments context signature (deref (field-pointer link 'right))
+                                  (wrap- index 1))))
+                        (if (= (a64_lir_load context 9 argument) 0) 0
+                            (if (= (a64_store_stack_argument code 9
+                                      (wrap+ 9 (native_abi_location_index location))) 0) 0
+                                (a64_lir_arguments context signature (deref (field-pointer link 'right))
+                                  (wrap- index 1)))))))))))))
+
+(defun a64_lir_call_stack_count (context signature cursor arity gp fp stack)
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_signature) signature)
+           (type usize cursor arity gp fp stack) (returns usize))
+  (if (= cursor arity) stack
+      (let ((code (scalar_signature_parameter_code context signature cursor)))
+        (let ((location (a64_lir_argument_location code gp fp stack)))
+          (a64_lir_call_stack_count context signature (wrap+ cursor 1) arity
+            (a64_lir_argument_next_gp location gp)
+            (a64_lir_argument_next_fp location fp)
+            (a64_lir_argument_next_stack location stack))))))
 
 (defun a64_lir_call_reserved (context op target arity bytes)
   (declare (type (ptr native_compile_context) context) (type (ptr native_lir_instruction) op)
            (type usize target arity bytes) (returns c-int))
-  (let ((code (deref (field-pointer context 'code))))
-    (if (= (a64_adjust_stack code bytes 1) 0) 0
-        (if (= (a64_lir_arguments context (deref (field-pointer op 'left)) arity) 0) 0
-            (if (= (a64_deferred_call code (deref (field-pointer context 'fixups)) target) 0) 0
-                (if (= (a64_adjust_stack code bytes 0) 0) 0
-                    (if (= (deref (field-pointer op 'scalar_code)) 12) 1
-                        (if (= (a64_register_op code #xaa000000 9 31 0) 0) 0
-                            (a64_normalize code 9 (deref (field-pointer op 'scalar_code)))))))))))
+  (let ((code (deref (field-pointer context 'code)))
+        (signature (native_signature_at (deref (field-pointer context 'signatures))
+                   (wrap- target 1))))
+    (if (= (a64_adjust_stack code bytes 1) 0) (wrap-cast c-int 0)
+        (if (= (a64_lir_arguments context signature
+                  (deref (field-pointer op 'left)) arity) 0) (wrap-cast c-int 0)
+            (if (= (a64_deferred_call code (deref (field-pointer context 'fixups)) target) 0) (wrap-cast c-int 0)
+                (if (= (a64_adjust_stack code bytes 0) 0) (wrap-cast c-int 0)
+                    (if (= (deref (field-pointer op 'scalar_code)) 12) (wrap-cast c-int 1)
+                        (if (= (native_abi_float_p (deref (field-pointer op 'scalar_code))) 1)
+                            (a64_float_to_general code 9 0
+                              (deref (field-pointer op 'scalar_code)))
+                            (if (= (a64_register_op code #xaa000000 9 31 0) 0) (wrap-cast c-int 0)
+                                  (a64_normalize code 9
+                                  (deref (field-pointer op 'scalar_code))))))))))))
 
 (defun a64_lir_call (context op)
   (declare (type (ptr native_compile_context) context) (type (ptr native_lir_instruction) op)
            (returns c-int))
   (let ((target (deref (field-pointer op 'target))))
-    (let ((function (native_function_at (deref (field-pointer context 'functions)) (wrap- target 1))))
-      (let ((arity (deref (field-pointer function 'arity))))
-        (if (< 134217719 arity) 0
-            (progn
+      (let ((function (native_function_at (deref (field-pointer context 'functions)) (wrap- target 1))))
+        (let ((arity (deref (field-pointer function 'arity))))
+          (if (< 134217719 arity) 0
+            (let ((signature (native_signature_at (deref (field-pointer context 'signatures))
+                               (wrap- target 1))))
+            (let ((stack (a64_lir_call_stack_count context signature 0 arity 0 0 0)))
               (store (field-pointer function 'referenced) 1)
               (a64_lir_call_reserved context op target arity
-                (if (< 8 arity) (wrap* 8 (bits-and (wrap- arity 7) (wrap- 0 2)))
-                    (wrap-cast usize 0)))))))))
+                (wrap* 8 (bits-and (wrap+ stack 1) (wrap- 0 2)))))))))))
 
 (defun a64_lir_data_address (context op)
   (declare (type (ptr native_compile_context) context)
@@ -134,8 +215,11 @@
       ((= kind 1) (a64_immediate code 9 (deref (field-pointer op 'value))))
       ((= kind 19) (a64_immediate code 9 (deref (field-pointer op 'value))))
       ((= kind 2)
-       (if (= (a64_load_parameter code 9 (wrap-cast usize (deref (field-pointer op 'value)))) 0) 0
-           (a64_normalize code 9 (deref (field-pointer op 'scalar_code)))))
+       (let ((location (a64_lir_param_location context
+                         (deref (field-pointer context 'current_signature))
+                         (wrap-cast usize (wrap- (deref (field-pointer op 'value)) 1)) 0 0 0 0)))
+         (if (= (a64_lir_load_abi_parameter context location) 0) 0
+             (a64_normalize code 9 (deref (field-pointer op 'scalar_code))))))
       ((= kind 7) (a64_lir_call context op))
       ((= kind 34) (a64_lir_data_address context op))
       ((= kind 29) 1)
@@ -167,7 +251,12 @@
                (a64_lir_jump context (deref (field-pointer op 'target)) #x14000000))))
       ((= kind 103)
        (if (= (deref (field-pointer op 'scalar_code)) 12) (a64_return code)
-           (if (= (a64_lir_load context 0 (deref (field-pointer op 'left))) 0) 0 (a64_return code))))
+           (if (= (native_abi_float_p (deref (field-pointer op 'scalar_code))) 1)
+               (if (= (a64_lir_load context 9 (deref (field-pointer op 'left))) 0) 0
+                   (if (= (a64_general_to_float code 0 9
+                         (deref (field-pointer op 'scalar_code))) 0) 0 (a64_return code)))
+               (if (= (a64_lir_load context 0 (deref (field-pointer op 'left))) 0) 0
+                   (a64_return code)))))
       (t 0))))
 
 (defun a64_lir_store_result (context op)
@@ -205,11 +294,18 @@
         (if (= (a64_lir_patch_jump context (call_fixup_at jumps index)) 0) 0
             (a64_lir_patch_jumps context (wrap+ index 1))))))
 
+(defun a64_lir_prologue (context)
+  (declare (type (ptr native_compile_context) context) (returns c-int))
+  (let ((code (deref (field-pointer context 'code))))
+    (if (= (a64_function_prologue code
+            (deref (field-pointer (deref (field-pointer context 'lir)) 'value_count))) 0) 0
+        (if (= (native_abi_float_parameters_p context 0) 1)
+            (a64_save_float_parameters code 0) 1))))
+
 (defun emit_lir_aarch64_function (context)
   (declare (type (ptr native_compile_context) context) (returns c-int))
   (let ((jumps (deref (field-pointer context 'jumps))))
     (store (field-pointer jumps 'count) 0)
     (store (field-pointer jumps 'error) 0)
-    (if (= (a64_function_prologue (deref (field-pointer context 'code))
-                                (deref (field-pointer (deref (field-pointer context 'lir)) 'value_count))) 0) 0
+    (if (= (a64_lir_prologue context) 0) 0
         (if (= (a64_lir_emit_instructions context 1) 0) 0 (a64_lir_patch_jumps context 0)))))
