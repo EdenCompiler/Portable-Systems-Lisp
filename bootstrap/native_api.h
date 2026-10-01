@@ -64,6 +64,24 @@ struct psl_parsed_integer {
     uint8_t radix;
 };
 
+/* Caller-owned decimal conversion scratch, independent of target ABI. */
+struct native_float_uint {
+    uint32_t *words;
+    uintptr_t count, capacity;
+};
+struct native_float_parser {
+    struct native_float_uint numerator, denominator;
+    uintptr_t digits, fractional, discarded;
+    int64_t exponent;
+    uint32_t code;
+    uint8_t negative, sticky, saw_digit, saw_point, saw_marker;
+    int32_t status;
+    uintptr_t cursor;
+};
+extern int parse_float_token(const uint8_t *, uintptr_t, uintptr_t,
+                             struct native_float_parser *, uint32_t *, uint32_t *,
+                             uintptr_t, struct psl_parsed_integer *);
+
 struct native_function {
     const uint8_t *name;
     uintptr_t name_length;

@@ -53,6 +53,7 @@
       ((= (ast_word_p parser source body #x6c696e 3) 1)
        (hir_new_scalar arena 19 0 0 0 0 body 0))
       ((= (hir_integer_atom_p context body) 1) (hir_from_literal context body))
+      ((= (scalar_float_atom_p context body) 1) (hir_from_float_literal context body))
       (t (hir_from_variable context body)))))
 
 (defun hir_arithmetic_kind (operation)

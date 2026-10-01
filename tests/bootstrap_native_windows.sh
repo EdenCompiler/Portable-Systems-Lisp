@@ -147,7 +147,7 @@ for generation in 1 2 3; do
     cmp "$work_dir/$name-1.o" "$work_dir/target-$name.o"
   done
   for level in 0 1; do
-    for name in packed pointer_qualifiers c_aliases data_only; do
+    for name in packed pointer_qualifiers c_aliases data_only float_reader float_memory; do
       run_windows "$work_dir/compiler-$generation.exe" "-O$level" --target="$target" \
         "$project_root/tests/bootstrap_$name.lisp" \
         "$work_dir/generation-$generation-$name-$level.o"
@@ -197,4 +197,6 @@ PSL_NATIVE_COMPILER_HOST_TARGET=${PSL_NATIVE_COMPILER_HOST_TARGET:-x86_64-linux-
 PSL_NATIVE_COMPILER_HOST_TARGET=${PSL_NATIVE_COMPILER_HOST_TARGET:-x86_64-linux-gnu} \
   sh "$project_root/tests/bootstrap_data_only.sh" "$compiler" "$target"
 
+PSL_NATIVE_COMPILER_HOST_TARGET=${PSL_NATIVE_COMPILER_HOST_TARGET:-x86_64-linux-gnu} \
+  sh "$project_root/tests/bootstrap_float_memory.sh" "$compiler" "$target"
 echo 'PSL native Windows COFF output, C interoperability, and subset generations passed'

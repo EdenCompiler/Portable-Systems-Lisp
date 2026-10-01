@@ -13,6 +13,7 @@ struct fixture {
     struct native_call_fixup calls[256], jumps[768];
     uintptr_t bindings[256], labels[768];
     uint8_t bytes[32768];
+    uint8_t literal_scratch[2048];
     struct psl_scanner scanner;
     struct psl_token token;
     struct psl_parser parser;
@@ -52,7 +53,8 @@ static int compile_source_options(struct fixture *f, const uint8_t *source, uint
         .hir = &f->hir, .code = &f->code, .fixups = &f->call_fixups,
         .functions = f->functions, .signatures = &f->signature_context,
         .prior_count = 1, .ssa = &f->ssa, .bindings = f->bindings,
-        .lir = &f->lir, .labels = f->labels, .jumps = &f->jump_fixups
+        .lir = &f->lir, .labels = f->labels, .jumps = &f->jump_fixups,
+        .data_bytes = f->literal_scratch, .data_byte_capacity = sizeof f->literal_scratch
     };
     f->context.optimization = level;
     uintptr_t root = parser_next(&f->parser);
@@ -318,6 +320,32 @@ static int check_lir_mutations(struct fixture *f) {
     return lir_verify_function(&f->context) ? 0 : 6;
 }
 
+static int check_floating_mutations(struct fixture *f) {
+    static const uint8_t source[] =
+        "(defun answer () (declare (returns u64))"
+        " (let ((x 1.0f0)) (if x 42 7)))";
+    if (!compile_source(f, source)) return 1;
+    uintptr_t literal = 0;
+    for (uintptr_t i=0; i<f->ssa.value_count; ++i)
+        if (f->ssa_values[i].kind==1 && f->ssa_values[i].scalar_code==13) literal=i+1;
+    if (!literal) return 2;
+    uint64_t saved=f->ssa_values[literal-1].value;
+    f->ssa_values[literal-1].value=UINT64_C(0x100000000);
+    if (ssa_verify_function(&f->context)) return 3;
+    f->ssa_values[literal-1].value=saved;
+    if (!ssa_verify_function(&f->context)) return 4;
+    uintptr_t instruction=0;
+    for (uintptr_t i=0; i<f->lir.count; ++i)
+        if (f->lir_instructions[i].kind==1 && f->lir_instructions[i].scalar_code==13)
+            instruction=i+1;
+    if (!instruction) return 5;
+    saved=f->lir_instructions[instruction-1].value;
+    f->lir_instructions[instruction-1].value=UINT64_C(0x100000000);
+    if (lir_verify_function(&f->context)) return 6;
+    f->lir_instructions[instruction-1].value=saved;
+    return lir_verify_function(&f->context) ? 0 : 7;
+}
+
 int main(void) {
     struct fixture fixture = {0};
     if (!compile_fixture(&fixture)) return 1;
@@ -331,6 +359,11 @@ int main(void) {
     if (check_ssa_mutations(&fixture)) return 3;
     if (check_lir_mutations(&fixture)) return 4;
     if (check_void_mutations(&fixture)) return 5;
+    int floating_status=check_floating_mutations(&fixture);
+    if (floating_status) {
+        fprintf(stderr,"floating mutation verification failed: %d\n",floating_status);
+        return 12;
+    }
     int const_status = check_const_store_mutations(&fixture);
     if (const_status) {
         fprintf(stderr, "const-store mutation verification failed: %d\n", const_status);

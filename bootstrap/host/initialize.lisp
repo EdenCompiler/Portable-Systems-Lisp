@@ -217,7 +217,7 @@
     (store (field-pointer record 'data_bytes)
            (deref (field-pointer (field-pointer driver 'storage) 'data_bytes)))
     (store (field-pointer record 'data_byte_count) 0)
-    (store (field-pointer record 'data_byte_capacity) capacity)
+    (store (field-pointer record 'data_byte_capacity) (native_data_capacity capacity))
     (store (field-pointer record 'data_fixups) (field-pointer driver 'data_fixups))
     1))
 

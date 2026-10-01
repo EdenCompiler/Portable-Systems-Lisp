@@ -360,7 +360,8 @@ and local/global object symbols. Stage 0 and native writer builds produce the
 same linked data behavior on all hosted targets. Native source also imports C
 objects and emits x86-64, AArch64, RISC-V, or COFF code-to-data relocations;
 initialized exported integer and null-pointer data works on all four hosted
-targets. General named byte data, floating/aggregate initializers, read-only
+targets. Floating scalar initializers are also implemented. General named byte
+data, aggregate initializers, read-only
 sections, and other relocation families remain pending.
 `sh tests/bootstrap_native_compiler.sh [HOST_TARGET]` builds a native executable from PSL
 compiler components plus a temporary C file-I/O wrapper. It parses a source
@@ -638,14 +639,14 @@ names; C exports still require C-compatible names. Its deterministic object
 test checks both the local ELF symbol and a C caller.
 The native source pass now registers simple `defcstruct` declarations. The
 bootstrap test compares their size, alignment, and field offsets with C on
-each hosted test target. Native function bodies support integer and pointer
-access through these layouts; floating accesses, pointer qualifiers,
-and structure values still need a broader native implementation.
+each hosted test target. Native function bodies support integer, pointer,
+and floating access through these layouts, including pointer qualifiers.
+Structure values still need a broader native implementation.
 It also records typed `defun` signatures in source order. The signature test
 parses the byte emitter, arena, integer reader, and scanner modules and checks
 their resolved parameter and return shapes. Scalar body compilation consumes
 the same signature records and accepts declarations in different clause orders
-and multiple body forms. The native body compiler still accepts only the documented integer/pointer
+and multiple body forms. The native body compiler accepts the documented scalar/memory
 subset; the signature pass does not make Stage 1 viable.
 
 ### M8 native source and scalar contract parity
@@ -687,6 +688,29 @@ It advances coverage without replacing the complete M8 source/object/interop gat
 General compilation environments/macros/packages, managed values, floating and
 aggregate ABI ports, broader CLI/profile parity, and the full Stage 1–3 release
 gate remain required.
+
+### M8 native floating literals, memory, and data
+
+Native decimal conversion now produces binary32/binary64 payloads using PSL
+integer arithmetic in caller-owned storage. It rounds to nearest with ties to
+even, preserves signed zero and subnormals, rejects overflow, and enforces
+literal precision. Floating values pass through typed HIR, SSA, LIR, locals,
+conditional joins, pointer/field accesses, and imported/exported scalar data.
+Memory copies preserve C-supplied NaN payloads; floating zero remains true.
+Integer casts and wrapping operations reject floating types. Function signatures
+using floating ABI registers remain gated for the next backend slice.
+
+`sh tests/bootstrap_float_memory.sh [COMPILER] [TARGET]` compares Stage 0 and
+native behavior at O0/O1, repeats native objects, and checks independent C
+conversion, writable data, fields, NaN payload copies, and truth. The reader
+harness includes rounding-boundary cases, 1,200 randomized decimal conversions,
+a distant rounding tail, million-digit exponent cancellation, malformed syntax,
+scratch bounds, and overflow. HIR/SSA/LIR mutation tests
+independently reject out-of-width payloads and invalid casts. Focused checks pass on x86-64 Linux, Windows under Wine, and AArch64/RISC-V64
+under QEMU. Native generation gates also retain both floating fixture
+objects for deterministic comparison. This advances the frontend/data port;
+floating and aggregate ABI values, compilation environments, managed values,
+and the complete M8 release gate remain open.
 
 ## M9 — Hosted ANSI Common Lisp completion · Pending
 

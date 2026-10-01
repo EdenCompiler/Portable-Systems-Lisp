@@ -16,6 +16,7 @@
 ;; typed HIR and x86 call fixups support forward calls and recursion.
 
 (include "frontend/scalar_syntax.lisp")
+(include "frontend/float_source.lisp")
 (include "frontend/scalar_types.lisp")
 (include "frontend/pointer_types.lisp")
 (include "ir/ir_verify_type_helpers.lisp")

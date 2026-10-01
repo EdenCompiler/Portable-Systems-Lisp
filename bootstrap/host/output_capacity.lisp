@@ -1,6 +1,10 @@
 ;; Size output storage from the source-unit capacity. This covers longer fixed
 ;; instruction sequences and ELF symbol/relocation overhead without a core-size
 ;; ceiling. Storage preparation checks the combined product and additive term.
+(defun native_data_capacity (capacity)
+  (declare (type usize capacity) (returns usize))
+  (wrap+ capacity 2048))
+
 (defun native_code_capacity (capacity)
   (declare (type usize capacity) (returns usize))
   (wrap+ 1048576 (wrap* capacity 16)))

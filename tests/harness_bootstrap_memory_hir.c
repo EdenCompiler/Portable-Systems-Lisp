@@ -57,5 +57,22 @@ int main(void) {
     nodes[5].scalar_code = 10;
     nodes[6].value = 8;
     if (valid(&context, 7)) return 7;
+    /* Floating payloads have their own literal width and no integer cast. */
+    nodes[3].scalar_code = 13;
+    nodes[3].value = UINT32_C(0x80000000);
+    if (!valid(&context, 4)) return 9;
+    nodes[3].value = UINT64_C(0x100000000);
+    if (valid(&context, 4)) return 10;
+    nodes[3].value = 0;
+    nodes[3].kind = 18;
+    nodes[3].left = 1;
+    if (valid(&context, 4)) return 11;
+    nodes[3].kind = 1;
+    nodes[3].left = 0;
+    nodes[3].scalar_code = 14;
+    nodes[3].value = UINT64_C(0x8000000000000000);
+    if (!valid(&context, 4)) return 12;
+    nodes[3].pointee = 1;
+    if (valid(&context, 4)) return 13;
     return 0;
 }

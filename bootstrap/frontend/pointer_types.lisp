@@ -8,7 +8,8 @@
 
 (defun source_valid_code_p (code)
   (declare (type u32 code) (returns c-int))
-  (if (= code 11) 1 (scalar_valid_code_p code)))
+  (if (= code 11) 1
+      (if (= (source_float_code_p code) 1) 1 (scalar_valid_code_p code))))
 
 (defun source_type_pointee (signatures type)
   (declare (type (ptr native_signature_context) signatures)

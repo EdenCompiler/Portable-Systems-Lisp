@@ -25,6 +25,7 @@
     ((= code 7) 16)
     ((= code 5) 32)
     ((= code 8) 32)
+    ((= code 13) 32)
     (t 64)))
 
 (defun scalar_unsigned_limit (bits)

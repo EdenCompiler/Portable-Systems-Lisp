@@ -10,10 +10,12 @@
            (returns u32))
   (let ((type (source_pointer_base type))
         (layouts (deref (field-pointer signatures 'layouts))))
-    (let ((code (layout_integer_code layouts type)))
+    (let ((code (layout_integer_code layouts type))
+          (float-code (scalar_float_type_code layouts type)))
       (if (< 0 code) code
-          (if (= (signature_word_p signatures type #x64696f76 4) 1) 12
-              (if (= (source_type_pointee signatures type) 0) 0 11))))))
+          (if (< 0 float-code) float-code
+              (if (= (signature_word_p signatures type #x64696f76 4) 1) 12
+                  (if (= (source_type_pointee signatures type) 0) 0 11)))))))
 
 (defun scalar_literal_code (expected integer)
   (declare (type u32 expected)
@@ -84,7 +86,7 @@
           (deref (field-pointer context 'source))
           (deref (field-pointer parameter 'name))) 0)
       0
-      (source_valid_code_p
+      (scalar_abi_parameter_code_p
        (scalar_type_code (deref (field-pointer context 'signatures))
                          (deref (field-pointer parameter 'type_ast))))))
 
@@ -111,6 +113,12 @@
            (type (ptr native_signature) signature)
            (returns c-int))
   (let ((code (scalar_signature_type_code context signature)))
-    (if (= code 0)
-        0
-        (scalar_parameter_types_p context signature 0))))
+    (if (= code 0) 0
+        (if (= (source_float_code_p code) 1) 0
+            (scalar_parameter_types_p context signature 0)))))
+
+;; Floating payloads may live in locals/memory/data. Floating ABI signatures
+;; remain gated until each target implements and verifies register transport.
+(defun scalar_abi_parameter_code_p (code)
+  (declare (type u32 code) (returns c-int))
+  (if (= (source_float_code_p code) 1) 0 (source_valid_code_p code)))

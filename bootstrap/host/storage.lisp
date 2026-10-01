@@ -33,7 +33,7 @@
          (ptr-cast (ptr native_data_import)
                    (ffi:call calloc capacity (sizeof 'native_data_import))))
   (store (field-pointer storage 'data_bytes)
-         (ptr-cast (ptr u8) (ffi:call calloc capacity (sizeof 'u8))))
+         (ptr-cast (ptr u8) (ffi:call calloc (native_data_capacity capacity) (sizeof 'u8))))
   (cond
     ((= (ptr-address (deref (field-pointer storage 'syntax))) 0) 0)
     ((= (ptr-address (deref (field-pointer storage 'layouts))) 0) 0)

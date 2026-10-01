@@ -240,13 +240,14 @@ The native bootstrap exposes data-only writers as `write_elf64_data` and
 caller-owned initialized bytes, power-of-two alignment up to 4096, and local or
 global visibility. The complete declaration set is validated before output is
 changed. The native source compiler also accepts `ffi:import-data` and
-`ffi:export-data` declarations for integer and raw-pointer objects. Exported
-integers use range-checked literal initializers; exported pointers require zero.
+`ffi:export-data` declarations for integer, floating, and raw-pointer objects.
+Exported integers use range-checked literal initializers; exported pointers
+require zero. Floating initializers retain their binary32/binary64 payload.
 It lowers `ffi:address-of` through verified HIR, SSA, and LIR, then emits
 initialized `.data`, object symbols, and PIC data relocations in the combined
 code object. Native `ffi:c-string` literals use private byte definitions and
 local object symbols on every implemented target. General named byte arrays,
-read-only data sections, floating data, and aggregate initializers remain
+read-only data sections and aggregate initializers remain
 pending.
 
 Windows emits AMD64 COFF with `.text`, `.data`, `.pdata`, and `.xdata`, plus
@@ -277,6 +278,16 @@ including hyphenated exports. `cl:` qualifies implemented Common Lisp forms
 and `psl:` qualifies implemented extensions; unrelated package prefixes do
 not alias those names. Explicit C function and data strings remain exact.
 Escaped symbols and general user packages still require a native port.
+Native `f32`/`c-float` and `f64`/`c-double` values may appear in literals,
+locals, pointer/field loads and stores, conditional joins, and imported/exported
+data. Decimal syntax uses the ordinary single-float default and `e`, `f`, or
+`s` markers, with `d` or `l` selecting double precision. Conversion uses PSL
+integer arithmetic and round-to-nearest, ties-to-even, including subnormals
+and signed zero; overflow is rejected. Literal precision must match its
+expected type. Payload copies preserve NaNs read from memory. Floating zero
+is true in a condition. Wrapping arithmetic and integer casts reject floating
+operands. Floating function signatures and register ABI transport remain
+gated until the separate backend port is verified.
 Pointers use `(ptr TYPE)` forms with optional `:const` and `:volatile`, with
 earlier C or packed structures and nested pointers as pointees. Qualifier order
 does not affect type equality; duplicate and unknown qualifiers are rejected.
@@ -297,8 +308,8 @@ natural alignment. Both kinds support the existing integer and pointer field
 operations and layout queries. Packed records passed by value remain unsupported.
 All documented C integer aliases resolve through the selected target ABI,
 including 32-bit `c-long`/`c-ulong` on Windows and 64-bit long types on the
-Linux targets. `c-float` and `c-double` can appear in layout declarations;
-floating expressions and signatures still require a native port.
+Linux targets. `c-float` and `c-double` support layout declarations and
+typed memory access; floating ABI signatures remain gated.
 
 Native C calls use `ffi:import-function` declarations and explicit `ffi:call`
 expressions, with the same integer and raw pointer source types as ordinary
@@ -408,7 +419,7 @@ host for all four hosted output targets. Target-hosted generated compilers are
 not yet required to launch a C toolchain during bootstrap comparison.
 
 It does not yet support general source packages or host macro execution,
-floating accesses, or structure values. Its
+floating ABI signatures, or structure values. Its
 implemented subset now passes verified HIR, typed CFG/SSA, and flat LIR; the
 backend consumes virtual registers and explicit labels. Native `-O1` (the
 default) now folds wrapping arithmetic, bitwise AND, masked U64 shifts, signed/
@@ -477,15 +488,15 @@ target)` validates level and target before any source read or allocation.
 The CLI accepts either supported `--target=...`, optionally together with
 `-O0`/`-O1` in either order, before `SOURCE OUTPUT.o`.
 
-All three output targets cover the current native integer/pointer/Boolean/void
-subset with the same frontend and HIR/SSA/LIR verification. AArch64 uses eight
+All three ELF output targets share frontend and HIR/SSA/LIR verification
+for integer/pointer/Boolean/void signatures and floating locals, memory, and data. AArch64 uses eight
 integer argument registers, 8-byte stack argument slots, aligned frames with
 saved FP/LR, direct internal calls, and `R_AARCH64_CALL26` imports. The native
 writer emits machine 183 and a local `$x` mapping symbol. Its existing ELF call
 API defaults to x86-64; `write_elf64_calls_target` selects explicitly. Backend
 and ELF validation reject unaligned AArch64 call/function spans and malformed
-import placeholders. This does not add native floating-point, aggregate, data,
-or general dynamic-language support.
+import placeholders. Floating ABI values, aggregate values, and general
+dynamic-language support remain pending.
 
 Native RISC-V64 emits RV64IM instructions with LP64D ELF machine 243 and flag
 4. Calls/jumps use fixed AUIPC/JALR pairs; imported calls use CALL_PLT (19),

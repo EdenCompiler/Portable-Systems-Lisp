@@ -29,6 +29,7 @@ void *__wrap_calloc(size_t count, size_t size) {
     size_t index = allocation_count++;
     size_t expected = capacity;
     assert(index < 22);
+    if (index == 7) expected += 2048;
     if (index == 13) expected *= 6;
     if (index == 14 || index == 17 || index == 19) expected *= 3;
     if (index == 20) expected = 1048576 + 16 * capacity;
@@ -118,7 +119,7 @@ static void check_initialized(struct native_driver *d) {
     assert(d->context.data_imports == d->storage.data_imports);
     assert(!d->context.data_count && d->context.data_capacity == cap);
     assert(d->context.data_bytes == d->storage.data_bytes);
-    assert(!d->context.data_byte_count && d->context.data_byte_capacity == cap);
+    assert(!d->context.data_byte_count && d->context.data_byte_capacity == cap + 2048);
     assert(d->context.data_fixups == &d->data_fixups);
     assert(d->context.ssa == &d->ssa && d->context.lir == &d->lir);
     assert(d->context.bindings == d->storage.bindings);

@@ -89,13 +89,16 @@ The native modules currently implement:
   alignment, and static/shared consumption.
   C data uses `(ffi:import-data "name" TYPE)`,
   `(ffi:export-data "name" TYPE INITIALIZER)`, and `(ffi:address-of name)`.
-  Integer and raw-pointer objects flow through the same typed HIR/SSA/LIR
+  Integer, floating, and raw-pointer objects flow through the same typed HIR/SSA/LIR
   pipeline. Exported integers accept range-checked literals; exported pointers
   accept zero. x86-64 ELF, AArch64 ELF, RISC-V ELF, and AMD64 COFF objects carry
   initialized data, symbols, and target relocation forms and link against the
   same C harness. The native loader collects `ffi:source` paths and the Linux
   host driver compiles and merges them for each hosted target. Data-only
-  units emit empty-code objects without adding a function. Floating/
+  units emit empty-code objects without adding a function. Floating literals,
+  locals, conditional joins, and pointer/field loads and stores preserve IEEE
+  payloads, including signed zero, subnormals, and NaNs copied from C memory.
+  Decimal conversion runs in PSL with caller-owned scratch. Floating/
   aggregate signatures still need native ports;
   allocation-effect annotations use the
   native certification pass described below.
@@ -113,7 +116,7 @@ The native modules currently implement:
   The encoder extends narrow parameters and normalizes wrapping results to
   the source width; signed comparisons use signed x86-64 conditions.
   Functions without `c-export` receive local ELF symbols.
-  Source expressions become word/Boolean HIR nodes retaining an integer type
+  Source expressions become word/Boolean HIR nodes retaining a scalar type
   code and pointer pointee references on each node. Structural, lexical-scope,
   and source-type verifiers run
   before SSA lowering. They check literal representations, operator types,
@@ -184,11 +187,11 @@ imports, seven-argument void calls, forward calls, recursion, branches, loops,
 opaque fields, and the true value of an opaque null pointer. SSA/LIR mutation
 checks reject void values used as literals, PHIs, or return-register operands.
 
-Its structure declarations use lowercase names and the primitive types handled
-by `layout.lisp`. Field pointers support nested structures and quoted field
-names. Structure values, float loads and stores, pointer
-qualifiers, packages, and general macro expansion remain outside this native
-slice. Include forms currently use the unqualified lowercase spelling.
+Its structure declarations use ordinary ASCII case folding and the primitive
+types handled by `layout.lisp`. Field pointers support nested structures and
+quoted field names, and retain pointer qualifiers. Structure values, floating
+function signatures, user packages, and general macro expansion remain outside
+this native slice. Include forms use the implemented PSL source spelling.
 
 The native frontend implements `(sizeof 'TYPE)`, `(alignof 'TYPE)`, and
 `(offset-of 'STRUCT 'FIELD)` as `usize` literals from its layout table.
@@ -212,7 +215,7 @@ again. Its compilation context must not be used after release. `storage.lisp`
 uses explicit `calloc`/`free` imports; the core retains no unresolved symbols.
 The C harness compares allocations with C record sizes, checks context links
 and capacity overflow, compiles from memory, releases/reuses a driver, and
-injects failure at each of the 18 allocation points on Linux.
+injects failure at each of the 22 allocation points on Linux.
 
 The native compiler now compiles its complete `native-core.lisp` translation
 unit. Dedicated C harnesses also exercise native-generated integer rules, byte
@@ -472,7 +475,7 @@ buffer reserves 1 MiB plus 16 bytes per source byte/node capacity, and the
 object buffer adds 64 bytes per capacity plus 1 KiB for ELF overhead. Products
 and additions are checked before allocation. Allocation failures and exhaustion
 produce compilation failure and release all storage; this is bounded storage,
-not a promise to accept arbitrary source size. Existing twenty-one-allocation
+not a promise to accept arbitrary source size. Existing twenty-two-allocation
 fault/cleanup checks cover the larger buffers and boundary overflow cases.
 
 ```sh

@@ -138,18 +138,24 @@
   (declare (type (ptr native_compile_context) context)
            (type usize initializer) (type u32 code) (returns c-int))
   (let ((integer (deref (field-pointer context 'integer))))
+    (if (= (source_float_code_p code) 1)
+        (if (= (scalar_float_atom_p context initializer) 1)
+            (if (= (wrap-cast u32 (deref (field-pointer integer 'radix))) code) 1 0) 0)
     (if (= (scalar_integer_atom_p
             (deref (field-pointer context 'parser))
             (deref (field-pointer context 'source)) initializer integer) 0)
         0
         (if (= code 11)
             (if (= (deref (field-pointer integer 'magnitude)) 0) 1 0)
-            (scalar_literal_valid_p code integer)))))
+            (scalar_literal_valid_p code integer))))))
 
 (defun native_export_initializer_bits (context)
   (declare (type (ptr native_compile_context) context)
            (returns u64))
-  (scalar_literal_bits (deref (field-pointer context 'integer))))
+  (let ((integer (deref (field-pointer context 'integer))))
+    (if (= (source_float_code_p (wrap-cast u32 (deref (field-pointer integer 'radix)))) 1)
+        (deref (field-pointer integer 'magnitude))
+        (scalar_literal_bits integer))))
 
 (defun native_parse_export_data (context root)
   (declare (type (ptr native_compile_context) context)

@@ -91,6 +91,10 @@ bootstrap/
                        C layout, ordinary signatures, and explicit C imports
     layout_packed.lisp  packed-record registration through shared field validation
     integer_names.lisp  machine and ABI-dependent C integer source names
+    float_bigint.lisp   caller-owned integer arithmetic for decimal conversion
+    float_decimal.lisp  bounded decimal grammar and significand collection
+    float_literals.lisp  IEEE payload rounding and conversion
+    float_source.lisp  floating types, literal analysis, and scratch integration
     symbols.lisp, symbol_names.lisp
                        source spelling and canonical function names before encoding
     pointer_references.lisp  storage qualifiers on compiler pointee references
@@ -235,15 +239,20 @@ storage as the compiled modules.
 The source pass records natural `defcstruct` and alignment-one
 `defstruct/packed` layouts; a C harness compares size,
 alignment, and field offsets against compiled C structures. Typed field
-pointers can access nested structure fields; loads and stores support integers
-and pointers. Pointer qualifiers occupy reserved compiler-reference metadata
+pointers can access nested structure fields; loads and stores support integer,
+floating, and pointer values. Pointer qualifiers occupy reserved compiler-reference metadata
 bits and are stripped before AST lookup; they never alter target addresses.
 Type checks compare qualifiers, field pointers propagate them, and HIR/SSA/LIR
 memory checks reject const stores. All loads remain optimizer effect roots.
 The layout context carries the selected output target; `integer_names.lisp`
 uses its ABI contract to resolve C long widths before layout and analysis.
-Structure values and floating accesses
-remain outside the native function subset.
+Floating locals and memory operations use raw IEEE payloads in word slots;
+HIR/SSA/LIR independently validate their width and type relationships. Decimal
+conversion uses two caller-owned unsigned-word buffers and does not invoke a
+host float parser. The hosted driver reserves reusable scratch in its data
+arena; literal conversion does not advance its persistent data count.
+Structure values and floating ABI signatures remain outside the native function
+subset.
 Native source inclusion uses `frontend/source.lisp` for `include` and
 `ffi:source` recognition and Lisp string decoding. `host/source_unit.lisp` owns
 traversal, active-cycle checks, and ordered assembly. Its path, buffer, and

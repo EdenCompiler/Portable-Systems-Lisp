@@ -86,6 +86,8 @@ PSL_NATIVE_COMPILER_HOST_TARGET=${PSL_NATIVE_COMPILER_HOST_TARGET:-x86_64-linux-
   sh "$project_root/tests/bootstrap_c_aliases.sh" "$compiler" "$target"
 PSL_NATIVE_COMPILER_HOST_TARGET=${PSL_NATIVE_COMPILER_HOST_TARGET:-x86_64-linux-gnu} \
   sh "$project_root/tests/bootstrap_data_only.sh" "$compiler" "$target"
+PSL_NATIVE_COMPILER_HOST_TARGET=${PSL_NATIVE_COMPILER_HOST_TARGET:-x86_64-linux-gnu} \
+  sh "$project_root/tests/bootstrap_float_memory.sh" "$compiler" "$target"
 readelf -r "$work_dir/foreign_calls-1.o" | grep -q "$relocation"
 if test "$target" = aarch64-linux-gnu; then
   readelf -s "$work_dir/foreign_calls-1.o" | grep -q '\$x'
@@ -171,7 +173,7 @@ for generation in 1 2 3; do
     cmp "$work_dir/riscv64_abi-1.o" "$work_dir/target-abi.o"
   fi
   for level in 0 1; do
-    for name in packed pointer_qualifiers c_aliases data_only; do
+    for name in packed pointer_qualifiers c_aliases data_only float_reader float_memory; do
       run_target "$work_dir/compiler-$generation" "-O$level" --target="$target" \
         "$project_root/tests/bootstrap_$name.lisp" \
         "$work_dir/generation-$generation-$name-$level.o"

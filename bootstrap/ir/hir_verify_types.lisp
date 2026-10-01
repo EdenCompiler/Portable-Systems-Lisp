@@ -17,7 +17,7 @@
                 (if (= code 0) 1 0)
                 (if (= (deref (field-pointer node 'type_code)) 3)
                     (if (= code 12) 1 0)
-                    (scalar_valid_code_p code)))
+                    (source_valid_code_p code)))
             0))))
 
 (defun hir_scalar_same_p (context reference code)
@@ -100,10 +100,11 @@
            (type (ptr native_hir_node) node)
            (type usize depth) (returns c-int))
   (let ((child (deref (field-pointer node 'left))))
-    (if (= (scalar_valid_code_p
-            (hir_scalar_code (deref (field-pointer context 'hir)) child)) 0)
-        0
-        (hir_verify_scalar_tree context child (wrap+ depth 1)))))
+    (if (= (scalar_valid_code_p (deref (field-pointer node 'scalar_code))) 0) 0
+        (if (= (scalar_valid_code_p
+                (hir_scalar_code (deref (field-pointer context 'hir)) child)) 0)
+            0
+            (hir_verify_scalar_tree context child (wrap+ depth 1))))))
 
 (defun hir_verify_scalar_arguments (context chain signature remaining depth)
   (declare (type (ptr native_compile_context) context)
@@ -152,7 +153,7 @@
   (let ((kind (deref (field-pointer node 'kind)))
         (code (deref (field-pointer node 'scalar_code))))
     (cond
-      ((= kind 1) (scalar_word_valid_p code (deref (field-pointer node 'value))))
+      ((= kind 1) (source_word_valid_p code (deref (field-pointer node 'value))))
       ((= kind 2)
        (source_types_equal_p
         context code (deref (field-pointer node 'pointee))

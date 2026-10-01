@@ -91,7 +91,7 @@
     (if (= (ir_result_kind_p code kind) 0) 0
         (if (= (ir_source_type_p context code (deref (field-pointer op 'pointee))) 0) 0
         (cond
-          ((= kind 1) (scalar_word_valid_p code (deref (field-pointer op 'value))))
+          ((= kind 1) (source_word_valid_p code (deref (field-pointer op 'value))))
           ((= kind 2) (ir_verify_parameter_type context op))
           ((= kind 7) (ir_verify_call_type context types op))
           ((= kind 8) (ir_verify_comparison context types op))
