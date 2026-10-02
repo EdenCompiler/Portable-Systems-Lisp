@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "../bootstrap/frontend/environment.h"
+#include "bootstrap_environment_index.h"
 static uint8_t names[65536+128];
 static struct native_ct_package packages[16];
 static struct native_ct_symbol symbols[1024];
@@ -20,7 +21,7 @@ static uintptr_t find(struct native_ct_environment *e,uintptr_t p,const char *s)
 int main(void) {
     struct native_ct_environment e={.names=names,.name_capacity=sizeof names,
        .packages=packages,.package_capacity=16,.symbols=symbols,.symbol_capacity=1024,
-       .present=present,.present_capacity=2048,.uses=uses,.use_capacity=32,.aliases=aliases,.alias_capacity=8};
+       .present=present,.present_capacity=2048,.uses=uses,.use_capacity=32,.aliases=aliases,.alias_capacity=8, TEST_INDEX_FIELDS};
     uintptr_t cl=make(&e,"COMMON-LISP"),psl=make(&e,"PSL"),source=make(&e,"SOURCE");
     uintptr_t key=make(&e,"KEYWORD");e.keyword_package=key;
     assert(cl && psl && source && key && e.error==0);
@@ -61,5 +62,19 @@ int main(void) {
     assert(e.name_count==old_names && e.symbol_count==old_symbols && e.present_count==old_present);
     e.error=0;
     assert(intern(&e,source,"RESUMED"));
+    /* Invalid index configurations must fail before publishing a package. */
+    const uintptr_t bad_counts[] = {3, 2048, UINTPTR_MAX};
+    for (unsigned i=0; i<sizeof bad_counts/sizeof *bad_counts; ++i) {
+        struct native_ct_environment bad={.names=names,.name_capacity=sizeof names,
+            .packages=packages,.package_capacity=16,.buckets=test_buckets,
+            .bucket_count=bad_counts[i],.bucket_capacity=sizeof test_buckets/sizeof *test_buckets};
+        assert(!make(&bad,"BAD") && bad.error==1);
+        assert(!bad.package_count && !bad.name_count);
+    }
+    struct native_ct_environment bad={.names=names,.name_capacity=sizeof names,
+        .packages=packages,.package_capacity=16,.bucket_count=1024,.bucket_capacity=1024};
+    assert(!make(&bad,"BAD") && bad.error==1 && !bad.package_count && !bad.name_count);
+    bad.error=0;bad.buckets=test_buckets;bad.bucket_capacity=1023;
+    assert(!make(&bad,"BAD") && bad.error==1 && !bad.package_count && !bad.name_count);
     puts("native build-host package identities, imports, visibility and bounds passed");
 }

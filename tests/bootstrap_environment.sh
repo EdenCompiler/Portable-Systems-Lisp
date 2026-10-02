@@ -23,8 +23,9 @@ for level in 0 1; do
   cmp "$work_dir/native.o" "$work_dir/repeat.o"
   "$project_root/pslcc" "-O$level" --target="$target" -c "$source" -o "$work_dir/stage0.o"
   for version in native stage0; do
+    for buckets in 0 1 1024; do
     for name in environment environment_seed environment_reader environment_oracle; do
-      "$target_cc" -O2 -std=c11 -Wall -Wextra -Werror \
+      "$target_cc" -O2 -std=c11 -Wall -Wextra -Werror -DTEST_BUCKET_COUNT="$buckets" \
         "$project_root/tests/harness_bootstrap_$name.c" "$work_dir/$version.o" \
         -o "$work_dir/check$target_suffix"
       if [ "$name" = environment_seed ]; then
@@ -34,6 +35,7 @@ for level in 0 1; do
       else
         run_target "$work_dir/check$target_suffix"
       fi
+    done
     done
   done
 done

@@ -108,6 +108,11 @@ else
     "$project_root/bootstrap/host/diagnostics.lisp" \
     -o "$work_dir/native-diagnostics.o"
 fi
+"$host_compiler" -std=c11 -Wall -Wextra -Werror \
+  "$project_root/tests/harness_bootstrap_reader_metadata.c" "$work_dir/native-core.o" \
+  -o "$work_dir/reader-metadata-check$host_suffix"
+run_host "$work_dir/reader-metadata-check$host_suffix"
+
 source_allocator_flags=
 if test "$host_target" = x86_64-linux-gnu; then
   source_allocator_flags='-DPSL_TEST_ALLOCATOR_FAULTS -Wl,--wrap=malloc -Wl,--wrap=calloc -Wl,--wrap=realloc -Wl,--wrap=free'
@@ -369,9 +374,10 @@ if test "$host_target" = x86_64-linux-gnu; then
     "$work_dir/native-core.o" "$work_dir/native-source-native.o" -o "$work_dir/source-native-check"
   "$work_dir/source-native-check"
 fi
-test "$(nm -u "$work_dir/native-host-native.o" | wc -l)" -eq 2
+test "$(nm -u "$work_dir/native-host-native.o" | wc -l)" -eq 3
 nm -u "$work_dir/native-host-native.o" | grep -q ' U calloc$'
 nm -u "$work_dir/native-host-native.o" | grep -q ' U free$'
+nm -u "$work_dir/native-host-native.o" | grep -q ' U native_ct_seed_standard$'
 if test "$host_target" = x86_64-linux-gnu; then
   cc -Wall -Wextra -Werror $allocator_flags \
     "$project_root/tests/harness_bootstrap_driver.c" \
@@ -1295,6 +1301,10 @@ cmp "$work_dir/layout-queries.o" "$work_dir/layout-queries-O0.o"
 
 PSL_NATIVE_COMPILER_HOST_TARGET=$host_target \
   sh "$project_root/tests/bootstrap_environment.sh" \
+    "$work_dir/pslcc-native-slice$host_suffix" "$host_target"
+
+PSL_NATIVE_COMPILER_HOST_TARGET=$host_target \
+  sh "$project_root/tests/bootstrap_reader_identity.sh" \
     "$work_dir/pslcc-native-slice$host_suffix" "$host_target"
 
 if test -n "${PSL_NATIVE_OBJECT_SNAPSHOT_DIR:-}"; then

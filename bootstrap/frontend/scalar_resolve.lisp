@@ -119,20 +119,25 @@
   (if (= (ast_name_matches_function_p parser source name function) 1) 1
       (ast_string_matches_function_p parser source name function)))
 
+(defun ordinary_function_name_matches_p (context name index)
+  (declare (type (ptr native_compile_context) context) (type usize name index)
+           (returns c-int))
+  (let ((parser (deref (field-pointer context 'parser)))
+        (signature (native_signature_at (deref (field-pointer context 'signatures)) index)))
+    (if (if (= (deref (field-pointer signature 'imported)) 0)
+            (< 0 (ast_symbol_identity parser name)) nil)
+        (ast_same_name_p parser (deref (field-pointer context 'source)) name
+                         (deref (field-pointer signature 'name)))
+        (ast_name_matches_function_p parser (deref (field-pointer context 'source)) name
+           (native_function_at (deref (field-pointer context 'functions)) index)))))
+
 (defun prior_function_index (context name index)
   (declare (type (ptr native_compile_context) context)
-           (type usize name index)
-           (returns usize))
-  (if (= index 0)
-      0
-      (let ((parser (deref (field-pointer context 'parser)))
-            (source (deref (field-pointer context 'source)))
-            (functions (deref (field-pointer context 'functions))))
-        (if (= (ast_name_matches_function_p
-                parser source name
-                (native_function_at functions (wrap- index 1))) 1)
-            index
-            (prior_function_index context name (wrap- index 1))))))
+           (type usize name index) (returns usize))
+  (if (= index 0) 0
+      (if (= (ordinary_function_name_matches_p context name (wrap- index 1)) 1)
+          index
+          (prior_function_index context name (wrap- index 1)))))
 
 (defun prior_foreign_function_index (context name index)
   (declare (type (ptr native_compile_context) context)

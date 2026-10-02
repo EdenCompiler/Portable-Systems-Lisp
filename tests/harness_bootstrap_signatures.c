@@ -73,7 +73,7 @@ static int check_module(const char *path, size_t expected_functions,
     nodes = calloc(length + 1, sizeof *nodes);
     if (!nodes) { free(source); return 0; }
     scanner = (struct psl_scanner){source, length, 0, 0};
-    parser = (struct psl_parser){&scanner, &token, 0, nodes, 0, length + 1, 0};
+    parser = (struct psl_parser){&scanner, &token, 0, nodes, 0, length + 1, 0, NULL};
     layout_context = (struct native_layout_context){
         &parser, source, layouts, 0, 32, fields, 0, 128, &shape, 0, 0
     };
@@ -110,7 +110,7 @@ static int rejected(const char *source) {
         (const uint8_t *)source, strlen(source), 0, 0
     };
     struct psl_parser parser = {
-        &scanner, &token, 0, nodes, 0, 64, 0
+        &scanner, &token, 0, nodes, 0, 64, 0, NULL
     };
     struct native_layout_context layout_context = {
         &parser, (const uint8_t *)source, layouts, 0, 4,

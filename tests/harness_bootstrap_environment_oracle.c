@@ -1,4 +1,5 @@
 #include "../bootstrap/frontend/environment.h"
+#include "bootstrap_environment_index.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,7 +21,7 @@ int main(int argc, char **argv) {
         .symbols=symbols, .symbol_capacity=2400,
         .present=present, .present_capacity=3000,
         .uses=uses, .use_capacity=32,
-        .aliases=aliases, .alias_capacity=8
+        .aliases=aliases, .alias_capacity=8, TEST_INDEX_FIELDS
     };
     assert(native_ct_seed_standard(&e));
     FILE *oracle = fopen(argv[1], "r");

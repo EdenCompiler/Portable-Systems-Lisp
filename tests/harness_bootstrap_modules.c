@@ -36,6 +36,7 @@ struct psl_parser {
     uintptr_t count;
     uintptr_t capacity;
     uint32_t error;
+    struct native_reader_environment *environment;
 };
 
 struct psl_arena {
@@ -77,7 +78,7 @@ int main(void) {
     if (scan_next(&scanner, &token) != 2 || token.start != 2) return 4;
     if (scan_next(&scanner, &token) != 0) return 5;
     scanner.cursor = 0;
-    struct psl_parser parser = {&scanner, &token, 0, nodes, 0, 4, 0};
+    struct psl_parser parser = {&scanner, &token, 0, nodes, 0, 4, 0, NULL};
     if (parser_next(&parser) != 1 || parser.error != 0) return 6;
     if (nodes[0].kind != 1 || nodes[0].first != 2 ||
         nodes[1].kind != 8) return 7;

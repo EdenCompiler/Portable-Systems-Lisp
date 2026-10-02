@@ -12,7 +12,8 @@
 (defcstruct native_ct_presence
   (symbol usize)
   (next usize)
-  (flags u32))
+  (flags u32)
+  (bucket_next usize))
 (defcstruct native_ct_use
   (package usize)
   (next usize))
@@ -55,4 +56,8 @@
   (read_escape u8)
   (read_body u8)
   (read_uninterned u8)
-  (error u32))
+  (error u32)
+  (buckets (ptr usize))
+  (bucket_count usize)
+  (bucket_capacity usize)
+  (hash u32))

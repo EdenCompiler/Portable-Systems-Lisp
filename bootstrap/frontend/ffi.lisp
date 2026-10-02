@@ -8,14 +8,16 @@
             (parser (signature_parser context))
             (source (deref (field-pointer (deref (field-pointer context 'layouts)) 'source))))
         (if (= head 0) 0
-            (let ((node (parser_node parser head)))
+            (if (< 0 (ast_symbol_identity parser head))
+                (ast_package_word_p parser head 3 #x462d54524f504d49 #x4e4f4954434e55 15)
+                (let ((node (parser_node parser head)))
               (if (= (deref (field-pointer node 'kind)) 8)
                   (if (= (deref (field-pointer node 'length)) 19)
                       (let ((start (deref (field-pointer node 'start))))
                         (if (= (ascii_matches source start #x6f706d693a696666 8) 1)
                             (if (= (ascii_matches source (wrap+ start 8) #x74636e75662d7472 8) 1)
                                 (ascii_matches source (wrap+ start 16) #x6e6f69 3) 0) 0))
-                      0) 0))))))
+                      0) 0)))))))
 
 (defun import_name_atom (context reference)
   (declare (type (ptr native_signature_context) context)

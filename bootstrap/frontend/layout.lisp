@@ -1,6 +1,7 @@
 (include "layout_types.lisp")
 (include "parser.lisp")
 (include "symbols.lisp")
+(include "identity_syntax.lisp")
 (include "pointer_references.lisp")
 (include "integer_names.lisp")
 
@@ -40,10 +41,8 @@
            (type usize reference length) (type u64 bits) (returns c-int))
   (let ((parser (deref (field-pointer context 'parser))))
     (if (= (layout_atom_p parser reference) 0) 0
-        (let ((node (parser_node parser reference)))
-          (source_builtin_word_p (deref (field-pointer context 'source))
-             (deref (field-pointer node 'start))
-             (deref (field-pointer node 'length)) bits 0 length)))))
+        (ast_builtin_word_p parser (deref (field-pointer context 'source))
+                            reference bits 0 length))))
 
 (defun native_layout_form_p (context root)
   (declare (type (ptr native_layout_context) context) (type usize root)
@@ -54,30 +53,30 @@
             (let ((head (deref (field-pointer (parser_node parser root) 'first))))
               (if (= (layout_atom_p parser head) 0) 0
                   (let ((node (parser_node parser head)))
-                    (source_builtin_word_p (deref (field-pointer context 'source))
-                       (deref (field-pointer node 'start))
-                       (deref (field-pointer node 'length))
-                       #x7572747363666564 #x7463 10))))
+                    (ast_builtin_word_p parser (deref (field-pointer context 'source))
+                                        head #x7572747363666564 #x7463 10))))
             0))))
 
-(defun layout_names_equal_p (context left right)
-  (declare (type (ptr native_layout_context) context)
-           (type usize left right)
+(defun layout_raw_names_equal_p (context left right)
+  (declare (type (ptr native_layout_context) context) (type usize left right)
            (returns c-int))
   (let ((parser (deref (field-pointer context 'parser))))
-    (if (= (layout_atom_p parser left) 0)
-        0
-        (if (= (layout_atom_p parser right) 0)
-            0
-            (let ((a (parser_node parser left))
-                  (b (parser_node parser right)))
-              (let ((length (deref (field-pointer a 'length))))
-                (if (= length (deref (field-pointer b 'length)))
-                    (layout_same_bytes_p
-                     (deref (field-pointer context 'source))
-                     (deref (field-pointer a 'start))
-                     (deref (field-pointer b 'start)) length)
-                    0)))))))
+    (let ((a (parser_node parser left)) (b (parser_node parser right)))
+      (let ((length (deref (field-pointer a 'length))))
+        (if (= length (deref (field-pointer b 'length)))
+            (layout_same_bytes_p (deref (field-pointer context 'source))
+                (deref (field-pointer a 'start)) (deref (field-pointer b 'start)) length)
+            0)))))
+
+(defun layout_names_equal_p (context left right)
+  (declare (type (ptr native_layout_context) context) (type usize left right)
+           (returns c-int))
+  (let ((parser (deref (field-pointer context 'parser))))
+    (if (= (layout_atom_p parser left) 0) 0
+        (if (= (layout_atom_p parser right) 0) 0
+            (let ((identity (ast_symbol_identity parser left)))
+              (if (= identity 0) (layout_raw_names_equal_p context left right)
+                  (if (= identity (ast_symbol_identity parser right)) 1 0)))))))
 
 (defun layout_source_identifier_p (context reference)
   (declare (type (ptr native_layout_context) context)
@@ -165,17 +164,9 @@
   (declare (type (ptr native_layout_context) context)
            (type usize reference) (returns usize))
   (if (= (layout_word_p context reference #x74736e6f633a 6) 1) 1
-      (let ((parser (deref (field-pointer context 'parser))))
-        (if (= (layout_atom_p parser reference) 0) 0
-            (let ((node (parser_node parser reference)))
-              (if (= (deref (field-pointer node 'length)) 9)
-                  (let ((source (deref (field-pointer context 'source)))
-                        (start (deref (field-pointer node 'start))))
-                    (if (= (layout_bytes_match source start #x6c6974616c6f763a 8) 1)
-                        (if (= (layout_bytes_match source (wrap+ start 8) #x65 1) 1)
-                            2 0)
-                        0))
-                  0))))))
+      (if (= (ast_builtin_word_p (deref (field-pointer context 'parser))
+                  (deref (field-pointer context 'source)) reference
+                  #x6c6974616c6f763a #x65 9) 1) 2 0)))
 
 (defun layout_pointer_qualifiers (context reference flags)
   (declare (type (ptr native_layout_context) context)

@@ -29,7 +29,7 @@ static int compile_memory_target(const char *source, uint32_t target, uintptr_t 
     memset(&storage, 0, sizeof storage);
     struct psl_scanner scanner = {(const uint8_t *)source, strlen(source), 0, 0};
     struct psl_token token = {0};
-    struct psl_parser parser = {&scanner, &token, 0, storage.syntax, 0, CAPACITY, 0};
+    struct psl_parser parser = {&scanner, &token, 0, storage.syntax, 0, CAPACITY, 0, NULL};
     struct psl_parsed_integer integer = {0};
     struct native_type_shape shape = {0};
     struct native_layout_context layouts = {

@@ -1,6 +1,7 @@
 (include "compile_scalar.lisp")
 
 (include "unit_types.lisp")
+(include "frontend/environment/resolve.lisp")
 (include "frontend/layout_packed.lisp")
 
 (defun native_unit_fail (result phase)
@@ -39,6 +40,16 @@
              (if (= (native_latest_signature_data_name_free_p context) 1) 1
                  (native_unit_fail result 3))))))))
 
+(defun native_resolve_unit_form (context result)
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_unit_result) result) (returns c-int))
+  (let ((reader (deref (field-pointer (deref (field-pointer context 'parser)) 'environment))))
+    (if (= (ptr-address reader) 0) 1
+        (if (= (native_resolve_source_identities context reader) 1) 1
+            (progn
+              (store (field-pointer result 'form) (deref (field-pointer reader 'error)))
+              0)))))
+
 (defun native_collect_unit (context result)
   (declare (type (ptr native_compile_context) context)
            (type (ptr native_unit_result) result) (returns c-int))
@@ -46,9 +57,11 @@
     (store (field-pointer result 'form) (parser_next parser))
     (while (if (= (deref (field-pointer result 'phase)) 0)
                (< 0 (deref (field-pointer result 'form))) nil)
-      (if (= (native_collect_form context result) 1)
-          (store (field-pointer result 'form) (parser_next parser))
-          (wrap-cast usize 0)))
+      (if (= (native_resolve_unit_form context result) 1)
+          (if (= (native_collect_form context result) 1)
+              (store (field-pointer result 'form) (parser_next parser))
+              (wrap-cast usize 0))
+          (progn (native_unit_fail result 4) (wrap-cast usize 0))))
     (if (= (deref (field-pointer result 'phase)) 0)
         (let ((signatures (deref (field-pointer context 'signatures))))
           (let ((layouts (deref (field-pointer signatures 'layouts))))

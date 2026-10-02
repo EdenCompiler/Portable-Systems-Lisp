@@ -13,6 +13,7 @@
           0 (native_count_product_fits count (wrap- factor 1)))))
 
 (include "output_capacity.lisp")
+(include "environment_storage.lisp")
 
 (defun native_allocate_frontend (storage capacity)
   (declare (type (ptr native_storage) storage) (type usize capacity)
@@ -165,7 +166,8 @@
   (let ((storage (field-pointer driver 'storage)))
     (native_release_frontend storage)
     (native_release_ir storage)
-    (native_release_output storage))
+    (native_release_output storage)
+    (native_release_environment storage))
   (ffi:call free (ptr-cast (ptr void) (deref (field-pointer driver 'source))))
   (store (field-pointer driver 'source) (ptr-from-address (ptr u8) 0))
   (store (field-pointer driver 'length) 0)

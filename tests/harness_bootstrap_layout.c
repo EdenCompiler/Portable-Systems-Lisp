@@ -33,6 +33,7 @@ struct psl_parser {
     uintptr_t count;
     uintptr_t capacity;
     uint32_t error;
+    struct native_reader_environment *environment;
 };
 
 struct native_type_shape {
@@ -111,7 +112,7 @@ static int check_layouts(void) {
         (const uint8_t *)source, sizeof source - 1, 0, 0
     };
     struct psl_parser parser = {
-        &scanner, &token, 0, nodes, 0, 128, 0
+        &scanner, &token, 0, nodes, 0, 128, 0, NULL
     };
     struct native_layout_context context = {
         &parser, (const uint8_t *)source, layouts, 0, 8,
@@ -154,7 +155,7 @@ static int rejected(const char *source) {
         (const uint8_t *)source, strlen(source), 0, 0
     };
     struct psl_parser parser = {
-        &scanner, &token, 0, nodes, 0, 64, 0
+        &scanner, &token, 0, nodes, 0, 64, 0, NULL
     };
     struct native_layout_context context = {
         &parser, (const uint8_t *)source, layouts, 0, 4,

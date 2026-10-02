@@ -10,9 +10,8 @@
   (let ((parser (deref (field-pointer context 'parser))))
     (if (= (layout_atom_p parser reference) 0) 0
         (let ((node (parser_node parser reference)))
-          (source_builtin_word_p (deref (field-pointer context 'source))
-             (deref (field-pointer node 'start))
-             (deref (field-pointer node 'length)) first last length)))))
+          (ast_builtin_word_p parser (deref (field-pointer context 'source))
+                              reference first last length)))))
 
 (defun layout_integer_code (context type)
   (declare (type (ptr native_layout_context) context)

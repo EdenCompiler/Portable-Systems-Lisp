@@ -5,7 +5,7 @@ static uint32_t parse_kind(const uint8_t *source, struct psl_parser *parser,
                            struct psl_scanner *scanner, struct psl_token *token,
                            struct psl_ast_node *nodes, uintptr_t *root) {
     *scanner = (struct psl_scanner){source, strlen((const char *)source), 0, 0};
-    *parser = (struct psl_parser){scanner, token, 0, nodes, 0, 64, 0};
+    *parser = (struct psl_parser){scanner, token, 0, nodes, 0, 64, 0, NULL};
     *root = parser_next(parser);
     return *root ? native_source_form_kind(parser, source, *root) : 255;
 }

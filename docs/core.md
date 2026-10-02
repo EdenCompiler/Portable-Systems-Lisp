@@ -535,7 +535,22 @@ seeding requires empty tables and can leave partial initialization on exhaustion
 reset the environment before retrying that operation. All storage is supplied
 explicitly by the caller; the component imports no allocator or host evaluator.
 
-This component API does not yet change accepted source forms: the native
-compilation-unit reader has not attached these IDs to its AST. General source
-packages, package transactions, macro environments, managed compile-time values,
-and Unicode reader case conversion remain pending.
+The hosted native driver now attaches symbol IDs and origin references in a
+parallel AST metadata arena before semantic collection. Builtin operators,
+declarations, scalar/pointer types, layout names, ordinary calls, and lexical
+references use these identities. Standard package aliases, internal/external
+qualification, and uppercase escaped references therefore resolve consistently;
+`|VALUE|` refers to the parameter `value`, whereas `|value|` and `ffi::value`
+do not. C linker names retain their separate exact boundary rules. Binder and
+linker declarations still require the documented simple spelling subset.
+
+Package presence can use a caller-supplied index with a power-of-two bucket
+count up to 1,024 per package, or the original linked search with count zero.
+Package creation checks storage bounds and clears its index segment. Collisions
+do not change symbol identity or visibility. The driver owns and releases all
+reader/environment arenas explicitly. Low-level parser clients may leave the
+optional environment pointer null to retain the original spelling API.
+
+General source packages, package transactions, macro environments, managed
+compile-time values, Unicode reader case conversion, and qualified/escaped
+source-loader directives remain pending.

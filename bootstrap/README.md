@@ -213,7 +213,8 @@ zeroed driver with an owned, free-compatible source; preparation allocates and
 initializes arenas. On failure, release the partial storage; release is
 idempotent and clears owning pointers. Release before preparing the driver
 again. Its compilation context must not be used after release. `storage.lisp`
-uses explicit `calloc`/`free` imports; the core retains no unresolved symbols.
+uses explicit `calloc`/`free` imports and the core environment seed API; the
+core retains no unresolved symbols.
 The C harness compares allocations with C record sizes, checks context links
 and capacity overflow, compiles from memory, releases/reuses a driver, and
 injects failure at each of the 22 allocation points on Linux.
@@ -569,5 +570,9 @@ The native core also exports a build-host package/symbol reader component in
 seeds the actual CL/PSL/FFI export catalogue, and decodes ASCII symbol tokens
 with case, escapes, qualification, keywords, and fresh `#:` identities. Run
 `make test-native-environment` for catalogue, SBCL reader-oracle, visibility,
-and bounds checks. This component is awaiting compilation-unit AST integration;
-it does not yet enable general source packages or macros.
+and bounds checks. The hosted driver attaches identities before semantic
+collection. `tests/bootstrap_reader_identity.sh` checks qualified/escaped
+operators, types, declarations, ordinary calls and lexical references against
+Stage 0 linked C behavior at O0/O1, plus native rejection of distinct symbols.
+Indexed lookup is checked with all names in one bucket and with 1,024 buckets.
+General source packages and macros remain pending.

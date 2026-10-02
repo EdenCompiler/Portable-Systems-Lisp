@@ -11,7 +11,9 @@
     (if (= (ptr-address (deref (field-pointer driver 'source))) 0) 0
         (if (= capacity 0) 0
             (if (= (native_output_counts_fit capacity) 0) 0
-                (if (= (native_allocate_frontend storage capacity) 0) 0
-                    (if (= (native_allocate_ir storage capacity) 0) 0
-                        (if (= (native_allocate_output storage capacity) 0) 0
-                            (native_initialize_driver driver capacity)))))))))
+                (if (= (native_environment_counts_fit capacity) 0) 0
+                    (if (= (native_allocate_frontend storage capacity) 0) 0
+                        (if (= (native_allocate_ir storage capacity) 0) 0
+                            (if (= (native_allocate_output storage capacity) 0) 0
+                                (if (= (native_allocate_environment storage capacity) 0) 0
+                                    (native_initialize_driver driver capacity)))))))))))

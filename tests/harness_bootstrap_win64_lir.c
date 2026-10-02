@@ -65,7 +65,7 @@ static int check_lir_body(void) {
         " (if (< a b) (wrap+ a e) (wrap- c d)))";
     struct psl_scanner scanner = {source, sizeof source - 1, 0, 0};
     struct psl_token token = {0};
-    struct psl_parser parser = {&scanner, &token, 0, syntax, 0, CAPACITY, 0};
+    struct psl_parser parser = {&scanner, &token, 0, syntax, 0, CAPACITY, 0, NULL};
     struct psl_parsed_integer integer = {0};
     struct native_type_shape shape = {0};
     struct native_layout_context layouts = {&parser, source, NULL, 0, 0,

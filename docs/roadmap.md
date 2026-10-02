@@ -754,6 +754,30 @@ attachment to AST/semantic resolution, source package transactions, compile-time
 macro evaluation, managed compiler data, and the full M8 release gate remain
 required.
 
+### M8 native reader identity integration
+
+The hosted native driver now owns a standard compilation environment and a
+parallel symbol/origin arena for parsed nodes. Resolution precedes semantic
+collection; builtin and lexical analysis compares identities, including CL/PSL/
+FFI aliases, internal qualification and uppercase escaped references. Linker
+names remain a separate C boundary. Native rejects escaped lowercase and
+foreign-package variables that merely resemble a local name. An optional
+presence index preserves the package enumeration chain and accelerates compiler
+self-compilation. All-collision, normal-index and fallback searches run the
+same catalogue, reader-oracle and visibility checks. Invalid index capacities
+fail before publishing a package; driver fault injection covers all 30 explicit
+allocations and release/reprepare. A direct metadata harness checks numeric
+atoms, original source spans, and failed-token retry without reinterning earlier
+fresh symbols.
+
+`tests/bootstrap_reader_identity.sh` links native and Stage 0 objects with an
+independent C harness at O0/O1, repeats native output and checks source rejection.
+The focused checks cover all four hosted targets. The smoke and Linux native
+three-generation gates verify the integration alongside the existing corpus.
+General source package declarations and transactions, escaped binder/linker
+names, source-loader identity integration, native macro evaluation, managed
+compiler data and the complete Stage 1–3 release gate remain open.
+
 ## M9 — Hosted ANSI Common Lisp completion · Pending
 
 **Dependencies:** M4 dynamic runtime and a self-host-capable compiler core.

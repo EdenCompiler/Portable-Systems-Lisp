@@ -1,4 +1,5 @@
 (include "driver_types.lisp")
+(include "environment_initialize.lisp")
 
 ;; Reset every logical field, including scalar scratch state and parser lookahead.
 
@@ -28,6 +29,7 @@
     (store (field-pointer record 'scanner) (field-pointer driver 'scanner))
     (store (field-pointer record 'token) (field-pointer driver 'token))
     (store (field-pointer record 'has_token) 0)
+    (store (field-pointer record 'environment) (field-pointer driver 'reader))
     (store (field-pointer record 'nodes) (deref (field-pointer (field-pointer driver 'storage) 'syntax)))
     (store (field-pointer record 'count) 0)
     (store (field-pointer record 'capacity) capacity)
@@ -240,4 +242,4 @@
   (native_initialize_code driver capacity)
   (native_initialize_object driver capacity)
   (native_initialize_context driver capacity)
-  1)
+  (native_initialize_environment driver capacity))

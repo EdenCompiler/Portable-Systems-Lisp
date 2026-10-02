@@ -35,7 +35,7 @@ struct fixture {
 static int compile_source_options(struct fixture *f, const uint8_t *source, uint32_t level) {
     memset(f, 0, sizeof *f);
     f->scanner = (struct psl_scanner){source, strlen((const char *)source), 0, 0};
-    f->parser = (struct psl_parser){&f->scanner, &f->token, 0, f->syntax, 0, 256, 0};
+    f->parser = (struct psl_parser){&f->scanner, &f->token, 0, f->syntax, 0, 256, 0, NULL};
     f->layouts = (struct native_layout_context){
         &f->parser, source, NULL, 0, 0, NULL, 0, 0, &f->shape, 0, 0
     };

@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include "frontend/environment.h"
 
 /* Temporary C host boundary for the compiled PSL bootstrap modules. */
 struct byte_buffer {
@@ -56,6 +57,7 @@ struct psl_parser {
     uintptr_t count;
     uintptr_t capacity;
     uint32_t error;
+    struct native_reader_environment *environment;
 };
 
 struct psl_parsed_integer {
@@ -313,6 +315,14 @@ struct native_storage {
     uintptr_t *bindings, *labels;
     uint8_t *code, *object;
     struct native_ssa_value *inline_values;
+    uint8_t *symbol_names;
+    struct native_ct_package *packages;
+    struct native_ct_symbol *symbols;
+    struct native_ct_presence *present;
+    struct native_ct_use *uses;
+    struct native_ct_alias *aliases;
+    struct native_source_identity *identities;
+    uintptr_t *buckets;
 };
 
 struct native_driver {
@@ -332,6 +342,8 @@ struct native_driver {
     struct native_fixup_arena calls, jumps, data_fixups;
     struct byte_buffer code, object;
     struct native_compile_context context;
+    struct native_ct_environment environment;
+    struct native_reader_environment reader;
 };
 
 /* A zeroed driver takes ownership of a free-compatible SOURCE buffer. Prepare
@@ -397,6 +409,8 @@ extern int native_layout_form_p(struct native_layout_context *context,
 extern int native_register_layout(struct native_layout_context *context,
                                    uintptr_t root);
 extern int native_import_form_p(struct native_signature_context *, uintptr_t);
+extern int native_resolve_source_identities(struct native_compile_context *,
+                                            struct native_reader_environment *);
 extern int native_parse_import(struct native_signature_context *, uintptr_t);
 extern int write_elf64_calls(const uint8_t *, uintptr_t, const struct native_function *,
                              uintptr_t, const struct native_fixup_arena *, struct byte_buffer *);

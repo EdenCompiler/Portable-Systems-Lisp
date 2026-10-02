@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "../bootstrap/frontend/environment.h"
+#include "bootstrap_environment_index.h"
 static uint8_t names[32768];
 static struct native_ct_package packages[16];
 static struct native_ct_symbol symbols[1200];
@@ -12,7 +13,7 @@ static struct native_ct_environment create(void) {
     struct native_ct_environment e={.names=names,.name_capacity=sizeof names,
        .packages=packages,.package_capacity=16,.symbols=symbols,.symbol_capacity=1200,
        .present=present,.present_capacity=2048,.uses=uses,.use_capacity=32,
-       .aliases=aliases,.alias_capacity=8};return e;
+       .aliases=aliases,.alias_capacity=8, TEST_INDEX_FIELDS};return e;
 }
 static uintptr_t find(struct native_ct_environment *e,uintptr_t p,const char *s) {
     return native_ct_find_symbol(e,p,(const uint8_t *)s,strlen(s));

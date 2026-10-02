@@ -33,6 +33,7 @@ struct psl_parser {
     uintptr_t count;
     uintptr_t capacity;
     uint32_t error;
+    struct native_reader_environment *environment;
 };
 
 extern uintptr_t parser_next(struct psl_parser *parser);
@@ -46,7 +47,7 @@ static struct psl_parser make_parser(const char *source,
         (const uint8_t *)source, strlen(source), 0, 0
     };
     *token = (struct psl_token){0};
-    return (struct psl_parser){scanner, token, 0, nodes, 0, capacity, 0};
+    return (struct psl_parser){scanner, token, 0, nodes, 0, capacity, 0, NULL};
 }
 
 static int check_tree(void) {

@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "../bootstrap/frontend/environment.h"
+#include "bootstrap_environment_index.h"
 static uint8_t names[200000];
 static struct native_ct_package packages[16];
 static struct native_ct_symbol symbols[1400];
@@ -19,7 +20,7 @@ int main(void) {
     struct native_ct_environment e={.names=names,.name_capacity=sizeof names,
        .packages=packages,.package_capacity=16,.symbols=symbols,.symbol_capacity=1400,
        .present=present,.present_capacity=2048,.uses=uses,.use_capacity=32,
-       .aliases=aliases,.alias_capacity=8};
+       .aliases=aliases,.alias_capacity=8, TEST_INDEX_FIELDS};
     assert(native_ct_seed_standard(&e)==1);
     const char *cars[]={"car","CAR","cl:car","COMMON-LISP:CAR","cl::car","cl:|CAR|", "psl::car"};
     uintptr_t car=read_symbol(&e,cars[0]);spelling(&e,car,"CAR",1);

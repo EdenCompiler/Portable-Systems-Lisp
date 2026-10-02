@@ -5,7 +5,10 @@
    table references are one-based IDs, with zero denoting absence. Initialize
    the record and arenas to zero. Mutations latch the first error; clear it
    explicitly before retrying. Low-level bind/link helpers construct visibility
-   and do not implement Common Lisp package transactions. */
+   and do not implement Common Lisp package transactions. Index storage is
+   optional (bucket_count zero); otherwise each package has a power-of-two
+   bucket span of at most 1024 entries. Do not change index configuration while
+   packages are live. Package creation checks capacity and clears its span. */
 #include <stddef.h>
 #include <stdint.h>
 enum native_ct_error {
@@ -19,7 +22,7 @@ enum native_ct_error {
 };
 struct native_ct_package { uintptr_t name,length,present,uses; };
 struct native_ct_symbol { uintptr_t package,name,length; };
-struct native_ct_presence { uintptr_t symbol,next; uint32_t flags; };
+struct native_ct_presence { uintptr_t symbol,next; uint32_t flags; uintptr_t bucket_next; };
 struct native_ct_use { uintptr_t package,next; };
 struct native_ct_alias { uintptr_t package,name,length; };
 struct native_ct_environment {
@@ -34,6 +37,7 @@ struct native_ct_environment {
     uintptr_t lookup_cursor,lookup_result;
     uintptr_t read_cursor,read_prefix,read_separator; uint32_t read_separators;
     uint8_t read_bar,read_escape,read_body,read_uninterned; uint32_t error;
+    uintptr_t *buckets, bucket_count, bucket_capacity; uint32_t hash;
 };
 extern uintptr_t native_ct_make_package(struct native_ct_environment *,const uint8_t *,uintptr_t);
 extern uintptr_t native_ct_find_package(struct native_ct_environment *,const uint8_t *,uintptr_t);
@@ -44,5 +48,13 @@ extern int native_ct_link_use(struct native_ct_environment *,uintptr_t,uintptr_t
 extern uintptr_t native_ct_add_alias(struct native_ct_environment *,uintptr_t,const uint8_t *,uintptr_t);
 extern int native_ct_seed_standard(struct native_ct_environment *);
 extern uintptr_t native_ct_read_symbol(struct native_ct_environment *,const uint8_t *,uintptr_t);
+
+struct native_source_identity { uintptr_t symbol, origin; };
+struct native_reader_environment {
+    struct native_ct_environment *environment;
+    struct native_source_identity *identities;
+    uintptr_t capacity, count, cursor, error;
+    uint32_t failure;
+};
 
 #endif

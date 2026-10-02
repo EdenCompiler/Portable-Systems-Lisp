@@ -1,4 +1,4 @@
-(include "tables.lisp")
+(include "index.lisp")
 (defun native_ct_find_alias_from (env name length index)
   (declare (type (ptr native_ct_environment) env) (type (ptr u8) name)
            (type usize length index) (returns usize))

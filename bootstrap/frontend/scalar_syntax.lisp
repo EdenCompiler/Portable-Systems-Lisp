@@ -1,4 +1,5 @@
 (include "symbols.lisp")
+(include "identity_syntax.lisp")
 
 ;; AST navigation and simple symbol spelling for the native scalar subset.
 
@@ -37,8 +38,7 @@
   (if (= reference 0) 0
       (let ((node (parser_node parser reference)))
         (if (= (deref (field-pointer node 'kind)) 8)
-            (source_builtin_word_p source (deref (field-pointer node 'start))
-              (deref (field-pointer node 'length)) bits 0 length)
+            (ast_builtin_word_p parser source reference bits 0 length)
             0))))
 
 (defun ast_list_p (parser reference)
@@ -58,8 +58,7 @@
   (if (= reference 0) 0
       (let ((node (parser_node parser reference)))
         (if (= (deref (field-pointer node 'kind)) 8)
-            (source_builtin_word_p source (deref (field-pointer node 'start))
-              (deref (field-pointer node 'length)) first last length)
+            (ast_builtin_word_p parser source reference first last length)
             0))))
 
 (defun ast_simple_name_p (parser source reference)
@@ -86,31 +85,26 @@
           0
           (if (= (ast_word_p parser source reference #x6c696e 3) 1) 0 1))))
 
-(defun ast_same_name_p (parser source left right)
-  (declare (type (ptr psl_parser) parser)
-           (type (ptr u8) source)
-           (type usize left right)
-           (returns c-int))
-  (if (= left 0)
-      0
-      (if (= right 0)
-          0
-          (let ((left_node (parser_node parser left))
-                (right_node (parser_node parser right)))
-            (let ((length (deref (field-pointer left_node 'length))))
-              (if (= length (deref (field-pointer right_node 'length)))
-                  (source_same_name_p
-                   (pointer+ source
-                             (wrap-cast isize
-                                        (deref (field-pointer left_node
-                                                              'start))))
-                   (pointer+ source
-                             (wrap-cast isize
-                                        (deref (field-pointer right_node
-                                                              'start))))
-                   length)
-                  0))))))
+(defun ast_raw_names_equal_p (parser source left right)
+  (declare (type (ptr psl_parser) parser) (type (ptr u8) source)
+           (type usize left right) (returns c-int))
+  (let ((a (parser_node parser left)) (b (parser_node parser right)))
+    (let ((length (deref (field-pointer a 'length))))
+      (if (= length (deref (field-pointer b 'length)))
+          (source_same_name_p
+           (pointer+ source (wrap-cast isize (deref (field-pointer a 'start))))
+           (pointer+ source (wrap-cast isize (deref (field-pointer b 'start))))
+           length)
+          0))))
 
+(defun ast_same_name_p (parser source left right)
+  (declare (type (ptr psl_parser) parser) (type (ptr u8) source)
+           (type usize left right) (returns c-int))
+  (if (= left 0) 0
+      (if (= right 0) 0
+          (let ((identity (ast_symbol_identity parser left)))
+            (if (= identity 0) (ast_raw_names_equal_p parser source left right)
+                (if (= identity (ast_symbol_identity parser right)) 1 0))))))
 
 (defun lowercase_letter_p (byte)
   (declare (type u8 byte) (returns c-int))

@@ -434,7 +434,17 @@ independent of syntax-node references, target pointers, and object linker names.
 The standard export catalogue is explicit PSL data and is checked against the
 Stage 0 package exports; native initialization does not call SBCL. The
 `bootstrap/frontend/environment.h` interface exposes caller-owned arenas for
-component testing and future reader/macro integration. This API is included in
-`native-core.lisp`; the current compilation-unit reader still uses its earlier
-spelling resolution until per-node identities are connected. Low-level
-visibility construction does not implement language package transactions.
+component testing and reader integration. `resolve.lisp` assigns symbol IDs
+and origin references in an arena parallel to syntax nodes before semantic
+collection; `identity_syntax.lisp` gives analysis a common identity interface.
+`index.lisp` accelerates presence lookup while preserving the independent
+package enumeration chain. These modules belong to `native-core.lisp`.
+
+The hosted driver owns environment storage and standard initialization through
+`host/environment_storage.lisp` and `host/environment_initialize.lisp`.
+Initialization calls the core seed API through an explicit C import; storage
+uses declared allocator imports. The optional parser environment pointer keeps
+standalone parser clients independent of hosted storage. C linker-name matching
+remains separate from language symbol identity. Source-loader directives retain
+their earlier spelling interface. Low-level visibility construction does not
+implement language package transactions.
