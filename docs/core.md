@@ -513,3 +513,29 @@ Hosted native code/object buffers scale with source capacity and reject product
 or additive overflow before allocation. The multi-function call writer accepts
 text up to 2,147,481,592 bytes within caller-supplied storage, replacing its old
 1 MiB development limit. Other standalone writer APIs retain their old limits.
+
+### Native build-host symbol reader API
+
+The native core exports a caller-owned compilation-environment component for
+package creation and aliases, exact symbol interning, present/imported and
+inherited external visibility, and fresh uninterned IDs. Standard initialization
+seeds COMMON-LISP/CL, PSL, PSL.FFI/FFI, KEYWORD, and a private SOURCE package.
+SOURCE inherits CL and imports PSL extensions only where CL has no accessible
+name, preserving CL `load` and `export`. Symbol home identity remains distinct
+from package presence. Names are copied exact bytes and IDs are one-based table
+indices, independent of the compilation target.
+
+`native_ct_read_symbol` decodes one complete symbol token: ASCII case folding,
+backslash and vertical-bar escapes, package external/internal qualification,
+keywords, and fresh `#:` names. Empty escaped names and uninterned names work.
+Missing packages, unavailable external names, malformed tokens, name conflicts,
+and arena exhaustion latch errors. Failed token decoding rolls back temporary
+name bytes; later mutations stop until the caller clears the error. Standard
+seeding requires empty tables and can leave partial initialization on exhaustion;
+reset the environment before retrying that operation. All storage is supplied
+explicitly by the caller; the component imports no allocator or host evaluator.
+
+This component API does not yet change accepted source forms: the native
+compilation-unit reader has not attached these IDs to its AST. General source
+packages, package transactions, macro environments, managed compile-time values,
+and Unicode reader case conversion remain pending.

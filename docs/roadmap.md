@@ -732,6 +732,28 @@ generation gates pass, including deterministic floating fixture objects.
 The complete compiler manifest, aggregate ABI, compilation environments, managed values,
 CLI/profile/IR-dump parity, and complete Stage 1–3 release gates remain pending.
 
+### M8 native build-host package and symbol reader foundation
+
+The native core now contains caller-owned package, nickname, symbol, presence,
+and use tables plus exact symbol-token decoding. Its explicit standard catalogue
+matches all 1,049 CL/PSL/FFI exports. Package ownership, imported identity,
+inherited external visibility, shadowing construction, keyword interning,
+ASCII case/escapes, package qualification, and fresh uninterned symbols are
+checked independently of compiler implementation records. Mutations stop after
+a latched failure and token scratch is rolled back on rejection.
+
+`sh tests/bootstrap_environment.sh [COMPILER] [TARGET]` compares Stage 0 and
+native compilation at O0/O1, repeats native objects, checks every exported name,
+and compares symbol names, owners, and identity against 811 actual SBCL reader
+observations. C harnesses exercise visibility conflicts, interleaved additions,
+65 KiB names, capacity failures, and recovery. The focused checks pass on Linux,
+Windows under Wine, and AArch64/RISC-V64 under QEMU. The smoke suite and Linux
+three-generation gate pass, reproducing all eight compiler modules and fixture
+objects. These are component gates;
+attachment to AST/semantic resolution, source package transactions, compile-time
+macro evaluation, managed compiler data, and the full M8 release gate remain
+required.
+
 ## M9 — Hosted ANSI Common Lisp completion · Pending
 
 **Dependencies:** M4 dynamic runtime and a self-host-capable compiler core.

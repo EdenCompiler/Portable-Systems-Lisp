@@ -1293,6 +1293,10 @@ run_host "$work_dir/pslcc-native-O0$host_suffix" \
   "$project_root/tests/bootstrap_layout_queries.lisp" "$work_dir/layout-queries-O0.o"
 cmp "$work_dir/layout-queries.o" "$work_dir/layout-queries-O0.o"
 
+PSL_NATIVE_COMPILER_HOST_TARGET=$host_target \
+  sh "$project_root/tests/bootstrap_environment.sh" \
+    "$work_dir/pslcc-native-slice$host_suffix" "$host_target"
+
 if test -n "${PSL_NATIVE_OBJECT_SNAPSHOT_DIR:-}"; then
   mkdir -p "$PSL_NATIVE_OBJECT_SNAPSHOT_DIR"
   for object in "$work_dir"/*.o; do

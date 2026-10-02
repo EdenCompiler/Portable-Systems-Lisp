@@ -46,6 +46,7 @@ linker/
   riscv64-virt.ld       QEMU virt RAM layout
   x86_64-linux-user.ld  static x86-64 Linux user-mode layout
 bootstrap/
+  frontend/environment/  caller-owned build-host package/symbol tables and token decoding
   native-core.lisp      source unit including the ported compiler components
   driver_effects.lisp  unit fixed-point inference and allocation certification
   driver_inline.lisp   verified pure SSA template collection for a source unit
@@ -426,3 +427,14 @@ Common object checks live in `function_validation.lisp`. CPU instruction
 construction stays in `backend/`. The four current native output targets are
 64-bit little-endian Linux ELF or Windows COFF. Broader ABI/data/runtime
 ports remain pending.
+
+The native frontend environment API owns copied symbol names, package aliases,
+per-package presence and use tables, and symbol-token decoding. Its IDs are
+independent of syntax-node references, target pointers, and object linker names.
+The standard export catalogue is explicit PSL data and is checked against the
+Stage 0 package exports; native initialization does not call SBCL. The
+`bootstrap/frontend/environment.h` interface exposes caller-owned arenas for
+component testing and future reader/macro integration. This API is included in
+`native-core.lisp`; the current compilation-unit reader still uses its earlier
+spelling resolution until per-node identities are connected. Low-level
+visibility construction does not implement language package transactions.

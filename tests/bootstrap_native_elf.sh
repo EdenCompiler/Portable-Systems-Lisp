@@ -86,7 +86,7 @@ PSL_NATIVE_COMPILER_HOST_TARGET=${PSL_NATIVE_COMPILER_HOST_TARGET:-x86_64-linux-
   sh "$project_root/tests/bootstrap_c_aliases.sh" "$compiler" "$target"
 PSL_NATIVE_COMPILER_HOST_TARGET=${PSL_NATIVE_COMPILER_HOST_TARGET:-x86_64-linux-gnu} \
   sh "$project_root/tests/bootstrap_data_only.sh" "$compiler" "$target"
-for check in float_abi float_memory; do
+for check in environment float_abi float_memory; do
   PSL_NATIVE_COMPILER_HOST_TARGET=${PSL_NATIVE_COMPILER_HOST_TARGET:-x86_64-linux-gnu} \
     sh "$project_root/tests/bootstrap_$check.sh" "$compiler" "$target"
 done

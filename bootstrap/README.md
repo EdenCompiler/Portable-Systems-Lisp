@@ -563,3 +563,11 @@ loader. A cross-host harness checks lexical aliases, missing files, and platform
 policy. Exact mixed-case Windows imports also exercise the native frontend's
 case-sensitive C symbol handling. All generation gates compile and compare the
 selected seventh PSL unit.
+
+The native core also exports a build-host package/symbol reader component in
+`frontend/environment/`. It uses caller-owned arenas and one-based symbol IDs,
+seeds the actual CL/PSL/FFI export catalogue, and decodes ASCII symbol tokens
+with case, escapes, qualification, keywords, and fresh `#:` identities. Run
+`make test-native-environment` for catalogue, SBCL reader-oracle, visibility,
+and bounds checks. This component is awaiting compilation-unit AST integration;
+it does not yet enable general source packages or macros.
