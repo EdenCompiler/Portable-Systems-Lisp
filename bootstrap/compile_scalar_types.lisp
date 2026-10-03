@@ -1,6 +1,7 @@
 ;; Layout declarations shared by compiler code and hosted driver storage.
 (include "binary_types.lisp")
 (include "frontend/parser_types.lisp")
+(include "frontend/package_forms_types.lisp")
 (include "frontend/atoms_types.lisp")
 (include "frontend/signatures_types.lisp")
 (include "frontend/data_types.lisp")
@@ -49,4 +50,5 @@
   (data_bytes (ptr u8))
   (data_byte_count usize)
   (data_byte_capacity usize)
-  (data_fixups (ptr native_fixup_arena)))
+  (data_fixups (ptr native_fixup_arena))
+  (package_state native_package_context))

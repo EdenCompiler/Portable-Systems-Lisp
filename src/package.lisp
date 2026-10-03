@@ -88,7 +88,7 @@
 
 (defpackage #:psl.frontend
   (:use #:cl #:psl.common #:psl.ir #:psl.target)
-  (:export #:read-source #:analyze-source))
+  (:export #:read-source #:analyze-source #:dispose-source-packages))
 
 (defpackage #:psl.ffi.toolchain
   (:use #:cl #:psl.common #:psl.target)

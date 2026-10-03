@@ -2,7 +2,7 @@
 
 (defun native_environment_name_capacity (capacity)
   (declare (type usize capacity) (returns usize))
-  (wrap+ capacity 12000))
+  (wrap+ (wrap* capacity 16) 12000))
 
 (defun native_environment_symbol_capacity (capacity)
   (declare (type usize capacity) (returns usize))
@@ -14,7 +14,8 @@
 
 (defun native_environment_counts_fit (capacity)
   (declare (type usize capacity) (returns c-int))
-  (if (< capacity (native_environment_name_capacity capacity)) 1 0))
+  (if (< capacity #x0fffffffffffffff)
+      (if (< (wrap* capacity 16) (native_environment_name_capacity capacity)) 1 0) 0))
 
 (defun native_allocate_environment (storage capacity)
   (declare (type (ptr native_storage) storage) (type usize capacity)
@@ -22,19 +23,19 @@
   (store (field-pointer storage 'symbol_names)
          (ptr-cast (ptr u8) (ffi:call calloc (native_environment_name_capacity capacity) (sizeof 'u8))))
   (store (field-pointer storage 'packages)
-         (ptr-cast (ptr native_ct_package) (ffi:call calloc 5 (sizeof 'native_ct_package))))
+         (ptr-cast (ptr native_ct_package) (ffi:call calloc 128 (sizeof 'native_ct_package))))
   (store (field-pointer storage 'symbols)
          (ptr-cast (ptr native_ct_symbol) (ffi:call calloc (native_environment_symbol_capacity capacity) (sizeof 'native_ct_symbol))))
   (store (field-pointer storage 'present)
          (ptr-cast (ptr native_ct_presence) (ffi:call calloc (native_environment_presence_capacity capacity) (sizeof 'native_ct_presence))))
   (store (field-pointer storage 'uses)
-         (ptr-cast (ptr native_ct_use) (ffi:call calloc 2 (sizeof 'native_ct_use))))
+         (ptr-cast (ptr native_ct_use) (ffi:call calloc 512 (sizeof 'native_ct_use))))
   (store (field-pointer storage 'aliases)
-         (ptr-cast (ptr native_ct_alias) (ffi:call calloc 2 (sizeof 'native_ct_alias))))
+         (ptr-cast (ptr native_ct_alias) (ffi:call calloc 128 (sizeof 'native_ct_alias))))
   (store (field-pointer storage 'identities)
          (ptr-cast (ptr native_source_identity) (ffi:call calloc capacity (sizeof 'native_source_identity))))
   (store (field-pointer storage 'buckets)
-         (ptr-cast (ptr usize) (ffi:call calloc 5120 (sizeof 'usize))))
+         (ptr-cast (ptr usize) (ffi:call calloc 131072 (sizeof 'usize))))
   (cond
     ((= (ptr-address (deref (field-pointer storage 'buckets))) 0) 0)
     ((= (ptr-address (deref (field-pointer storage 'symbol_names))) 0) 0)

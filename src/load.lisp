@@ -8,6 +8,7 @@
                   "target.lisp"
                   "frontend/layout.lisp"
                   "frontend/reader.lisp"
+                  "frontend/packages.lisp"
                   "frontend/identities.lisp"
                   "frontend/runtime.lisp"
                   "frontend/closures.lisp"

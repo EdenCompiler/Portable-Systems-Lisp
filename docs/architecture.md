@@ -15,6 +15,7 @@ src/
   frontend/
     layout.lisp         packed structure layout and field lookup
     reader.lisp         source input, declarations, machine types
+    packages.lisp       source package processing and owned-environment cleanup
     identities.lisp     per-unit lexical and ordinary-call symbol identity
     runtime.lisp        hosted operations and module requests
     closures.lisp       lexical capture and closure functions
@@ -48,6 +49,7 @@ linker/
   x86_64-linux-user.ld  static x86-64 Linux user-mode layout
 bootstrap/
   frontend/environment/  caller-owned build-host package/symbol tables and token decoding
+  frontend/package_form*.lisp  name decoding, option validation and ordered package actions
   native-core.lisp      source unit including the ported compiler components
   driver_effects.lisp  unit fixed-point inference and allocation certification
   driver_inline.lisp   verified pure SSA template collection for a source unit
@@ -460,5 +462,16 @@ implement language package transactions. `environment/operations.lisp` builds
 single-symbol/package transactions over those primitives: it validates use and
 export visibility before mutation, preserves symbol home identity, and removes
 both presence chains together. The native core exports these APIs; arenas are
-monotonic and stay caller-owned. Source package forms and macro evaluation still
-require integration.
+monotonic and stay caller-owned.
+
+`frontend/package_form_names.lisp`, `package_form_validation.lisp`, and
+`package_forms.lisp` own decoded designators, option/disjoint-name validation,
+and ordered package actions. The unit collector calls them before requesting
+and resolving the next form. A declaration-only scratch record is embedded in
+the compilation context; hosted storage reserves explicit bounded package,
+nickname and use arenas. This adds no target runtime or evaluator dependency.
+Stage 0 `frontend/packages.lisp` performs the same source transition through its
+SBCL build host, while `reader.lisp` processes each include/form in order. Owned
+packages are returned with the source unit and disposed through the library API,
+including failure paths. Native macro evaluation, managed compiler data and
+source-loader identity integration remain required.

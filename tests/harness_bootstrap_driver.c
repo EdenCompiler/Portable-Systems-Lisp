@@ -37,12 +37,13 @@ void *__wrap_calloc(size_t count, size_t size) {
     if (index == 14 || index == 17 || index == 19) expected *= 3;
     if (index == 20) expected = 1048576 + 16 * capacity;
     if (index == 21) expected = 1049600 + 80 * capacity;
-    if (index == 22) expected = capacity + 12000;
-    if (index == 23) expected = 5;
+    if (index == 22) expected = 16 * capacity + 12000;
+    if (index == 23) expected = 128;
     if (index == 24) expected = capacity + 1049;
     if (index == 25) expected = capacity + 1111;
-    if (index == 26 || index == 27) expected = 2;
-    if (index == 29) expected = 5120;
+    if (index == 26) expected = 512;
+    if (index == 27) expected = 128;
+    if (index == 29) expected = 131072;
     assert(count == expected && size == item_sizes[index]);
     if (allocation_count == fail_at) return NULL;
     allocations[index] = __real_calloc(count, size);

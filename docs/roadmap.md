@@ -818,6 +818,31 @@ needed for native macro expansion. Source package forms, list transactions,
 delete/rename operations, managed compiler data and the full M8 gate remain
 open.
 
+### M8 ordered source package forms
+
+Stage 0 and native collection now apply top-level `defpackage`/`in-package`
+before reading or resolving later forms. The implemented source options cover
+nicknames, use, shadow, shadowing-import-from, import-from, intern and export.
+Execution order handles shadows before use and exports after imports; disjoint
+name groups are checked before creation. String names preserve case, imported
+symbols keep their owners, and omitted use inherits no packages, matching
+SBCL. Included files can change the current package for following forms.
+Stage 0 owns and disposes every source-created package on success or failure;
+its reusable library exposes cleanup for direct reader clients. The native
+host reserves 128 package records (five seeded), with explicit nickname/use
+bounds and rejection on exhaustion.
+
+`tests/bootstrap_package_forms.sh [COMPILER] [TARGET]` checks independent C
+behavior and actual SBCL package identities/cleanup, malformed or conflicting
+source, O0/O1 behavior, repeat objects and the native package limit. The native
+subset gate retains the package fixture objects for stage comparisons. Focused
+checks pass on all four hosted targets, and smoke passes. The Linux native
+three-generation gate passes with identical module and package-fixture objects;
+the example audit remains 17/30 accepted with 13 explicit gaps.
+Redefinition, remaining DEFPACKAGE options and mutation forms, qualified/escaped
+loader identities, growable managed compiler data, native macro evaluation and
+the complete M8 Stage 1–3 gate remain open.
+
 ## M9 — Hosted ANSI Common Lisp completion · Pending
 
 **Dependencies:** M4 dynamic runtime and a self-host-capable compiler core.

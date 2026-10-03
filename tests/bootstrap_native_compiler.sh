@@ -1311,6 +1311,10 @@ PSL_NATIVE_COMPILER_HOST_TARGET=$host_target \
   sh "$project_root/tests/bootstrap_package_operations.sh" \
     "$work_dir/pslcc-native-slice$host_suffix" "$host_target"
 
+PSL_NATIVE_COMPILER_HOST_TARGET=$host_target \
+  sh "$project_root/tests/bootstrap_package_forms.sh" \
+    "$work_dir/pslcc-native-slice$host_suffix" "$host_target"
+
 if test -n "${PSL_NATIVE_OBJECT_SNAPSHOT_DIR:-}"; then
   mkdir -p "$PSL_NATIVE_OBJECT_SNAPSHOT_DIR"
   for object in "$work_dir"/*.o; do

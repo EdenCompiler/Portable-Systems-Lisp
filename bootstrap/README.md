@@ -575,11 +575,22 @@ collection. `tests/bootstrap_reader_identity.sh` checks qualified/escaped
 operators, types, declarations, ordinary calls and lexical references against
 Stage 0 linked C behavior at O0/O1, plus native rejection of distinct symbols.
 Indexed lookup is checked with all names in one bucket and with 1,024 buckets.
-General source packages and macros remain pending.
+Broader source package semantics and native macros remain pending.
 
 The same environment interface now provides single-symbol import/export,
 shadowing and unintern operations, plus single-package use/unuse. Run
 `tests/bootstrap_package_operations.sh [COMPILER] [TARGET]` for independent SBCL
 observations and C visibility/ownership checks with fallback, collision-only,
 and normal indexes. Removed records retain their arena consumption. Source
-package forms, list transactions and macro evaluation remain pending.
+package mutation forms, list transactions and macro evaluation remain pending.
+
+Native semantic collection now applies top-level `defpackage` and `in-package`
+before interpreting following forms. Supported options are nicknames, use,
+shadow, shadowing-import-from, import-from, intern and export. Symbol/string
+names preserve decoded spelling, and omitted use inherits nothing, matching
+SBCL. Stage 0 also processes package forms/includes in reader order and disposes
+all owned packages. `tests/bootstrap_package_forms.sh [COMPILER] [TARGET]`
+checks linked C behavior, SBCL symbol observations, source rejection, repeated
+objects and the native 128-record package bound. Five records belong to the
+standard seed. Redefinition, remaining DEFPACKAGE options, growable arenas,
+source-loader identities and native macro execution remain open M8 work.

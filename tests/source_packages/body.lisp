@@ -1,0 +1,10 @@
+(cl:defpackage "PSL.SOURCE.LEAF"
+  (:export #:package_include)
+  (:use)
+  (:import-from #:psl-source-b #:package_helper)
+  (:import-from #:psl #:u64 #:wrap+)
+  (:intern "PRIVATE"))
+(cl:in-package #:psl.source.leaf)
+(cl:defun package_include (value)
+  (cl:declare (cl:type u64 value) (psl:returns u64) (psl:c-export :c))
+  (wrap+ (package_helper value) 3))

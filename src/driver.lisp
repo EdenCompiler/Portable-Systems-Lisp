@@ -2,19 +2,21 @@
 
 (defvar *last-hir* nil)
 
-(defstruct source-unit source forms package locations)
+(defstruct source-unit source forms package packages locations)
 (defstruct compilation source target profile signatures c-sources data
            abi-layouts runtime-modules
            hir-functions ssa-functions lir-functions lowered-p linearized-p)
 
 (defun read-unit (source)
-  (multiple-value-bind (forms package locations) (read-source source)
+  (multiple-value-bind (forms package locations packages) (read-source source)
     (make-source-unit :source source :forms forms
-                      :package package :locations locations)))
+                      :package package :packages packages :locations locations)))
 
 (defun dispose-unit (unit)
   (when (source-unit-package unit)
-    (delete-package (source-unit-package unit))
+    (dispose-source-packages (or (source-unit-packages unit)
+                                (list (source-unit-package unit))))
+    (setf (source-unit-packages unit) nil)
     (setf (source-unit-package unit) nil))
   unit)
 

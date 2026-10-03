@@ -178,6 +178,14 @@ struct native_lir_arena {
     uint32_t error;
 };
 
+struct native_package_context {
+    struct psl_parser *parser;
+    const uint8_t *source;
+    struct native_ct_environment *environment;
+    const uint8_t *name;
+    uintptr_t offset, length, package;
+    uint32_t error, seen;
+};
 struct native_compile_context {
     struct psl_parser *parser;
     const uint8_t *source;
@@ -212,6 +220,7 @@ struct native_compile_context {
     uint8_t *data_bytes;
     uintptr_t data_byte_count, data_byte_capacity;
     struct native_fixup_arena *data_fixups;
+    struct native_package_context package_state;
 };
 
 struct native_type_shape {
@@ -456,4 +465,8 @@ extern int hir_verify_root(struct native_hir_arena *arena, uintptr_t root,
                            uintptr_t count, uintptr_t arity);
 extern int hir_verify_scalar_tree(struct native_compile_context *context,
                                   uintptr_t root, uintptr_t depth);
+
+extern uint32_t native_source_package_kind(struct native_compile_context *, uintptr_t);
+extern int native_apply_package_form(struct native_compile_context *, uintptr_t, struct native_package_context *);
+
 #endif

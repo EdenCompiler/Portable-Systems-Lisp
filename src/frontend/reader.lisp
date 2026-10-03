@@ -1,6 +1,7 @@
 (in-package #:psl.frontend)
 
 (defvar *source-locations* nil)
+(defvar *source-packages* nil)
 
 (defun named-p (symbol name)
   (and (symbolp symbol) (string= (symbol-name symbol) (string-upcase name))))
@@ -205,7 +206,7 @@
      nil table)
     table))
 
-(defun read-source-forms (path starts locations)
+(defun read-source-forms (path starts locations &optional (process #'list))
   (let ((*readtable* (tracking-readtable path starts locations))
         (forms nil))
     (with-open-file (stream path :direction :input :external-format :utf-8)
@@ -220,8 +221,8 @@
                  (unless (gethash form locations)
                    (setf (gethash form locations)
                          (source-location-at path starts offset))))
-               (push form forms)))
-    (nreverse forms)))
+               (setf forms (nconc forms (funcall process form)))))
+    forms))
 
 (defun included-source-path (form parent)
   (unless (and (= (length form) 2) (stringp (second form)))
@@ -241,21 +242,24 @@
     (when (gethash key included)
       (return-from read-source-file nil))
     (setf (gethash key included) t)
-    (loop for form in (read-source-forms
-                       canonical (source-line-starts canonical) locations)
-          append
-          (if (psl-form-p form "include")
-              (let ((*source-location* (gethash form locations)))
-                (read-source-file
-                 (included-source-path form canonical)
-                 locations included (cons key active)))
-              (list form)))))
+    (read-source-forms
+     canonical (source-line-starts canonical) locations
+     (lambda (form)
+       (let ((*source-location* (gethash form locations)))
+         (cond
+           ((psl-form-p form "include")
+            (read-source-file (included-source-path form canonical)
+                              locations included (cons key active)))
+           ((form-p form "defpackage") (source-define-package form) nil)
+           ((form-p form "in-package") (source-select-package form) nil)
+           (t (list form))))))))
 
 (defun read-source (path)
   "Read trusted Stage 0 source and return forms, package, and locations."
   (let* ((unit (make-package (symbol-name (gensym "PSL.SOURCE."))
                              :use '(:cl)))
          (*package* unit)
+         (*source-packages* (list unit))
          (locations (make-hash-table :test #'eq)))
     (do-external-symbols (symbol (find-package :psl))
       (unless (find-symbol (symbol-name symbol) :cl)
@@ -263,7 +267,7 @@
     (handler-case
         (values (read-source-file path locations
                                   (make-hash-table :test #'equal) nil)
-                unit locations)
+                unit locations *source-packages*)
       (error (condition)
-        (delete-package unit)
+        (dispose-source-packages *source-packages*)
         (error condition)))))

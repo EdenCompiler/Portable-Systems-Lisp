@@ -2,6 +2,7 @@
 
 (include "unit_types.lisp")
 (include "frontend/environment/resolve.lisp")
+(include "frontend/package_forms.lisp")
 (include "frontend/layout_packed.lisp")
 
 (defun native_unit_fail (result phase)
@@ -17,6 +18,9 @@
         (form (deref (field-pointer result 'form))))
     (let ((layouts (deref (field-pointer signatures 'layouts))))
       (cond
+        ((< 0 (native_source_package_kind context form))
+         (if (= (native_apply_package_form context form (field-pointer context 'package_state)) 1) 1
+             (native_unit_fail result 4)))
         ((= (native_packed_layout_form_p layouts form) 1)
          (if (= (native_register_packed_layout layouts form) 1) 1
              (native_unit_fail result 1)))

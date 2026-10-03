@@ -40,7 +40,20 @@ is resolved relative to its declaring file.
 Top-level `defmacro` forms execute on the build host and become available to
 later forms in the same source file. Source input is trusted build code; reader
 macros and macro bodies may execute host Lisp. Target code is never executed
-while cross compiling. The temporary package is discarded after compilation.
+while cross compiling. The temporary package and source-created packages are discarded after compilation.
+Top-level `defpackage` and `in-package` are processed before reading subsequent
+forms, including inside includes. Package and symbol names in these forms are
+literal symbol/string designators; strings preserve case. The implemented
+`defpackage` options are `:nicknames`, `:use`, `:shadow`,
+`:shadowing-import-from`, `:import-from`, `:intern`, and `:export`. With `:use`
+omitted the package inherits no packages, matching the SBCL seed. Explicit
+`(:use :cl)` supplies Common Lisp names; PSL extensions can be imported with
+`(:import-from :psl ...)` or qualified directly. Package redefinition,
+`:documentation`, and `:size` remain unsupported by this source interface.
+Two Lisp definitions must still have different C linker names.
+The `read-source` library additionally returns the owned package list as its
+fourth value; clients dispose it with `dispose-source-packages`. `dispose-unit`
+performs this cleanup for the compiler-library interface.
 
 ## Source forms
 
@@ -288,8 +301,9 @@ including hyphenated exports. `cl:` qualifies implemented Common Lisp forms
 and `psl:` qualifies implemented extensions; unrelated package prefixes do
 not alias those names. Explicit C function and data strings remain exact.
 Uppercase escaped references resolve through reader identities. Escaped binder
-and linker declarations, and general source package forms, still require a
-native port.
+and linker declarations still require a native port. Ordered source package
+forms support the options documented above; broader package operations remain
+outside the source interface.
 Native `f32`/`c-float` and `f64`/`c-double` values may appear in literals,
 locals, pointer/field loads and stores, conditional joins, and imported/exported
 data. Decimal syntax uses the ordinary single-float default and `e`, `f`, or
@@ -432,7 +446,7 @@ Native C-source merging is currently verified from the x86-64 Linux compiler
 host for all four hosted output targets. Target-hosted generated compilers are
 not yet required to launch a C toolchain during bootstrap comparison.
 
-It does not yet support general source packages or host macro execution,
+It does not yet support complete source package semantics or host macro execution,
 or structure values. Its
 implemented subset now passes verified HIR, typed CFG/SSA, and flat LIR; the
 backend consumes virtual registers and explicit labels. Native `-O1` (the
@@ -577,6 +591,16 @@ KEYWORD reader tokens intern like `:NAME`, including internally imported names.
 These are build-host component operations, without target runtime or evaluator
 requirements; list transactions and package deletion/renaming are not provided.
 
-General source package forms, macro environments, managed
-compile-time values, Unicode reader case conversion, and qualified/escaped
-source-loader directives remain pending.
+Native collection applies source `defpackage`/`in-package` forms before
+resolving the following parsed form. Shadows precede use relationships,
+imports/interning precede exports, and disjoint name collections are checked
+before package creation. Imports preserve the original symbol identity and
+string designators retain their case. The development hosted driver reserves
+128 package records (five seeded), 128 nickname records (two seeded), and 512
+use records (two seeded); exhaustion rejects the unit without writing an object.
+These records do not allocate in the native core. A failed source package form
+ends collection; whole-DEFPACKAGE rollback is not a public guarantee.
+
+Package redefinition, source package mutation functions, macro environments,
+managed compile-time values, growable compiler tables, Unicode reader case
+conversion, and package-aware/escaped source-loader directives remain pending.
