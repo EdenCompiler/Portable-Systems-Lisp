@@ -843,6 +843,18 @@ Redefinition, remaining DEFPACKAGE options and mutation forms, qualified/escaped
 loader identities, growable managed compiler data, native macro evaluation and
 the complete M8 Stage 1–3 gate remain open.
 
+### M8 reader boundary rejection
+
+Package source actions now reject an absent environment, an invalid AST root
+and latched environment errors before interpreting the form. Stage 0 uses a
+private end marker, so `:EOF` cannot silently discard later source. The focused
+`tests/bootstrap_package_form_edges.sh [COMPILER] [TARGET]` gate links native
+and Stage 0 component objects with independent C callers at O0/O1, checks
+keyword-source rejection on both compilers and passes on all four hosted
+targets. The native rebuild and smoke pass. This strengthens the source reader;
+native macro execution, managed compiler data and the complete M8 gate remain
+required.
+
 ## M9 — Hosted ANSI Common Lisp completion · Pending
 
 **Dependencies:** M4 dynamic runtime and a self-host-capable compiler core.

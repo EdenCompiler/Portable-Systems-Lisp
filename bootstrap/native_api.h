@@ -466,6 +466,9 @@ extern int hir_verify_root(struct native_hir_arena *arena, uintptr_t root,
 extern int hir_verify_scalar_tree(struct native_compile_context *context,
                                   uintptr_t root, uintptr_t depth);
 
+/* Package source actions require a resolved parser environment. Missing
+   environments, invalid root references and latched environment failures
+   return zero without interpreting or publishing the form. */
 extern uint32_t native_source_package_kind(struct native_compile_context *, uintptr_t);
 extern int native_apply_package_form(struct native_compile_context *, uintptr_t, struct native_package_context *);
 

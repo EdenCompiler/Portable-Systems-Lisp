@@ -96,6 +96,7 @@ test-native-environment: native
 	sh tests/bootstrap_reader_identity.sh "$(NATIVE_COMPILER)"
 	sh tests/bootstrap_package_operations.sh "$(NATIVE_COMPILER)"
 	sh tests/bootstrap_package_forms.sh "$(NATIVE_COMPILER)"
+	sh tests/bootstrap_package_form_edges.sh "$(NATIVE_COMPILER)"
 
 test-self-core:
 	sh tests/bootstrap_self_core.sh

@@ -575,7 +575,10 @@ count up to 1,024 per package, or the original linked search with count zero.
 Package creation checks storage bounds and clears its index segment. Collisions
 do not change symbol identity or visibility. The driver owns and releases all
 reader/environment arenas explicitly. Low-level parser clients may leave the
-optional environment pointer null to retain the original spelling API.
+optional environment pointer null to retain the original spelling API. Package
+source actions reject a missing environment, an invalid root reference or a
+latched environment failure before changing state. The Stage 0 stream reader
+uses a private end marker; the literal keyword `:EOF` remains a source form.
 
 The core also exports single-symbol import, export/unexport, shadow,
 shadowing-import and unintern operations, plus single-package use/unuse.
