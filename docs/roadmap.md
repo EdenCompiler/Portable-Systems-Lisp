@@ -796,6 +796,28 @@ still generates exactly the previously verified native-core object. C linker
 name collisions, Stage 0 structure/field spelling representation, native package
 forms/macros, managed native analysis and the complete M8 gate remain open.
 
+### M8 native build-host package transactions
+
+The native core exports single-symbol import, export/unexport, shadow,
+shadowing-import and unintern, plus single-package use/unuse. Use and export
+validate visibility conflicts before publication; unintern rejects inherited
+ambiguity before removal. Home adoption occurs only after successful import,
+while shadowing-import preserves uninterned identity. Replacing/removing a home
+symbol detaches that relationship and preserves foreign owners. Removed
+presence records leave both index and enumeration chains; arena consumption
+remains monotonic. Qualified KEYWORD tokens now intern even internal imports,
+matching the build-host seed's actual reader behavior.
+
+`tests/bootstrap_package_operations.sh [COMPILER] [TARGET]` checks actual SBCL
+package operations alongside independent C observations at O0/O1, repeated
+native objects, collision-only/normal/fallback lookup, capacity and reference
+failures, imported keyword identity and latched mutation rejection. Focused
+checks pass on all four hosted targets; smoke and the Linux native subset
+three-generation gate cover the integrated core. This advances package state
+needed for native macro expansion. Source package forms, list transactions,
+delete/rename operations, managed compiler data and the full M8 gate remain
+open.
+
 ## M9 — Hosted ANSI Common Lisp completion · Pending
 
 **Dependencies:** M4 dynamic runtime and a self-host-capable compiler core.

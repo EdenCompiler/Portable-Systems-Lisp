@@ -2,7 +2,7 @@
 (include "arena.lisp")
 (include "frontend/reader.lisp")
 (include "frontend/parser.lisp")
-(include "frontend/environment/read_symbols.lisp")
+(include "frontend/environment/operations.lisp")
 (include "frontend/source.lisp")
 (include "frontend/layout.lisp")
 (include "frontend/signatures.lisp")

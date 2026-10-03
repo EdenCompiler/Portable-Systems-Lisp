@@ -576,3 +576,10 @@ operators, types, declarations, ordinary calls and lexical references against
 Stage 0 linked C behavior at O0/O1, plus native rejection of distinct symbols.
 Indexed lookup is checked with all names in one bucket and with 1,024 buckets.
 General source packages and macros remain pending.
+
+The same environment interface now provides single-symbol import/export,
+shadowing and unintern operations, plus single-package use/unuse. Run
+`tests/bootstrap_package_operations.sh [COMPILER] [TARGET]` for independent SBCL
+observations and C visibility/ownership checks with fallback, collision-only,
+and normal indexes. Removed records retain their arena consumption. Source
+package forms, list transactions and macro evaluation remain pending.

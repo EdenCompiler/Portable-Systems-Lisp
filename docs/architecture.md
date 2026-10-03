@@ -456,4 +456,9 @@ uses declared allocator imports. The optional parser environment pointer keeps
 standalone parser clients independent of hosted storage. C linker-name matching
 remains separate from language symbol identity. Source-loader directives retain
 their earlier spelling interface. Low-level visibility construction does not
-implement language package transactions.
+implement language package transactions. `environment/operations.lisp` builds
+single-symbol/package transactions over those primitives: it validates use and
+export visibility before mutation, preserves symbol home identity, and removes
+both presence chains together. The native core exports these APIs; arenas are
+monotonic and stay caller-owned. Source package forms and macro evaluation still
+require integration.

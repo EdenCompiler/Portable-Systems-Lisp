@@ -18,7 +18,8 @@ enum native_ct_error {
     NATIVE_CT_REFERENCE = 4,
     NATIVE_CT_PACKAGE = 6,
     NATIVE_CT_TOKEN = 8,
-    NATIVE_CT_EXTERNAL = 9
+    NATIVE_CT_EXTERNAL = 9,
+    NATIVE_CT_OPERATION = 10
 };
 struct native_ct_package { uintptr_t name,length,present,uses; };
 struct native_ct_symbol { uintptr_t package,name,length; };
@@ -48,6 +49,17 @@ extern int native_ct_link_use(struct native_ct_environment *,uintptr_t,uintptr_t
 extern uintptr_t native_ct_add_alias(struct native_ct_environment *,uintptr_t,const uint8_t *,uintptr_t);
 extern int native_ct_seed_standard(struct native_ct_environment *);
 extern uintptr_t native_ct_read_symbol(struct native_ct_environment *,const uint8_t *,uintptr_t);
+
+/* Single-symbol/package transactions validate visibility before committing.
+   Removed records remain allocated; counts are monotonic arena consumption. */
+extern uintptr_t native_ct_import_symbol(struct native_ct_environment *,uintptr_t,uintptr_t);
+extern uintptr_t native_ct_export_symbol(struct native_ct_environment *,uintptr_t,uintptr_t);
+extern uintptr_t native_ct_unexport_symbol(struct native_ct_environment *,uintptr_t,uintptr_t);
+extern int native_ct_use_package(struct native_ct_environment *,uintptr_t,uintptr_t);
+extern int native_ct_unuse_package(struct native_ct_environment *,uintptr_t,uintptr_t);
+extern uintptr_t native_ct_shadow_name(struct native_ct_environment *,uintptr_t,const uint8_t *,uintptr_t);
+extern uintptr_t native_ct_shadowing_import(struct native_ct_environment *,uintptr_t,uintptr_t);
+extern int native_ct_unintern_symbol(struct native_ct_environment *,uintptr_t,uintptr_t);
 
 struct native_source_identity { uintptr_t symbol, origin; };
 struct native_reader_environment {

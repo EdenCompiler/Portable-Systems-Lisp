@@ -563,6 +563,20 @@ do not change symbol identity or visibility. The driver owns and releases all
 reader/environment arenas explicitly. Low-level parser clients may leave the
 optional environment pointer null to retain the original spelling API.
 
-General source packages, package transactions, macro environments, managed
+The core also exports single-symbol import, export/unexport, shadow,
+shadowing-import and unintern operations, plus single-package use/unuse.
+Visibility conflicts are checked before committing graph changes. Importing an
+uninterned symbol adopts a home only after a successful presence insertion;
+shadowing-import preserves an uninterned symbol's lack of home. Replacing or
+removing a package's own symbol detaches its home without changing foreign
+ownership. Unintern refuses to expose conflicting inherited names. Removal
+updates both enumeration and index chains. Records remain consumed in the
+caller arena after removal; capacity failures latch errors and leave prior
+bindings available. KEYWORD rejects use-package as a destination. Qualified
+KEYWORD reader tokens intern like `:NAME`, including internally imported names.
+These are build-host component operations, without target runtime or evaluator
+requirements; list transactions and package deletion/renaming are not provided.
+
+General source package forms, macro environments, managed
 compile-time values, Unicode reader case conversion, and qualified/escaped
 source-loader directives remain pending.
