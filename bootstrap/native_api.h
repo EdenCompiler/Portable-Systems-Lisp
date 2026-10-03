@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "frontend/environment.h"
+#include "frontend/macros/api.h"
 
 /* Temporary C host boundary for the compiled PSL bootstrap modules. */
 struct byte_buffer {
@@ -221,6 +222,9 @@ struct native_compile_context {
     uintptr_t data_byte_count, data_byte_capacity;
     struct native_fixup_arena *data_fixups;
     struct native_package_context package_state;
+    struct native_tree_context macro_tree;
+    struct native_macro_registry macro_registry;
+    struct native_macro_call macro_call;
 };
 
 struct native_type_shape {
@@ -332,6 +336,8 @@ struct native_storage {
     struct native_ct_alias *aliases;
     struct native_source_identity *identities;
     uintptr_t *buckets;
+    struct native_macro_definition *macro_definitions;
+    struct native_macro_binding *macro_bindings;
 };
 
 struct native_driver {

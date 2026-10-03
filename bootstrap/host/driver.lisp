@@ -16,4 +16,5 @@
                         (if (= (native_allocate_ir storage capacity) 0) 0
                             (if (= (native_allocate_output storage capacity) 0) 0
                                 (if (= (native_allocate_environment storage capacity) 0) 0
-                                    (native_initialize_driver driver capacity)))))))))))
+                                    (if (= (native_allocate_macros storage) 0) 0
+                                        (native_initialize_driver driver capacity))))))))))))

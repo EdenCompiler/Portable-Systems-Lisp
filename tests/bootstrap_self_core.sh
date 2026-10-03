@@ -50,7 +50,7 @@ compare_rejections() {
     compare_diagnostic "$compiler" "$project_root/tests/include/native/$fixture.lisp" \
       "include-$fixture" "$generation"
   done
-  compare_diagnostic "$compiler" "$project_root/examples/basic/add.lisp" \
+  compare_diagnostic "$compiler" "$project_root/examples/hosted/list.lisp" \
     unsupported "$generation"
 }
 

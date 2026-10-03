@@ -50,6 +50,7 @@ linker/
 bootstrap/
   frontend/environment/  caller-owned build-host package/symbol tables and token decoding
   frontend/package_form*.lisp  name decoding, option validation and ordered package actions
+  frontend/macros/       build-host macro registry, argument binding, AST rewrites and verification
   native-core.lisp      source unit including the ported compiler components
   driver_effects.lisp  unit fixed-point inference and allocation certification
   driver_inline.lisp   verified pure SSA template collection for a source unit
@@ -63,6 +64,7 @@ bootstrap/
   native_api.h         C host boundary for the compiled PSL modules
   *_types.lisp         shared record layouts, without compiler algorithms
   host/
+    macro_storage.lisp  explicit hosted ownership of macro definition/binding arenas
     compiler.lisp      CLI argument validation and compilation flow
     compiler_diagnostics.lisp  failure phase and source-location selection
     compiler_types.lisp, compiler_imports.lisp  state and typed module/host ABI
@@ -473,5 +475,15 @@ nickname and use arenas. This adds no target runtime or evaluator dependency.
 Stage 0 `frontend/packages.lisp` performs the same source transition through its
 SBCL build host, while `reader.lisp` processes each include/form in order. Owned
 packages are returned with the source unit and disposed through the library API,
-including failure paths. Native macro evaluation, managed compiler data and
+including failure paths. General native macro evaluation, managed compiler data and
 source-loader identity integration remain required.
+
+Native source collection registers macro definitions in read order and rewrites
+subsequent function bodies before signature/body analysis. The macro modules
+operate on target-independent syntax and symbol identities, with no target
+execution or host Lisp subprocess. Tree copying and verification own syntax
+invariants; registry/bindings own macro identity and arity; evaluation owns
+quotation templates; expression/function modules select executable positions.
+Generated nodes retain original source spans and separate origin references.
+The hosted driver allocates and releases the registry/binding arenas; the
+compiler core receives this storage through its explicit context.

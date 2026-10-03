@@ -3,6 +3,7 @@
 (include "unit_types.lisp")
 (include "frontend/environment/resolve.lisp")
 (include "frontend/package_forms.lisp")
+(include "frontend/macros/functions.lisp")
 (include "frontend/layout_packed.lisp")
 
 (defun native_unit_fail (result phase)
@@ -10,6 +11,24 @@
            (returns c-int))
   (store (field-pointer result 'phase) phase)
   0)
+
+(defun native_collect_function (context result form)
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_unit_result) result) (type usize form) (returns c-int))
+  (let ((signatures (deref (field-pointer context 'signatures))))
+    (let ((expanded (if (= (native_signature_form_p signatures form) 1)
+                        (native_expand_function_macros context form) form)))
+      (if (= expanded 0)
+          (progn
+            (let ((origin (deref (field-pointer (field-pointer context 'macro_call) 'origin))))
+              (if (< 0 origin) (store (field-pointer result 'form) origin) (wrap-cast usize 0)))
+            (native_unit_fail result 4))
+          (progn
+            (store (field-pointer result 'form) expanded)
+            (if (= (native_parse_signature signatures expanded) 0)
+                (native_unit_fail result 3)
+                (if (= (native_latest_signature_data_name_free_p context) 1) 1
+                    (native_unit_fail result 3))))))))
 
 (defun native_collect_form (context result)
   (declare (type (ptr native_compile_context) context)
@@ -20,6 +39,9 @@
       (cond
         ((< 0 (native_source_package_kind context form))
          (if (= (native_apply_package_form context form (field-pointer context 'package_state)) 1) 1
+             (native_unit_fail result 4)))
+        ((= (native_macro_definition_form_p context form) 1)
+         (if (< 0 (native_macro_register (field-pointer context 'macro_registry) form)) 1
              (native_unit_fail result 4)))
         ((= (native_packed_layout_form_p layouts form) 1)
          (if (= (native_register_packed_layout layouts form) 1) 1
@@ -38,11 +60,7 @@
         ((= (native_export_data_form_p context form) 1)
          (if (= (native_parse_export_data context form) 1) 1
              (native_unit_fail result 2)))
-        (t
-         (if (= (native_parse_signature signatures form) 0)
-             (native_unit_fail result 3)
-             (if (= (native_latest_signature_data_name_free_p context) 1) 1
-                 (native_unit_fail result 3))))))))
+        (t (native_collect_function context result form))))))
 
 (defun native_resolve_unit_form (context result)
   (declare (type (ptr native_compile_context) context)
@@ -185,6 +203,7 @@
   (if (= (native_target_valid_p (deref (field-pointer context 'target))) 0)
       (native_unit_fail result 10)
       (progn
+      (native_macro_attach_unit context)
       (store (field-pointer (source_layouts context) 'target)
              (deref (field-pointer context 'target)))
       (if (= (native_collect_unit context result) 0) 0

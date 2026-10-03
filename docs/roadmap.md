@@ -765,7 +765,7 @@ foreign-package variables that merely resemble a local name. An optional
 presence index preserves the package enumeration chain and accelerates compiler
 self-compilation. All-collision, normal-index and fallback searches run the
 same catalogue, reader-oracle and visibility checks. Invalid index capacities
-fail before publishing a package; driver fault injection covers all 30 explicit
+fail before publishing a package; driver fault injection covers all 32 explicit
 allocations and release/reprepare. A direct metadata harness checks numeric
 atoms, original source spans, and failed-token retry without reinterning earlier
 fresh symbols.
@@ -854,6 +854,30 @@ keyword-source rejection on both compilers and passes on all four hosted
 targets. The native rebuild and smoke pass. This strengthens the source reader;
 native macro execution, managed compiler data and the complete M8 gate remain
 required.
+
+### M8 native build-host fixed-argument macros
+
+Native collection now registers source macros by resolved symbol identity in
+read order and rewrites later typed function bodies before analysis. The first
+macro evaluator handles fixed parameters, argument-returning bodies, constants,
+quotation and backquoted templates with ordinary unquote. Nested/repeated
+expansion, imported macro names and redefinition work independently of output
+target. No SBCL subprocess or target program executes during expansion.
+A receiving AST verifier checks links, source spans, origins and symbol IDs;
+failed expansions restore syntax/identity arena counts. Binding names, typed
+positions and quoted syntax are preserved as data.
+
+`tests/bootstrap_macros.sh [COMPILER] [TARGET]` compares native and Stage 0
+linked behavior at O0/O1, repeats native objects, checks malformed/invalid macro
+source and public AST/API capacity/identity rejection. Its independent C caller
+checks duplicated target side effects and source-order redefinition. Generation
+gates retain macro fixture objects. Hosted storage fault injection covers the
+two new explicit allocations and idempotent cleanup. Focused checks pass on
+all four hosted targets, and smoke passes. The Linux native subset generation
+comparison is running; it is not the complete M8 gate. The example manifest now
+requires both existing fixed-argument macro examples. General macro lambda
+lists/evaluation, managed compiler data, the complete compiler manifest and
+complete M8 Stage 1–3 gates remain open.
 
 ## M9 — Hosted ANSI Common Lisp completion · Pending
 

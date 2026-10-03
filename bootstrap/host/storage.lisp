@@ -14,6 +14,7 @@
 
 (include "output_capacity.lisp")
 (include "environment_storage.lisp")
+(include "macro_storage.lisp")
 
 (defun native_allocate_frontend (storage capacity)
   (declare (type (ptr native_storage) storage) (type usize capacity)
@@ -167,7 +168,8 @@
     (native_release_frontend storage)
     (native_release_ir storage)
     (native_release_output storage)
-    (native_release_environment storage))
+    (native_release_environment storage)
+    (native_release_macros storage))
   (ffi:call free (ptr-cast (ptr void) (deref (field-pointer driver 'source))))
   (store (field-pointer driver 'source) (ptr-from-address (ptr u8) 0))
   (store (field-pointer driver 'length) 0)

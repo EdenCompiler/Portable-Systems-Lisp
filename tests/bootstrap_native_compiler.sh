@@ -955,7 +955,7 @@ cc -Wall -Wextra -Werror \
 "$work_dir/forward-call"
 
 if run_host "$work_dir/pslcc-native-slice$host_suffix" \
-    "$project_root/examples/basic/add.lisp" "$work_dir/unsupported.o" \
+    "$project_root/examples/hosted/list.lisp" "$work_dir/unsupported.o" \
     >"$work_dir/stdout" 2>"$work_dir/stderr"; then
   echo 'native slice accepted unsupported source' >&2
   exit 1
@@ -1317,6 +1317,10 @@ PSL_NATIVE_COMPILER_HOST_TARGET=$host_target \
 
 PSL_NATIVE_COMPILER_HOST_TARGET=$host_target \
   sh "$project_root/tests/bootstrap_package_form_edges.sh" \
+    "$work_dir/pslcc-native-slice$host_suffix" "$host_target"
+
+PSL_NATIVE_COMPILER_HOST_TARGET=$host_target \
+  sh "$project_root/tests/bootstrap_macros.sh" \
     "$work_dir/pslcc-native-slice$host_suffix" "$host_target"
 
 if test -n "${PSL_NATIVE_OBJECT_SNAPSHOT_DIR:-}"; then

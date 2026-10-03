@@ -9,7 +9,7 @@ examples/abi/riscv64_edges.lisp	gap	floating and aggregate ABI values	harness
 examples/abi/stack.lisp	accepted	-	harness
 examples/abi/void.lisp	accepted	-	harness
 examples/abi/windows_odd_aggregate.lisp	gap	aggregate ABI values	harness
-examples/basic/add.lisp	gap	build-host macros	harness
+examples/basic/add.lisp	accepted	fixed-argument build-host macros	harness
 examples/basic/program.lisp	accepted	-	main
 examples/basic/standalone.lisp	accepted	-	harness
 examples/ffi/data_import.lisp	accepted	-	harness
@@ -27,7 +27,7 @@ examples/hosted/string_package.lisp	gap	managed strings, symbols and packages	ma
 examples/memory/memory.lisp	accepted	-	harness
 examples/native/arithmetic.lisp	accepted	-	main
 examples/native/layout.lisp	accepted	-	main
-examples/native/macros.lisp	gap	build-host macros	main
+examples/native/macros.lisp	accepted	fixed-argument build-host macros	main
 examples/native/no_allocation.lisp	accepted	-	main
 examples/native/recursion.lisp	accepted	-	main
 examples/optimization/optimizer.lisp	accepted	-	harness

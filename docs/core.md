@@ -604,6 +604,33 @@ use records (two seeded); exhaustion rejects the unit without writing an object.
 These records do not allocate in the native core. A failed source package form
 ends collection; whole-DEFPACKAGE rollback is not a public guarantee.
 
-Package redefinition, source package mutation functions, macro environments,
+Package redefinition, source package mutation functions, general macro environments,
 managed compile-time values, growable compiler tables, Unicode reader case
 conversion, and package-aware/escaped source-loader directives remain pending.
+
+The native build-host macro slice accepts top-level `defmacro` with a proper
+list of fixed symbol parameters and one body form. That body can return an
+argument form, a constant, quoted syntax, or a backquoted template with ordinary
+unquote. It expands repeated and nested source macro calls in subsequent typed
+function bodies, including imported macro identities. Redefinitions affect
+following functions. Arguments are unevaluated syntax; duplicating an argument
+in a template duplicates its target evaluation, including side effects.
+Expansion keeps parameter/type/declaration/quoted positions separate from
+executable expression positions. Macro execution stays on the compiler host
+when generating objects for another target and invokes no SBCL subprocess.
+
+`native_tree_verify`, `native_tree_copy`, the registry and macroexpand APIs
+use resolved input identities and caller-owned arenas. The result passed to
+repeated expansion must be distinct from the call record's one-step scratch.
+The receiving AST
+verifier checks links, spans, IDs, prefix shape and bounded traversal. Copies
+preserve symbol identities and original input nodes. Generated template nodes
+point to the source invocation; substituted arguments retain caller origins.
+One-step and repeated expansion roll arena counts back on failure and latch
+errors. The hosted development bounds are 256 macro definitions, 128 argument
+bindings, 128 syntax depth and 2,048 expansion steps per function, in addition
+to the source-derived syntax/identity arena capacity. Exhaustion rejects the
+unit without an object. These compile-time bounds imply no target allocation
+guarantee. General macro lambda lists, arbitrary build-host evaluation,
+`eval-when`, macrolet/symbol-macrolet and growable managed compiler data remain
+required M8 work.
