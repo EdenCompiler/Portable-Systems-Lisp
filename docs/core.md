@@ -95,6 +95,16 @@ field designators. `let` initializers see the outer lexical environment;
 `if` treats only `nil` as false, so integer zero is true. Unsupported forms
 produce a nonzero compiler exit and a diagnostic.
 
+Stage 0 recognizes Common Lisp forms by their actual CL symbols and PSL/FFI
+forms by exact names in their owning packages. Uppercase escaped spellings
+refer to the same symbol as ordinary unescaped spelling; escaped lowercase
+names and unrelated package symbols remain distinct. Lexical parameters,
+`let`, closure parameters/captures, and multiple-value bindings preserve that
+identity. Ordinary calls resolve the declared function symbol separately from
+its C linker spelling. Distinct declarations that collide at the C linker name
+are still rejected; general private-name mangling remains pending. Structure
+and field lookup in Stage 0 retain their current spelling representation.
+
 ## Machine values and layout
 
 Implemented integer types are `psl:u8`, `psl:u16`, `psl:u32`, `psl:u64`,
@@ -277,7 +287,9 @@ structure, and field names. Defined linker names use lowercase spelling,
 including hyphenated exports. `cl:` qualifies implemented Common Lisp forms
 and `psl:` qualifies implemented extensions; unrelated package prefixes do
 not alias those names. Explicit C function and data strings remain exact.
-Escaped symbols and general user packages still require a native port.
+Uppercase escaped references resolve through reader identities. Escaped binder
+and linker declarations, and general source package forms, still require a
+native port.
 Native `f32`/`c-float` and `f64`/`c-double` values may appear in literals,
 locals, pointer/field loads and stores, conditional joins, and imported/exported
 data. Decimal syntax uses the ordinary single-float default and `e`, `f`, or

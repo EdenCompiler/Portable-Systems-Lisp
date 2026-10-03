@@ -15,6 +15,12 @@ for level in 0 1; do
       echo "native compiler accepted distinct symbol identity: $source" >&2
       exit 1
     fi
+    if "$project_root/pslcc" "-O$level" --target="$target" -c "$source" \
+        -o "$work_dir/stage0-rejected.o" >"$work_dir/stage0-rejected.out" 2>"$work_dir/stage0-rejected.err"; then
+      echo "Stage 0 accepted a distinct source symbol: $source" >&2
+      exit 1
+    fi
+    test ! -e "$work_dir/stage0-rejected.o"
     test ! -e "$work_dir/rejected.o"
     test -s "$work_dir/rejected.err"
   done

@@ -15,6 +15,7 @@ src/
   frontend/
     layout.lisp         packed structure layout and field lookup
     reader.lisp         source input, declarations, machine types
+    identities.lisp     per-unit lexical and ordinary-call symbol identity
     runtime.lisp        hosted operations and module requests
     closures.lisp       lexical capture and closure functions
     strings.lisp        hosted UTF-8 source literals
@@ -427,6 +428,14 @@ Common object checks live in `function_validation.lisp`. CPU instruction
 construction stays in `backend/`. The four current native output targets are
 64-bit little-endian Linux ELF or Windows COFF. Broader ABI/data/runtime
 ports remain pending.
+
+The Stage 0 frontend's `identities.lisp` preserves host symbol identity during
+analysis. Its per-unit maps produce deterministic lexical string keys for the
+existing HIR/SSA interface, including fresh uninterned macro variables. The
+ordinary-call map associates source symbols with signatures independently of
+C linker names. `reader.lisp` distinguishes CL forms from exact PSL/FFI forms;
+closures and multiple values use the same lexical mapping. These maps end at
+analysis and introduce no target or object-format dependency.
 
 The native frontend environment API owns copied symbol names, package aliases,
 per-package presence and use tables, and symbol-token decoding. Its IDs are

@@ -1,0 +1,6 @@
+(defun identity_helper (x)
+  (declare (type u64 x) (returns u64))
+  x)
+(defun identity_wrong_call (x)
+  (declare (type u64 x) (returns u64) (c-export :c))
+  (ffi::identity_helper x))

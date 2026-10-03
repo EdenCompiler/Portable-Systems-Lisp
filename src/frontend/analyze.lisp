@@ -34,7 +34,7 @@
     (make-hir :kind :literal :type type :value value)))
 
 (defun analyze-variable (name environment)
-  (let ((entry (assoc (source-name name) environment :test #'equal)))
+  (let ((entry (assoc (lexical-name name) environment :test #'equal)))
     (unless entry (fail "unknown variable ~A" name))
     (make-hir :kind :variable :type (cdr entry) :value (car entry))))
 
@@ -69,7 +69,7 @@
   (unless (and (listp binding) (= (length binding) 2)
                (symbolp (first binding)))
     (fail "invalid LET binding ~S" binding))
-  (cons (source-name (first binding))
+  (cons (lexical-name (first binding))
         (analyze-expression (second binding) environment context)))
 
 (defun analyze-let (form environment context expected)
@@ -335,11 +335,8 @@
        (analyze-runtime-call form (runtime-operation form)
                              environment context))
       ((binary-form-p form) (analyze-binary form environment context expected))
-      ((and (symbolp (first form))
-            (gethash (source-name (first form))
-                     (analysis-context-signatures context)))
-       (let ((signature (gethash (source-name (first form))
-                                 (analysis-context-signatures context))))
+      ((source-function-signature (first form) context)
+       (let ((signature (source-function-signature (first form) context)))
          (when (signature-external-p signature)
            (fail "call imported function ~A with FFI:CALL"
                  (signature-name signature)))
@@ -394,7 +391,9 @@
                      (supported-abi-result-type-p
                       (signature-result signature) context))
           (fail "unsupported C ABI type; structure values require a scalar C layout of at most 16 bytes"))
-        (setf (gethash name (analysis-context-signatures context)) signature))
+        (setf (gethash name (analysis-context-signatures context)) signature)
+        (when (and *source-symbol-signatures* (not external-p))
+          (setf (gethash (second form) *source-symbol-signatures*) signature)))
       (unless external-p
         (unless body (fail "function ~A has no body" (signature-name signature)))
         (list signature parameters body)))))
@@ -461,6 +460,10 @@
 (defun analyze-source (forms target &optional locations (profile "freestanding"))
   "Return typed HIR functions and all known function signatures."
   (let ((*source-locations* locations)
+        (*source-symbol-signatures* (make-hash-table :test #'eq))
+        (*lexical-symbol-names* (make-hash-table :test #'eq))
+        (*lexical-name-spellings* (make-hash-table :test #'equal))
+        (*lexical-name-counter* 0)
         (context (make-context target profile))
         (definitions (make-hash-table :test #'eq)))
     (dolist (form forms)

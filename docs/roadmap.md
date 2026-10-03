@@ -778,6 +778,24 @@ General source package declarations and transactions, escaped binder/linker
 names, source-loader identity integration, native macro evaluation, managed
 compiler data and the complete Stage 1–3 release gate remain open.
 
+### M8 Stage 0 source identity parity
+
+Stage 0 now preserves lexical symbol identity through parameters, `let`,
+closure capture, and multiple-value binding. Exact source symbols select CL
+forms and ordinary functions; PSL/FFI forms retain their explicit ownership.
+Escaped lowercase names and other-package names no longer alias a declaration
+merely because their names fold to the same string. Per-unit deterministic
+keys keep the existing HIR/SSA representation, and fresh macro variables remain
+distinct without leaking host gensym counters into lexical dumps.
+
+`tests/source_identities.sh [TARGET]` checks observable arithmetic, lexical
+shadowing, hosted closure/multiple-value behavior across GC, repeat objects,
+and rejection at O0/O1 on all four hosted targets. The native reader test now
+checks the same rejected identity cases in Stage 0. Smoke passes, and Stage 0
+still generates exactly the previously verified native-core object. C linker
+name collisions, Stage 0 structure/field spelling representation, native package
+forms/macros, managed native analysis and the complete M8 gate remain open.
+
 ## M9 — Hosted ANSI Common Lisp completion · Pending
 
 **Dependencies:** M4 dynamic runtime and a self-host-capable compiler core.

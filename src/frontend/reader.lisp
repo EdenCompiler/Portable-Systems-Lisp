@@ -3,17 +3,18 @@
 (defvar *source-locations* nil)
 
 (defun named-p (symbol name)
-  (and (symbolp symbol) (string-equal (symbol-name symbol) name)))
+  (and (symbolp symbol) (string= (symbol-name symbol) (string-upcase name))))
 
 (defun form-p (form name)
-  (and (consp form) (named-p (first form) name)))
+  (and (consp form)
+       (eq (first form) (find-symbol (string-upcase name) :cl))))
 
 (defun psl-form-p (form name)
-  (and (form-p form name)
+  (and (consp form) (named-p (first form) name)
        (eq (symbol-package (first form)) (find-package :psl))))
 
 (defun ffi-form-p (form name)
-  (and (form-p form name)
+  (and (consp form) (named-p (first form) name)
        (eq (symbol-package (first form)) (find-package :ffi))))
 
 (defun pointer-type (form context)
@@ -70,7 +71,7 @@
   (unless (and (listp item) (= (length item) 2)
                (symbolp (first item)))
     (fail "invalid typed parameter ~S" item))
-  (cons (source-name (first item)) (type-name (second item) context)))
+  (cons (lexical-name (first item)) (type-name (second item) context)))
 
 (defun parse-parameters (forms context)
   (unless (listp forms) (fail "parameter list must be a list"))
@@ -105,7 +106,7 @@
 (defun plain-parameters (forms)
   (unless (and (listp forms) (every #'symbolp forms))
     (fail "DEFUN currently requires simple parameter names"))
-  (let ((names (mapcar #'source-name forms)))
+  (let ((names (mapcar #'lexical-name forms)))
     (unless (= (length names) (length (remove-duplicates names :test #'equal)))
       (fail "duplicate DEFUN parameter"))
     names))
@@ -115,7 +116,7 @@
     (fail "TYPE declaration needs a type and parameter names"))
   (let ((type (type-name (second spec) context)))
     (dolist (name-form (cddr spec))
-      (let ((name (source-name name-form)))
+      (let ((name (lexical-name name-form)))
         (unless (member name names :test #'equal)
           (fail "TYPE declaration names unknown parameter ~A" name))
         (when (gethash name types)

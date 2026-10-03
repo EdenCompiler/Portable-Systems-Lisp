@@ -1,0 +1,8 @@
+(defun source_identity_mix (value |value| ffi::value)
+  (declare (type u64 value |value| ffi::value) (returns u64) (c-export :c))
+  (wrap+ |VALUE| (wrap+ (wrap* |value| 10) (wrap* ffi::|VALUE| 100))))
+(defun source_identity_shadow (value)
+  (declare (type u64 value) (returns u64) (c-export :c))
+  (let ((|value| (wrap+ value 2)))
+    (let ((value (wrap+ |value| 3)))
+      (wrap+ value |value|))))

@@ -21,7 +21,7 @@
                (every #'symbolp (second form))
                (form-p (third form) "values"))
     (fail "Stage 0 MULTIPLE-VALUE-BIND needs two names and a VALUES form"))
-  (let* ((names (mapcar #'source-name (second form)))
+  (let* ((names (mapcar #'lexical-name (second form)))
          (first-value (analyze-values2 (third form) environment context))
          (second-value
            (runtime-call-node

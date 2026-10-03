@@ -73,7 +73,7 @@
                (listp (second form)) (= (length (second form)) 1)
                (symbolp (first (second form))))
     (fail "hosted closures currently require one simple parameter"))
-  (let* ((argument-name (source-name (first (second form))))
+  (let* ((argument-name (lexical-name (first (second form))))
          (visible (visible-bindings environment argument-name))
          (name (next-lambda-name context))
          (parameters (list (cons "%closure-environment" :value)
