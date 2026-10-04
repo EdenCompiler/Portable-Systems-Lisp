@@ -690,8 +690,8 @@ Native macro bodies evaluate their forms in order and return the last value.
 An empty body yields NIL. Explicit build-host `progn` uses the same sequencing,
 including nested forms and optional/auxiliary defaults. Failures in earlier
 forms reject the expansion even when a later form could produce valid syntax.
-The evaluator retains its depth and arena bounds; declarations, general calls
-and documentation introspection remain unsupported.
+The evaluator retains its depth and arena bounds; general calls and
+documentation introspection remain unsupported.
 
 The native build-host evaluator also supports `list`. It evaluates elements
 left to right and constructs a fresh syntax list, including nested lists and
@@ -700,6 +700,16 @@ into templates. Constructed heads retain their resolved symbol identities;
 substituted elements retain caller origins. A failed element evaluation or
 partial construction restores both syntax and identity arenas. These bounded
 compile-time syntax lists do not provide target managed-cons support.
+
+Native macro body prefixes accept Common Lisp `declare` forms containing
+`ignore` and `ignorable` specifications. These declarations do not evaluate
+variable names or consume invocation arguments. An optional documentation
+string may appear before or among leading declarations; declaration-only
+bodies yield NIL. Recognition uses the actual CL symbol identities, including
+uppercase escaped spellings. Malformed or unsupported declaration specifications
+reject registration without replacing an earlier definition. `type`, `special`,
+`optimize` and other declarations remain unsupported in native macro bodies;
+documentation introspection is also pending.
 
 On POSIX native compiler hosts, included C sources are compiled and merged in
 a private directory beside the requested output. Publication uses a rename on

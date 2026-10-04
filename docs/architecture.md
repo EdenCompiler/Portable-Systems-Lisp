@@ -482,7 +482,9 @@ Native source collection registers macro definitions in read order and rewrites
 subsequent function bodies before signature/body analysis. The macro modules
 operate on target-independent syntax and symbol identities, with no target
 execution or host Lisp subprocess. Tree copying and verification own syntax
-invariants; the registry validates macro identities and lambda lists. Binding
+invariants; the registry validates macro identities and lambda lists. Its
+declaration module validates body prefixes and selects executable body forms
+without altering source trees or publishing invalid redefinitions. Binding
 values and syntax constructors support the evaluator; optional and auxiliary binding evaluate
 missing defaults through that evaluator, and argument binding owns arity and
 rest lists. Auxiliary binding applies initializers sequentially after arguments.

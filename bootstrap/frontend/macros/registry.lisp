@@ -215,6 +215,8 @@
                 ((if (< length 11) nil (= (native_macro_name_prefix_p env symbol #x424d414c5f4c5350 #x5f4144 11 0) 1)) 0)
                 (t 1))))))))
 
+(include "declarations.lisp")
+
 (defun native_macro_register_parts (registry name parameters body)
   (declare (type (ptr native_macro_registry) registry) (type usize name parameters body)
            (returns usize))
@@ -225,7 +227,9 @@
       ((= (native_macro_parameter_list_p registry parameters) 0) (native_macro_fail registry 10))
       ((= (native_macro_validate_parameters registry (deref (field-pointer (parser_node parser parameters) 'first))) 0)
        (native_macro_fail registry 10))
-      (t (native_macro_publish registry (ast_symbol_identity parser name) parameters body)))))
+      (t (let ((start (native_macro_body_start registry body)))
+           (if (= (deref (field-pointer registry 'error)) 0)
+               (native_macro_publish registry (ast_symbol_identity parser name) parameters start) 0))))))
 
 (defun native_macro_register (registry root)
   (declare (type (ptr native_macro_registry) registry) (type usize root)

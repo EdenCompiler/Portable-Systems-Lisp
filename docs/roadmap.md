@@ -1001,7 +1001,7 @@ capacity/arity rollback, failure in a discarded call and bounded nested
 execution with recovery. Discarded unknown calls are shared rejection cases.
 Focused O0/O1 checks pass on all four hosted targets, including resumed
 Windows rejection/no-host-Lisp checks; smoke passes. The Linux native
-generation comparison passes with identical retained sequencing fixtures. Declarations, general build-host calls,
+generation comparison passes with identical retained sequencing fixtures. Remaining declarations, general build-host calls,
 keyword/destructuring/environment parameters, managed compiler data and the
 complete M8 Stage 1–3 gates remain required.
 
@@ -1039,6 +1039,25 @@ This is the existing development subset corpus, not the complete M8 release
 gate. Complete compiler source/behavior parity, remaining macro evaluation,
 managed compiler data, ABI/data/CLI/profile/IR parity and all-target full
 Stage 1–3 gates remain required.
+
+### M8 native macro declaration prefixes
+
+Native macro registration now recognizes leading `declare` forms with `ignore`
+and `ignorable` specifications, including documentation strings before or among
+those forms. Declaration-only bodies return NIL. Names retain Common Lisp
+symbol identity; declarations consume no source arguments or target evaluation.
+Malformed or unsupported specifications reject registration without replacing
+an earlier definition.
+
+Independent C callers compare native/Stage 0 results for ignored unevaluated
+arguments, documentation order, defaults, empty declarations and declaration-only
+bodies at O0/O1. The public API caller checks caller identities/origins, unchanged
+input trees, rejected redefinition, unsupported declaration rejection and recovery.
+Malformed declarations and declarations in expression positions are shared
+rejection cases. Focused O0/O1 checks pass on all four hosted targets, including
+Windows under Wine and AArch64/RISC-V64 under QEMU; smoke passes. Remaining
+declarations, general build-host evaluation, remaining lambda-list features,
+managed compiler data and complete M8 Stage 1–3 gates remain required.
 
 ## M9 — Hosted ANSI Common Lisp completion · Pending
 
