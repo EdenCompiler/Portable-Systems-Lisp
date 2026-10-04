@@ -86,6 +86,7 @@
         (source (deref (field-pointer context 'source))))
     (let ((head (ast_first parser body)))
       (cond
+        ((= head 0) (hir_new_scalar (deref (field-pointer context 'hir)) 19 0 0 0 0 body 0))
         ((= (allocation_region_word_p parser source head) 1)
          (analyze_allocation_region context body depth))
         ((= (ast_word_p parser source head #x6c6c61633a696666 8) 1)

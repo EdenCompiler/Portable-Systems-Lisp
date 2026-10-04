@@ -72,16 +72,59 @@
           (ast_builtin_word_p (native_macro_parser registry) (deref (field-pointer registry 'source))
                              reference #x6c696e 0 3))))
 
-(defun native_macro_validate_parameter_step (registry reference)
+(defun native_macro_optional_marker_p (registry reference)
+  (declare (type (ptr native_macro_registry) registry) (type usize reference) (returns c-int))
+  (ast_builtin_word_p (native_macro_parser registry) (deref (field-pointer registry 'source))
+                     reference #x616e6f6974706f26 #x6c 9))
+
+(defun native_macro_optional_spec_p (registry reference)
+  (declare (type (ptr native_macro_registry) registry) (type usize reference) (returns c-int))
+  (let ((parser (native_macro_parser registry)))
+    (let ((node (parser_node parser reference)))
+      (let ((name (if (= (deref (field-pointer node 'kind)) 1) (deref (field-pointer node 'first)) reference)))
+        (let ((supplied (if (= (deref (field-pointer node 'kind)) 1)
+                            (native_macro_next registry (native_macro_next registry name)) (wrap-cast usize 0))))
+          (cond
+            ((= (native_macro_parameter_p registry name) 0) 0)
+            ((= supplied 0) 1)
+            ((< 0 (native_macro_next registry supplied)) 0)
+            (t (native_macro_parameter_p registry supplied))))))))
+
+(defun native_macro_validate_rest_tail (registry reference)
+  (declare (type (ptr native_macro_registry) registry) (type usize reference) (returns c-int))
+  (let ((name (native_macro_next registry reference)))
+    (if (= (native_macro_parameter_p registry name) 0) 0
+        (if (= (native_macro_next registry name) 0)
+            (progn (store (field-pointer (deref (field-pointer registry 'tree)) 'cursor) 0) 1) 0))))
+
+(defun native_macro_validate_optional_step (registry reference)
+  (declare (type (ptr native_macro_registry) registry) (type usize reference) (returns c-int))
+  (if (= (native_macro_rest_marker_p registry reference) 1)
+      (native_macro_validate_rest_tail registry reference)
+      (if (= (native_macro_optional_spec_p registry reference) 0) 0
+          (progn (store (field-pointer (deref (field-pointer registry 'tree)) 'cursor)
+                        (native_macro_next registry reference)) 1))))
+
+(defun native_macro_validate_optional_parameters (registry reference)
   (declare (type (ptr native_macro_registry) registry) (type usize reference) (returns c-int))
   (let ((tree (deref (field-pointer registry 'tree))))
-    (if (= (native_macro_rest_marker_p registry reference) 1)
-        (let ((name (native_macro_next registry reference)))
-          (if (= (native_macro_parameter_p registry name) 0) 0
-              (if (= (native_macro_next registry name) 0)
-                  (progn (store (field-pointer tree 'cursor) 0) 1) 0)))
-        (if (= (native_macro_parameter_p registry reference) 0) 0
-            (progn (store (field-pointer tree 'cursor) (native_macro_next registry reference)) 1)))))
+    (store (field-pointer tree 'cursor) reference)
+    (while (if (= (deref (field-pointer registry 'error)) 0)
+               (< 0 (deref (field-pointer tree 'cursor))) nil)
+      (if (= (native_macro_validate_optional_step registry (deref (field-pointer tree 'cursor))) 1)
+          (wrap-cast usize 1) (native_macro_fail registry 10)))
+    (if (= (deref (field-pointer registry 'error)) 0) 1 0)))
+
+(defun native_macro_validate_parameter_step (registry reference)
+  (declare (type (ptr native_macro_registry) registry) (type usize reference) (returns c-int))
+  (cond
+    ((= (native_macro_optional_marker_p registry reference) 1)
+     (native_macro_validate_optional_parameters registry (native_macro_next registry reference)))
+    ((= (native_macro_rest_marker_p registry reference) 1)
+     (native_macro_validate_rest_tail registry reference))
+    ((= (native_macro_parameter_p registry reference) 0) 0)
+    (t (store (field-pointer (deref (field-pointer registry 'tree)) 'cursor)
+              (native_macro_next registry reference)) 1)))
 
 (defun native_macro_validate_parameters (registry reference)
   (declare (type (ptr native_macro_registry) registry) (type usize reference) (returns c-int))

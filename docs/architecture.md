@@ -482,8 +482,11 @@ Native source collection registers macro definitions in read order and rewrites
 subsequent function bodies before signature/body analysis. The macro modules
 operate on target-independent syntax and symbol identities, with no target
 execution or host Lisp subprocess. Tree copying and verification own syntax
-invariants; registry/bindings own macro identity and arity; evaluation owns
-quotation templates; expression/function modules select executable positions.
+invariants; the registry validates macro identities and lambda lists. Binding
+values and syntax constructors support the evaluator; optional binding evaluates
+missing defaults through that evaluator, and argument binding owns arity and
+rest lists. Evaluation owns quotation templates; expression/function modules
+select executable positions.
 Generated nodes retain original source spans and separate origin references.
 The hosted driver allocates and releases the registry/binding arenas; the
 compiler core receives this storage through its explicit context.

@@ -23,7 +23,7 @@ NATIVE_OUTPUT := $(BUILD_DIR)/native-output.o
 NATIVE_DIAGNOSTICS := $(BUILD_DIR)/native-diagnostics.o
 NATIVE_OBJECTS := $(NATIVE_CORE) $(NATIVE_HOST) $(NATIVE_SOURCE) $(NATIVE_INPUT) $(NATIVE_PATH) $(NATIVE_DRIVER) $(NATIVE_OUTPUT) $(NATIVE_DIAGNOSTICS)
 HOST_SOURCES := bootstrap/driver.c bootstrap/host/platform_stdio.c bootstrap/host/platform_toolchain.c
-HOST_HEADERS := bootstrap/frontend/environment.h bootstrap/native_api.h bootstrap/host/source.h bootstrap/host/compiler.h
+HOST_HEADERS := $(shell find bootstrap -name '*.h')
 
 .PHONY: all compiler native stage0 compile example test test-native test-static-data test-self-core test-bootstrap-corpus test-native-environment \
         test-windows test-native-win64-frame test-native-windows test-aarch64 test-native-aarch64 test-native-riscv64 test-riscv64 clean help

@@ -446,8 +446,8 @@ Native C-source merging is currently verified from the x86-64 Linux compiler
 host for all four hosted output targets. Target-hosted generated compilers are
 not yet required to launch a C toolchain during bootstrap comparison.
 
-It does not yet support complete source package semantics or host macro execution,
-or structure values. Its
+It does not yet support complete source package semantics, arbitrary build-host
+macro evaluation, or structure values. Its
 implemented subset now passes verified HIR, typed CFG/SSA, and flat LIR; the
 backend consumes virtual registers and explicit labels. Native `-O1` (the
 default) now folds wrapping arithmetic, bitwise AND, masked U64 shifts, signed/
@@ -648,6 +648,18 @@ Repeated macro parameter names select the later binding, matching the Stage 0
 build-host expander, including a rest parameter that reuses a required name.
 Macro lambda keywords compare their standard symbol identities: lowercase
 escaped `|&rest|` and a user-package `&custom` can be ordinary parameters.
+
+Native macro lambda lists support `&optional` bare variables and proper
+`(variable [default [supplied-p]])` specifications before a final rest/body
+parameter. Missing defaults evaluate in the earlier parameter bindings;
+provided arguments remain unevaluated syntax and skip their defaults.
+Omitted defaults produce NIL, and supplied flags carry the standard T/NIL
+identities. The default evaluator accepts the same argument, constant,
+quotation and backquote forms as macro bodies. Canonical `(quote datum)`
+and reader quotation agree; empty list expressions and quoted empty lists
+represent NIL. Integer zero remains true. Failed argument binding or default
+evaluation publishes no partial expansion. Keyword/destructuring parameters
+and general build-host evaluation remain unsupported.
 
 On POSIX native compiler hosts, included C sources are compiled and merged in
 a private directory beside the requested output. Publication uses a rename on

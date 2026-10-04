@@ -874,9 +874,9 @@ checks duplicated target side effects and source-order redefinition. Generation
 gates retain macro fixture objects. Hosted storage fault injection covers the
 two new explicit allocations and idempotent cleanup. Focused checks pass on
 all four hosted targets, and smoke passes. The Linux native subset generation
-comparison remains pending; the cross-filesystem C-output publication failure
-exposed by that run has been corrected in the hosted adapter. It is not the
-complete M8 gate. The example manifest now
+gate passes with identical objects for all eight modules and retained macro
+fixtures. The cross-filesystem C-output publication failure exposed by that run
+has been corrected in the hosted adapter. This is a development subset gate. The example manifest now
 requires both existing fixed-argument macro examples. General macro lambda
 lists/evaluation, managed compiler data, the complete compiler manifest and
 complete M8 Stage 1–3 gates remain open.
@@ -895,10 +895,9 @@ harness for required/rest arguments, empty body lists, source-order effects and
 escaped dot symbols. Its public API harness checks spliced caller origins,
 capacity rollback and bounded repeated expansion. Focused checks pass on all
 four hosted targets, and smoke passes. Repeated names and ordinary ampersand
-parameters match the SBCL build-host oracle. The native generation gate
-exposed a separate cross-filesystem C-output publication failure, now corrected
-in the hosted adapter. A successful generation comparison remains pending.
-Optional/key/destructuring
+parameters match the SBCL build-host oracle. The Linux native generation gate
+passes, including identical rest-macro fixture objects at O0/O1, after the
+hosted C-output adapter fix. Keyword/destructuring
 lambda lists, general build-host evaluation, managed compiler data and the full
 M8 Stage 1–3 gate remain required.
 
@@ -910,9 +909,30 @@ use different filesystems. Compile/link failures preserve an existing output
 and remove the private staging directory. `tests/bootstrap_c_output.sh` links
 and executes the source-import example at O0/O1, checks spaced destination
 names, failed-input preservation, missing parents and cleanup. The focused gate
-and smoke pass, and the running native generation gate passes the integrated
-C-output checks. The adapter remains hosted C support; its full PSL port and
+and smoke pass. The completed Linux native generation gate passes the integrated
+C-output checks and reproduces all eight modules and retained fixtures; the
+example audit accepts 19/30 with 11 explicit gaps. The adapter remains hosted C support; its full PSL port and
 complete M8 compiler/generation gates remain required.
+
+### M8 native macro optional arguments and NIL
+
+Native macro binding now accepts `&optional` variables and one-to-three-element
+specifications, evaluates missing defaults in earlier bindings, and supplies
+standard T/NIL flags. Supplied arguments skip default evaluation. Rest/body
+parameters can follow optional parameters. The evaluator handles canonical
+quotation and empty lists as NIL; target empty-list expressions retain Common
+Lisp falsehood while integer zero remains true.
+
+`tests/bootstrap_macro_optional.lisp` and independent C callers compare native
+and Stage 0 defaults, lazy initialization, supplied flags, rest tails and NIL
+at O0/O1. The public API caller checks preserved caller identities/origins,
+immutable input trees, binding-capacity rollback and excess-argument rejection.
+The macro gate also rejects malformed optional specifications and unbound
+missing defaults. Focused checks pass on all four hosted targets, including
+Windows under Wine and AArch64/RISC-V64 under QEMU; smoke passes. A new
+generation comparison for the optional-argument integration remains pending.
+Keyword/destructuring lambda lists, general build-host evaluation, managed
+compiler data and the complete M8 Stage 1–3 gates remain required.
 
 ## M9 — Hosted ANSI Common Lisp completion · Pending
 

@@ -1,0 +1,22 @@
+(include "binding_values.lisp")
+
+(defun native_macro_boolean_form (call reference truth)
+  (declare (type (ptr native_macro_call) call) (type usize reference)
+           (type c-int truth) (returns usize))
+  (let ((parser (native_macro_call_parser call)) (tree (native_macro_tree call)))
+    (let ((reader (deref (field-pointer tree 'reader))))
+      (if (< (deref (field-pointer parser 'count)) (deref (field-pointer reader 'capacity)))
+          (let ((node (parser_node parser reference)))
+            (let ((copy (parser_new_node parser 8 (deref (field-pointer node 'start)) 0)))
+              (if (= copy 0) (native_macro_call_fail call 1)
+                  (progn
+                    (store (field-pointer reader 'count) copy)
+                    (let ((identity (pointer+ (deref (field-pointer reader 'identities))
+                                               (wrap-cast isize (wrap- copy 1)))))
+                      (store (field-pointer identity 'origin) (deref (field-pointer call 'origin)))
+                      (store (field-pointer identity 'symbol)
+                             (if (= truth 0) (deref (field-pointer (deref (field-pointer reader 'environment)) 'nil_symbol))
+                                 (deref (field-pointer (deref (field-pointer reader 'environment)) 'true_symbol)))))
+                    copy))))
+          (native_macro_call_fail call 1)))))
+

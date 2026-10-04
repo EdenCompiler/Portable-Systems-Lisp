@@ -8,7 +8,7 @@ bootstrap_test_runner_init "$target"
 work_dir=$(mktemp -d)
 trap 'rm -rf "$work_dir"' EXIT HUP INT TERM
 for level in 0 1; do
-  for fixture in macros macro_rest; do
+  for fixture in macros macro_rest macro_optional; do
   source=$project_root/tests/bootstrap_$fixture.lisp
   run_compiler_host "$compiler" "-O$level" --target="$target" "$source" "$work_dir/native.o"
   run_compiler_host "$compiler" "-O$level" --target="$target" "$source" "$work_dir/repeat.o"
@@ -29,10 +29,12 @@ for level in 0 1; do
   run_compiler_host "$compiler" "-O$level" --target="$target" "$source" "$work_dir/api-native.o"
   "$project_root/pslcc" "-O$level" --target="$target" -c "$source" -o "$work_dir/api-stage0.o"
   for version in native stage0; do
-    "$target_cc" -O2 -std=c11 -Wall -Wextra -Werror \
-      "$project_root/tests/harness_bootstrap_macro_api.c" "$work_dir/api-$version.o" \
-      -o "$work_dir/api-check$target_suffix"
-    run_target "$work_dir/api-check$target_suffix"
+    for fixture in macro_api macro_optional_api; do
+      "$target_cc" -O2 -std=c11 -Wall -Wextra -Werror \
+        "$project_root/tests/harness_bootstrap_$fixture.c" "$work_dir/api-$version.o" \
+        -o "$work_dir/api-check$target_suffix"
+      run_target "$work_dir/api-check$target_suffix"
+    done
   done
   for source in "$project_root"/tests/bootstrap_macro_errors/*.lisp; do
     for version in native stage0; do
@@ -54,7 +56,7 @@ for level in 0 1; do
 done
 # Prove Linux native expansion needs no host Lisp executable or tool subprocess.
 if test "$compiler_host_target" = x86_64-linux-gnu; then
-  for fixture in macros macro_rest; do
+  for fixture in macros macro_rest macro_optional; do
     PATH=/nonexistent "$compiler" --target="$target" "$project_root/tests/bootstrap_$fixture.lisp" "$work_dir/without-host-lisp.o"
   done
 fi
