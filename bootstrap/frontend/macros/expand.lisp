@@ -31,6 +31,7 @@
                           (let ((copy (native_macro_apply_definition call definition form)))
                             (if (if (= copy 0) t (= (native_tree_verify tree copy) 0))
                                 (progn
+                                  (store (field-pointer call 'count) 0)
                                   (store (field-pointer parser 'count) saved)
                                   (store (field-pointer parser 'error) saved_error)
                                   (store (field-pointer (deref (field-pointer tree 'reader)) 'count) saved)
@@ -74,6 +75,7 @@
           (progn
             (let ((origin (native_macro_origin_reference tree (deref (field-pointer call 'origin)) 2048)))
               (store (field-pointer call 'origin) origin))
+            (store (field-pointer call 'count) 0)
             (store (field-pointer parser 'count) count)
             (store (field-pointer parser 'error) error)
             (store (field-pointer (deref (field-pointer tree 'reader)) 'count) count)

@@ -35,16 +35,19 @@
   (if (= reference 0) 0
       (deref (field-pointer (parser_node (native_macro_parser registry) reference) 'next))))
 
-(defun native_macro_parameter_absent_p (registry symbol reference)
-  (declare (type (ptr native_macro_registry) registry) (type usize symbol reference) (returns c-int))
-  (if (= reference 0) 1
-      (if (= (ast_symbol_identity (native_macro_parser registry) reference) symbol) 0
-          (native_macro_parameter_absent_p registry symbol (native_macro_next registry reference)))))
+(defun native_macro_raw_dot_p (registry reference)
+  (declare (type (ptr native_macro_registry) registry) (type usize reference) (returns c-int))
+  (if (= reference 0) 0
+      (let ((node (parser_node (native_macro_parser registry) reference)))
+        (if (= (deref (field-pointer node 'kind)) 8)
+            (if (= (deref (field-pointer node 'length)) 1)
+                (if (= (deref (pointer+ (deref (field-pointer registry 'source))
+                                      (wrap-cast isize (deref (field-pointer node 'start))))) 46) 1 0) 0) 0))))
 
 (defun native_macro_parameter_p (registry reference)
   (declare (type (ptr native_macro_registry) registry) (type usize reference) (returns c-int))
   (let ((symbol (ast_symbol_identity (native_macro_parser registry) reference)))
-    (if (= symbol 0) 0
+    (if (if (= symbol 0) t (= (native_macro_raw_dot_p registry reference) 1)) 0
         (let ((env (deref (field-pointer (deref (field-pointer (native_macro_parser registry) 'environment)) 'environment))))
           (cond
             ((= symbol (deref (field-pointer env 'nil_symbol))) 0)
@@ -52,17 +55,43 @@
             ((= (deref (field-pointer (native_ct_symbol_at env symbol) 'package))
                 (deref (field-pointer env 'keyword_package))) 0)
             ((= (deref (field-pointer (native_ct_symbol_at env symbol) 'length)) 0) 1)
-            ((= (deref (native_ct_symbol_name env symbol)) 38) 0)
+            ((if (= (deref (field-pointer (native_ct_symbol_at env symbol) 'package)) 1)
+                 (= (deref (native_ct_symbol_name env symbol)) 38) nil) 0)
             (t 1))))))
+
+(defun native_macro_rest_marker_p (registry reference)
+  (declare (type (ptr native_macro_registry) registry) (type usize reference) (returns c-int))
+  (let ((parser (native_macro_parser registry)) (source (deref (field-pointer registry 'source))))
+    (if (= (ast_builtin_word_p parser source reference #x7473657226 0 5) 1) 1
+        (ast_builtin_word_p parser source reference #x79646f6226 0 5))))
+
+(defun native_macro_parameter_list_p (registry reference)
+  (declare (type (ptr native_macro_registry) registry) (type usize reference) (returns c-int))
+  (if (= reference 0) 0
+      (if (= (deref (field-pointer (parser_node (native_macro_parser registry) reference) 'kind)) 1) 1
+          (ast_builtin_word_p (native_macro_parser registry) (deref (field-pointer registry 'source))
+                             reference #x6c696e 0 3))))
+
+(defun native_macro_validate_parameter_step (registry reference)
+  (declare (type (ptr native_macro_registry) registry) (type usize reference) (returns c-int))
+  (let ((tree (deref (field-pointer registry 'tree))))
+    (if (= (native_macro_rest_marker_p registry reference) 1)
+        (let ((name (native_macro_next registry reference)))
+          (if (= (native_macro_parameter_p registry name) 0) 0
+              (if (= (native_macro_next registry name) 0)
+                  (progn (store (field-pointer tree 'cursor) 0) 1) 0)))
+        (if (= (native_macro_parameter_p registry reference) 0) 0
+            (progn (store (field-pointer tree 'cursor) (native_macro_next registry reference)) 1)))))
 
 (defun native_macro_validate_parameters (registry reference)
   (declare (type (ptr native_macro_registry) registry) (type usize reference) (returns c-int))
-  (if (= reference 0) 1
-      (if (= (native_macro_parameter_p registry reference) 0) 0
-          (if (= (native_macro_parameter_absent_p registry
-                  (ast_symbol_identity (native_macro_parser registry) reference)
-                  (native_macro_next registry reference)) 0) 0
-              (native_macro_validate_parameters registry (native_macro_next registry reference))))))
+  (let ((tree (deref (field-pointer registry 'tree))))
+    (store (field-pointer tree 'cursor) reference)
+    (while (if (= (deref (field-pointer registry 'error)) 0)
+               (< 0 (deref (field-pointer tree 'cursor))) nil)
+      (if (= (native_macro_validate_parameter_step registry (deref (field-pointer tree 'cursor))) 1)
+          (wrap-cast usize 1) (native_macro_fail registry 10)))
+    (if (= (deref (field-pointer registry 'error)) 0) 1 0)))
 
 (defun native_macro_publish (registry symbol parameters body)
   (declare (type (ptr native_macro_registry) registry) (type usize symbol parameters body) (returns usize))
@@ -87,7 +116,7 @@
 (defun native_macro_user_name_p (registry reference)
   (declare (type (ptr native_macro_registry) registry) (type usize reference) (returns c-int))
   (let ((symbol (ast_symbol_identity (native_macro_parser registry) reference)))
-    (if (= symbol 0) 0
+    (if (if (= symbol 0) t (= (native_macro_raw_dot_p registry reference) 1)) 0
         (let ((env (deref (field-pointer (deref (field-pointer (native_macro_parser registry) 'environment)) 'environment))))
           (let ((definition (native_ct_symbol_at env symbol)))
             (let ((package (deref (field-pointer definition 'package)))
@@ -107,8 +136,7 @@
       ((= parameters 0) (native_macro_fail registry 4))
       ((= body 0) (native_macro_fail registry 4))
       ((< 0 (native_macro_next registry body)) (native_macro_fail registry 10))
-      ((if (= (deref (field-pointer (parser_node parser parameters) 'kind)) 1) nil t)
-       (native_macro_fail registry 10))
+      ((= (native_macro_parameter_list_p registry parameters) 0) (native_macro_fail registry 10))
       ((= (native_macro_validate_parameters registry (deref (field-pointer (parser_node parser parameters) 'first))) 0)
        (native_macro_fail registry 10))
       (t (native_macro_publish registry (ast_symbol_identity parser name) parameters body)))))

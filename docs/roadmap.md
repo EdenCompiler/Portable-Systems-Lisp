@@ -874,10 +874,32 @@ checks duplicated target side effects and source-order redefinition. Generation
 gates retain macro fixture objects. Hosted storage fault injection covers the
 two new explicit allocations and idempotent cleanup. Focused checks pass on
 all four hosted targets, and smoke passes. The Linux native subset generation
-comparison is running; it is not the complete M8 gate. The example manifest now
+comparison remains pending after exposing cross-filesystem C-output publication
+in the hosted adapter; it is not the complete M8 gate. The example manifest now
 requires both existing fixed-argument macro examples. General macro lambda
 lists/evaluation, managed compiler data, the complete compiler manifest and
 complete M8 Stage 1–3 gates remain open.
+
+### M8 native macro rest/body arguments and splicing
+
+Native expanders now bind final `&rest`/`&body` parameters to fresh argument
+syntax lists and accept NIL for an empty macro lambda list. Backquote splicing
+copies list elements with their caller identities/origins, supports empty lists
+and NIL, and rejects scalar splice values. Raw dot syntax is rejected as a
+macro name or parameter while escaped dot symbols retain ordinary identity.
+Rollback also clears bindings to unpublished syntax.
+
+The macro gate includes `tests/bootstrap_macro_rest.lisp` and an independent C
+harness for required/rest arguments, empty body lists, source-order effects and
+escaped dot symbols. Its public API harness checks spliced caller origins,
+capacity rollback and bounded repeated expansion. Focused checks pass on all
+four hosted targets, and smoke passes. Repeated names and ordinary ampersand
+parameters match the SBCL build-host oracle. The native generation gate
+exposed a separate cross-filesystem C-output publication failure, which remains
+to be corrected before recording a successful generation comparison.
+Optional/key/destructuring
+lambda lists, general build-host evaluation, managed compiler data and the full
+M8 Stage 1–3 gate remain required.
 
 ## M9 — Hosted ANSI Common Lisp completion · Pending
 

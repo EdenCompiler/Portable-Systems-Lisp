@@ -11,9 +11,9 @@ static struct native_ct_alias aliases[8];
 static struct native_source_identity identities[256];
 static struct psl_ast_node nodes[256];
 int main(void) {
-    const char *text = "(defmacro twice (value) `(wrap+ ,value ,value)) "
-        "(twice (wrap+ number 1)) "
-        "(defmacro twice (value) `(twice ,value)) (twice number)";
+    const char *text = "(defmacro twice (&rest values) `(wrap+ ,@values)) "
+        "(twice (wrap+ number 1) (wrap+ number 1)) "
+        "(defmacro twice (&body values) `(twice ,@values)) (twice number)";
     struct native_ct_environment env = {.names=names, .name_capacity=sizeof names,
         .packages=packages, .package_capacity=16, .symbols=symbols, .symbol_capacity=2400,
         .present=present, .present_capacity=3000, .uses=uses, .use_capacity=32,
@@ -59,7 +59,7 @@ int main(void) {
     uintptr_t second = nodes[first-1].next;
     assert(first && second && first != second && !nodes[second-1].next);
     assert(nodes[first-1].kind == 1 && nodes[second-1].kind == 1);
-    assert(identities[first-1].origin == argument && identities[second-1].origin == argument);
+    assert(identities[first-1].origin == argument && identities[second-1].origin == nodes[argument-1].next);
     uintptr_t first_head = nodes[first-1].first;
     uintptr_t second_head = nodes[second-1].first;
     assert(identities[first_head-1].symbol == plus && identities[second_head-1].symbol == plus);
@@ -92,7 +92,7 @@ int main(void) {
     memcpy(original, nodes, count*sizeof *nodes);
     call.steps=0; call.step_limit=2;
     assert(!native_macroexpand(&call, root, &result));
-    assert(call.error==NATIVE_MACRO_DEPTH && call.origin==root);
+    assert(call.error==NATIVE_MACRO_DEPTH && call.origin==root && !call.count);
     assert(result.form==root && !result.expanded);
     assert(parser.count==count && reader.count==count && !parser.error);
     assert(!memcmp(original, nodes, count*sizeof *nodes));

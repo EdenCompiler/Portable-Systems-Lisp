@@ -39,6 +39,30 @@
                   (progn (native_tree_copy_identity tree reference copy) copy))))
           (native_macro_call_fail call 1)))))
 
+(defun native_macro_splice_children (call parent reference)
+  (declare (type (ptr native_macro_call) call) (type usize parent reference) (returns c-int))
+  (let ((tree (native_macro_tree call)) (parser (native_macro_call_parser call)))
+    (store (field-pointer tree 'cursor) reference)
+    (while (if (= (deref (field-pointer call 'error)) 0)
+               (< 0 (deref (field-pointer tree 'cursor))) nil)
+      (let ((child (deref (field-pointer tree 'cursor))))
+        (let ((next (deref (field-pointer (parser_node parser child) 'next)))
+              (copy (native_macro_copy_form call child 1)))
+          (if (= copy 0) (wrap-cast usize 0) (parser_append parser parent copy))
+          (store (field-pointer tree 'cursor) next))))
+    (if (= (deref (field-pointer call 'error)) 0) 1 0)))
+
+(defun native_macro_splice (call parent reference)
+  (declare (type (ptr native_macro_call) call) (type usize parent reference) (returns c-int))
+  (let ((parser (native_macro_call_parser call)))
+    (let ((datum (native_macro_eval call (deref (field-pointer (parser_node parser reference) 'first)))))
+      (if (= datum 0) 0
+          (if (= (deref (field-pointer (parser_node parser datum) 'kind)) 1)
+              (native_macro_splice_children call parent (deref (field-pointer (parser_node parser datum) 'first)))
+              (if (= (ast_builtin_word_p parser (deref (field-pointer (deref (field-pointer call 'registry)) 'source))
+                                         datum #x6c696e 0 3) 1) 1
+                  (progn (native_macro_call_fail call 10) 0)))))))
+
 (defun native_macro_qq_children (call parent reference level)
   (declare (type (ptr native_macro_call) call) (type usize parent reference)
            (type u32 level) (returns c-int))
@@ -48,8 +72,11 @@
                (< 0 (deref (field-pointer tree 'cursor))) nil)
       (let ((child (deref (field-pointer tree 'cursor))))
         (let ((next (deref (field-pointer (parser_node parser child) 'next)))
-              (copy (native_macro_qq_node call child level)))
-          (if (= copy 0) (wrap-cast usize 0) (parser_append parser parent copy))
+              (splice (if (= level 1) (= (deref (field-pointer (parser_node parser child) 'kind)) 6) nil)))
+          (if splice
+              (if (= (native_macro_splice call parent child) 1) (wrap-cast usize 1) (native_macro_call_fail call 10))
+              (let ((copy (native_macro_qq_node call child level)))
+                (if (= copy 0) (wrap-cast usize 0) (parser_append parser parent copy))))
           (store (field-pointer tree 'cursor) next))))
     (if (= (deref (field-pointer call 'error)) 0) 1 0)))
 

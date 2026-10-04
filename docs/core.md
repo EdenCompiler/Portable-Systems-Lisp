@@ -634,3 +634,17 @@ unit without an object. These compile-time bounds imply no target allocation
 guarantee. General macro lambda lists, arbitrary build-host evaluation,
 `eval-when`, macrolet/symbol-macrolet and growable managed compiler data remain
 required M8 work.
+
+Native macro lambda lists additionally support a final `&rest` or `&body`
+parameter and empty lambda lists spelled `NIL`. Rest values are fresh syntax
+lists containing all remaining unevaluated argument forms. Backquote `,@`
+splices a proper syntax list or NIL into its containing template. Copies retain
+caller identities and origins; empty rest lists contribute no elements. Raw dot
+tokens cannot masquerade as macro names or parameters; escaped `|.|` is an
+ordinary symbol. Dotted lambda lists remain unsupported. Failed repeated
+expansion clears bindings that could otherwise reference rolled-back nodes.
+
+Repeated macro parameter names select the later binding, matching the Stage 0
+build-host expander, including a rest parameter that reuses a required name.
+Macro lambda keywords compare their standard symbol identities: lowercase
+escaped `|&rest|` and a user-package `&custom` can be ordinary parameters.
