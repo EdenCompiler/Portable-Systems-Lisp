@@ -953,6 +953,22 @@ new native generation comparison.
 Keyword/destructuring lists, general build-host evaluation, managed compiler
 data and the complete M8 Stage 1–3 gates remain required.
 
+### M8 native macro whole-invocation binding
+
+Native macro lambda lists now accept leading `&whole variable`. The binding
+contains the complete unevaluated invocation and does not consume a positional
+argument. It works with subsequent required, optional, rest/body and auxiliary
+bindings. Syntax copies retain caller identities and origins.
+
+The macro gate includes linked C behavior for nested whole-form substitution
+and empty invocations. Its public API caller checks the copied macro name and
+arguments, spans, origins, input immutability, capacity rollback and arity.
+Missing/constant/repeated/misplaced whole variables and excess arguments are
+shared rejection fixtures. Focused O0/O1 checks pass on all four hosted targets,
+and smoke passes. A new native generation comparison remains pending. Destructuring,
+keyword/environment arguments, general build-host evaluation, managed compiler
+data and the complete M8 Stage 1–3 gates remain required.
+
 ## M9 — Hosted ANSI Common Lisp completion · Pending
 
 **Dependencies:** M4 dynamic runtime and a self-host-capable compiler core.

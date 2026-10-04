@@ -72,6 +72,18 @@
           (ast_builtin_word_p (native_macro_parser registry) (deref (field-pointer registry 'source))
                              reference #x6c696e 0 3))))
 
+(defun native_macro_whole_marker_p (registry reference)
+  (declare (type (ptr native_macro_registry) registry) (type usize reference) (returns c-int))
+  (ast_builtin_word_p (native_macro_parser registry) (deref (field-pointer registry 'source))
+                     reference #x656c6f687726 0 6))
+
+(defun native_macro_parameter_start (registry reference)
+  (declare (type (ptr native_macro_registry) registry) (type usize reference) (returns usize))
+  (if (= (native_macro_whole_marker_p registry reference) 0) reference
+      (let ((name (native_macro_next registry reference)))
+        (if (= (native_macro_parameter_p registry name) 0) (native_macro_fail registry 10)
+            (native_macro_next registry name)))))
+
 (defun native_macro_optional_marker_p (registry reference)
   (declare (type (ptr native_macro_registry) registry) (type usize reference) (returns c-int))
   (ast_builtin_word_p (native_macro_parser registry) (deref (field-pointer registry 'source))
@@ -162,7 +174,7 @@
 (defun native_macro_validate_parameters (registry reference)
   (declare (type (ptr native_macro_registry) registry) (type usize reference) (returns c-int))
   (let ((tree (deref (field-pointer registry 'tree))))
-    (store (field-pointer tree 'cursor) reference)
+    (store (field-pointer tree 'cursor) (native_macro_parameter_start registry reference))
     (while (if (= (deref (field-pointer registry 'error)) 0)
                (< 0 (deref (field-pointer tree 'cursor))) nil)
       (if (= (native_macro_validate_parameter_step registry (deref (field-pointer tree 'cursor))) 1)

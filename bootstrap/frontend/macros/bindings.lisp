@@ -47,6 +47,10 @@
     (cond
       ((= parameters 0)
        (if (= arguments 0) 1 (progn (native_macro_call_fail call 2) 0)))
+      ((= (native_macro_whole_marker_p registry parameters) 1)
+       (let ((name (native_macro_next registry parameters)))
+         (if (= (native_macro_add_binding call name (deref (field-pointer call 'origin))) 0) 0
+             (native_macro_bind_arguments_from call (native_macro_next registry name) arguments optional))))
       ((= (native_macro_aux_marker_p registry parameters) 1)
        (if (= arguments 0) (native_macro_bind_aux call (native_macro_next registry parameters))
            (progn (native_macro_call_fail call 2) 0)))

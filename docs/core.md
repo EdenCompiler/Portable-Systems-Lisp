@@ -668,6 +668,14 @@ missing defaults produce NIL. They consume no invocation arguments. Excess
 arguments are rejected before auxiliary initialization when there is no rest
 parameter. The same bounded build-host evaluator and rollback rules apply.
 
+A leading `&whole variable` in a native macro lambda list binds the complete
+unevaluated invocation, including its macro name. It consumes no positional
+argument and can precede required, optional, rest/body and auxiliary sections.
+Returning or substituting this value copies the invocation while preserving
+caller symbol identities and origins. Repeated whole-invocation expansion uses
+the existing expansion-step bound. Nested destructuring and `&environment`
+remain unsupported.
+
 On POSIX native compiler hosts, included C sources are compiled and merged in
 a private directory beside the requested output. Publication uses a rename on
 the destination filesystem, so workspace outputs work when `/tmp` resides on
