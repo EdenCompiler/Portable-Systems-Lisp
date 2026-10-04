@@ -485,8 +485,10 @@ execution or host Lisp subprocess. Tree copying and verification own syntax
 invariants; the registry validates macro identities and lambda lists. Binding
 values and syntax constructors support the evaluator; optional and auxiliary binding evaluate
 missing defaults through that evaluator, and argument binding owns arity and
-rest lists. Auxiliary binding applies initializers sequentially after arguments. Evaluation owns quotation templates; expression/function modules
-select executable positions.
+rest lists. Auxiliary binding applies initializers sequentially after arguments.
+Evaluation owns quotation templates; its control module selects build-host
+conditional branches using syntax-value truth and the shared depth bound.
+Expression/function modules select target executable positions.
 Generated nodes retain original source spans and separate origin references.
 The hosted driver allocates and releases the registry/binding arenas; the
 compiler core receives this storage through its explicit context.

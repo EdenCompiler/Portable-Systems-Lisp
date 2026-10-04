@@ -1,4 +1,4 @@
-(include "forms.lisp")
+(include "control_eval.lisp")
 
 (defun native_macro_copy_form (call reference preserve)
   (declare (type (ptr native_macro_call) call) (type usize reference)
@@ -11,17 +11,24 @@
         (store (field-pointer tree 'origin) origin)
         (if (= copy 0) (native_macro_call_fail call (deref (field-pointer tree 'error))) copy)))))
 
+(defun native_macro_self_evaluating_symbol_p (call symbol)
+  (declare (type (ptr native_macro_call) call) (type usize symbol) (returns c-int))
+  (if (= symbol 0) 1
+      (let ((env (deref (field-pointer (deref (field-pointer (native_macro_call_parser call) 'environment)) 'environment))))
+        (cond
+          ((= symbol (deref (field-pointer env 'nil_symbol))) 1)
+          ((= symbol (deref (field-pointer env 'true_symbol))) 1)
+          ((= (deref (field-pointer (native_ct_symbol_at env symbol) 'package))
+              (deref (field-pointer env 'keyword_package))) 1)
+          (t 0)))))
+
 (defun native_macro_eval_atom (call reference)
   (declare (type (ptr native_macro_call) call) (type usize reference) (returns usize))
   (let ((symbol (ast_symbol_identity (native_macro_call_parser call) reference)))
     (let ((bound (native_macro_bound_form call symbol)))
       (if (< 0 bound) (native_macro_copy_form call bound 1)
-          (let ((env (deref (field-pointer (deref (field-pointer (native_macro_call_parser call) 'environment)) 'environment))))
-            (if (if (= symbol 0) t
-                    (if (= symbol (deref (field-pointer env 'nil_symbol))) t
-                        (= symbol (deref (field-pointer env 'true_symbol)))))
-                (native_macro_copy_form call reference 0)
-                (native_macro_call_fail call 4)))))))
+          (if (= (native_macro_self_evaluating_symbol_p call symbol) 1)
+              (native_macro_copy_form call reference 0) (native_macro_call_fail call 4))))))
 
 (defun native_macro_new_template_node (call reference)
   (declare (type (ptr native_macro_call) call) (type usize reference) (returns usize))
@@ -122,9 +129,10 @@
               (let ((value (native_macro_next registry head)))
                 (if (if (= value 0) t (< 0 (native_macro_next registry value)))
                     (native_macro_call_fail call 2) (native_macro_eval_quote call value)))
-              (native_macro_call_fail call 10))))))
+              (if (= (ast_builtin_word_p parser (deref (field-pointer registry 'source)) head #x6669 0 2) 1)
+                  (native_macro_eval_if call head) (native_macro_call_fail call 10)))))))
 
-(defun native_macro_eval (call reference)
+(defun native_macro_eval_construct (call reference)
   (declare (type (ptr native_macro_call) call) (type usize reference) (returns usize))
   (let ((parser (native_macro_call_parser call)))
     (let ((node (parser_node parser reference)))
@@ -136,3 +144,15 @@
           ((= kind 7) (native_macro_copy_form call reference 0))
           ((= kind 1) (native_macro_eval_list call reference))
           (t (native_macro_call_fail call 10)))))))
+
+(defun native_macro_eval (call reference)
+  (declare (type (ptr native_macro_call) call) (type usize reference) (returns usize))
+  (let ((tree (native_macro_tree call)))
+    (if (< 0 (deref (field-pointer call 'error))) 0
+        (if (< (deref (field-pointer tree 'depth)) (deref (field-pointer tree 'limit)))
+            (progn
+              (store (field-pointer tree 'depth) (wrap+ (deref (field-pointer tree 'depth)) 1))
+              (let ((value (native_macro_eval_construct call reference)))
+                (store (field-pointer tree 'depth) (wrap- (deref (field-pointer tree 'depth)) 1))
+                value))
+            (native_macro_call_fail call 5)))))

@@ -969,6 +969,24 @@ and smoke passes. A new native generation comparison remains pending. Destructur
 keyword/environment arguments, general build-host evaluation, managed compiler
 data and the complete M8 Stage 1–3 gates remain required.
 
+### M8 native macro conditional evaluation
+
+The build-host evaluator now handles Common Lisp `if`, evaluating only the
+selected branch and returning NIL for an omitted alternative. Integer zero,
+keywords and nonempty syntax lists are true; NIL and empty lists are false.
+Keywords self-evaluate in the build-host evaluator. Optional/auxiliary defaults
+use the same conditional evaluator, without executing target code.
+
+Independent C fixtures compare Stage 0/native behavior for lazy branches,
+syntax-value predicates, missing alternatives and defaults at O0/O1. The API
+caller checks selected caller identities/origins, immutable source nodes,
+arity/capacity rollback, unbound selected branches and bounded evaluation with
+recovery. Wrong IF arity and selected unbound variables are shared rejection
+fixtures. Focused O0/O1 checks pass on all four hosted targets, and smoke
+passes. A new native generation comparison remains pending. General build-host evaluation,
+keyword/destructuring/environment arguments, managed compiler data and the
+complete M8 Stage 1–3 gates remain required.
+
 ## M9 — Hosted ANSI Common Lisp completion · Pending
 
 **Dependencies:** M4 dynamic runtime and a self-host-capable compiler core.

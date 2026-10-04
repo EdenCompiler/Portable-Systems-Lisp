@@ -676,6 +676,16 @@ caller symbol identities and origins. Repeated whole-invocation expansion uses
 the existing expansion-step bound. Nested destructuring and `&environment`
 remain unsupported.
 
+The native build-host macro evaluator supports Common Lisp `if` with two or
+three operands. It evaluates the predicate once and only the selected branch;
+an omitted alternative yields NIL. NIL and empty lists are false; integer zero,
+keyword symbols and nonempty syntax lists are true. Keywords are self-evaluating
+build-host values. Macro argument forms remain syntax, so an argument such as
+`(quote nil)` is a true list when used directly as a macro-time predicate.
+The evaluator also applies this control flow in optional/auxiliary defaults.
+Evaluation is depth-bounded and failed evaluation restores syntax/identity
+counts and clears unpublished bindings.
+
 On POSIX native compiler hosts, included C sources are compiled and merged in
 a private directory beside the requested output. Publication uses a rename on
 the destination filesystem, so workspace outputs work when `/tmp` resides on
