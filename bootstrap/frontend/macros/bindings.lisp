@@ -1,4 +1,4 @@
-(include "optional_bindings.lisp")
+(include "aux_bindings.lisp")
 (defun native_macro_rest_shell (call parameters)
   (declare (type (ptr native_macro_call) call) (type usize parameters) (returns usize))
   (let ((parser (native_macro_call_parser call))
@@ -33,7 +33,12 @@
   (declare (type (ptr native_macro_call) call) (type usize parameters arguments) (returns c-int))
   (let ((form (native_macro_rest_form call parameters arguments)))
     (if (= form 0) 0
-        (native_macro_add_binding call (native_macro_next (deref (field-pointer call 'registry)) parameters) form))))
+        (let ((registry (deref (field-pointer call 'registry))))
+          (let ((name (native_macro_next registry parameters)))
+            (if (= (native_macro_add_binding call name form) 0) 0
+                (let ((tail (native_macro_next registry name)))
+                  (if (= tail 0) 1
+                      (native_macro_bind_aux call (native_macro_next registry tail))))))))))
 
 (defun native_macro_bind_arguments_from (call parameters arguments optional)
   (declare (type (ptr native_macro_call) call) (type usize parameters arguments)
@@ -42,6 +47,9 @@
     (cond
       ((= parameters 0)
        (if (= arguments 0) 1 (progn (native_macro_call_fail call 2) 0)))
+      ((= (native_macro_aux_marker_p registry parameters) 1)
+       (if (= arguments 0) (native_macro_bind_aux call (native_macro_next registry parameters))
+           (progn (native_macro_call_fail call 2) 0)))
       ((= (native_macro_optional_marker_p registry parameters) 1)
        (native_macro_bind_arguments_from call (native_macro_next registry parameters) arguments 1))
       ((= (native_macro_rest_marker_p registry parameters) 1)

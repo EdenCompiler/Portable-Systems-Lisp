@@ -483,9 +483,9 @@ subsequent function bodies before signature/body analysis. The macro modules
 operate on target-independent syntax and symbol identities, with no target
 execution or host Lisp subprocess. Tree copying and verification own syntax
 invariants; the registry validates macro identities and lambda lists. Binding
-values and syntax constructors support the evaluator; optional binding evaluates
+values and syntax constructors support the evaluator; optional and auxiliary binding evaluate
 missing defaults through that evaluator, and argument binding owns arity and
-rest lists. Evaluation owns quotation templates; expression/function modules
+rest lists. Auxiliary binding applies initializers sequentially after arguments. Evaluation owns quotation templates; expression/function modules
 select executable positions.
 Generated nodes retain original source spans and separate origin references.
 The hosted driver allocates and releases the registry/binding arenas; the

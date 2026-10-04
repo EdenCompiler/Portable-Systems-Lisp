@@ -635,8 +635,8 @@ guarantee. General macro lambda lists, arbitrary build-host evaluation,
 `eval-when`, macrolet/symbol-macrolet and growable managed compiler data remain
 required M8 work.
 
-Native macro lambda lists additionally support a final `&rest` or `&body`
-parameter and empty lambda lists spelled `NIL`. Rest values are fresh syntax
+Native macro lambda lists additionally support a `&rest` or `&body`
+parameter after positional parameters and empty lambda lists spelled `NIL`. Rest values are fresh syntax
 lists containing all remaining unevaluated argument forms. Backquote `,@`
 splices a proper syntax list or NIL into its containing template. Copies retain
 caller identities and origins; empty rest lists contribute no elements. Raw dot
@@ -650,7 +650,7 @@ Macro lambda keywords compare their standard symbol identities: lowercase
 escaped `|&rest|` and a user-package `&custom` can be ordinary parameters.
 
 Native macro lambda lists support `&optional` bare variables and proper
-`(variable [default [supplied-p]])` specifications before a final rest/body
+`(variable [default [supplied-p]])` specifications before a rest/body
 parameter. Missing defaults evaluate in the earlier parameter bindings;
 provided arguments remain unevaluated syntax and skip their defaults.
 Omitted defaults produce NIL, and supplied flags carry the standard T/NIL
@@ -660,6 +660,13 @@ and reader quotation agree; empty list expressions and quoted empty lists
 represent NIL. Integer zero remains true. Failed argument binding or default
 evaluation publishes no partial expansion. Keyword/destructuring parameters
 and general build-host evaluation remain unsupported.
+
+Native macro lambda lists also accept a final `&aux` section, with bare
+variables or `(variable [default])` specifications. Auxiliary defaults evaluate
+sequentially in all earlier required, optional, rest/body and auxiliary bindings;
+missing defaults produce NIL. They consume no invocation arguments. Excess
+arguments are rejected before auxiliary initialization when there is no rest
+parameter. The same bounded build-host evaluator and rollback rules apply.
 
 On POSIX native compiler hosts, included C sources are compiled and merged in
 a private directory beside the requested output. Publication uses a rename on

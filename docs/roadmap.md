@@ -934,6 +934,25 @@ generation comparison for the optional-argument integration remains pending.
 Keyword/destructuring lambda lists, general build-host evaluation, managed
 compiler data and the complete M8 Stage 1–3 gates remain required.
 
+### M8 native macro auxiliary bindings
+
+Native macro lambda lists now accept a final `&aux` section with bare variables
+or one/two-element specifications. Defaults evaluate sequentially through the
+build-host evaluator and can use earlier required, optional, rest/body and
+auxiliary bindings. Omitted defaults yield NIL; auxiliary variables consume no
+source arguments. Rejection and expansion rollback preserve the original trees.
+
+The macro gate includes an independent C fixture for chained defaults, NIL,
+optional/rest integration and repeated native objects. Its auxiliary API caller
+checks caller identities/origins, immutable trees, capacity/arity rollback and
+failure after a prior default has allocated syntax. Malformed specifications,
+constants, misplaced lambda keywords, unbound defaults and excess arguments
+are rejection cases shared with Stage 0. Focused O0/O1 checks pass on all
+four hosted targets, and smoke passes. The auxiliary integration awaits a
+new native generation comparison.
+Keyword/destructuring lists, general build-host evaluation, managed compiler
+data and the complete M8 Stage 1–3 gates remain required.
+
 ## M9 — Hosted ANSI Common Lisp completion · Pending
 
 **Dependencies:** M4 dynamic runtime and a self-host-capable compiler core.
