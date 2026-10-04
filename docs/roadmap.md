@@ -929,8 +929,8 @@ at O0/O1. The public API caller checks preserved caller identities/origins,
 immutable input trees, binding-capacity rollback and excess-argument rejection.
 The macro gate also rejects malformed optional specifications and unbound
 missing defaults. Focused checks pass on all four hosted targets, including
-Windows under Wine and AArch64/RISC-V64 under QEMU; smoke passes. A new
-generation comparison for the optional-argument integration remains pending.
+Windows under Wine and AArch64/RISC-V64 under QEMU; smoke passes. The Linux native generation comparison passes with identical retained
+optional-argument fixture objects.
 Keyword/destructuring lambda lists, general build-host evaluation, managed
 compiler data and the complete M8 Stage 1–3 gates remain required.
 
@@ -948,8 +948,8 @@ checks caller identities/origins, immutable trees, capacity/arity rollback and
 failure after a prior default has allocated syntax. Malformed specifications,
 constants, misplaced lambda keywords, unbound defaults and excess arguments
 are rejection cases shared with Stage 0. Focused O0/O1 checks pass on all
-four hosted targets, and smoke passes. The auxiliary integration awaits a
-new native generation comparison.
+four hosted targets, and smoke passes. The Linux native generation comparison passes with identical retained
+auxiliary fixture objects.
 Keyword/destructuring lists, general build-host evaluation, managed compiler
 data and the complete M8 Stage 1–3 gates remain required.
 
@@ -965,7 +965,7 @@ and empty invocations. Its public API caller checks the copied macro name and
 arguments, spans, origins, input immutability, capacity rollback and arity.
 Missing/constant/repeated/misplaced whole variables and excess arguments are
 shared rejection fixtures. Focused O0/O1 checks pass on all four hosted targets,
-and smoke passes. A new native generation comparison remains pending. Destructuring,
+and smoke passes. The Linux native generation comparison passes. Destructuring,
 keyword/environment arguments, general build-host evaluation, managed compiler
 data and the complete M8 Stage 1–3 gates remain required.
 
@@ -983,7 +983,7 @@ caller checks selected caller identities/origins, immutable source nodes,
 arity/capacity rollback, unbound selected branches and bounded evaluation with
 recovery. Wrong IF arity and selected unbound variables are shared rejection
 fixtures. Focused O0/O1 checks pass on all four hosted targets, and smoke
-passes. A new native generation comparison remains pending. General build-host evaluation,
+passes. The Linux native generation comparison passes. General build-host evaluation,
 keyword/destructuring/environment arguments, managed compiler data and the
 complete M8 Stage 1–3 gates remain required.
 
@@ -1000,8 +1000,8 @@ selected caller identity/origin, empty-body NIL, unchanged input trees,
 capacity/arity rollback, failure in a discarded call and bounded nested
 execution with recovery. Discarded unknown calls are shared rejection cases.
 Focused O0/O1 checks pass on all four hosted targets, including resumed
-Windows rejection/no-host-Lisp checks; smoke passes. A new native generation
-comparison remains pending. Declarations, general build-host calls,
+Windows rejection/no-host-Lisp checks; smoke passes. The Linux native
+generation comparison passes with identical retained sequencing fixtures. Declarations, general build-host calls,
 keyword/destructuring/environment parameters, managed compiler data and the
 complete M8 Stage 1–3 gates remain required.
 
@@ -1020,8 +1020,24 @@ caller checks symbol identities, caller origins, immutable input trees,
 partial-construction/binding-capacity rollback, arity, unbound elements and
 bounded nesting with recovery. Unbound list elements are a shared rejection
 case. Focused O0/O1 checks pass on all four hosted targets, and smoke passes.
-A new native generation comparison remains pending. General build-host operations,
+The Linux native generation comparison passes. General build-host operations,
 remaining lambda-list features, managed compiler data and the complete M8
+Stage 1–3 gates remain required.
+
+### M8 integrated macro-generation comparison
+
+The Linux native subset generation gate passes with fixed/optional/rest/body,
+auxiliary/whole parameters, conditional evaluation, body sequencing and list
+construction integrated. All eight module objects match across generations
+1–3; retained accepted fixture objects match the original native compiler at
+O0/O1, and rejected-source diagnostics/statuses agree. The example audit
+remains 19/30 accepted with 11 explicit gaps.
+
+The run completed from retained checkpoints after an interruption, with every
+tracked input verified against its saved hash before each continued phase.
+This is the existing development subset corpus, not the complete M8 release
+gate. Complete compiler source/behavior parity, remaining macro evaluation,
+managed compiler data, ABI/data/CLI/profile/IR parity and all-target full
 Stage 1–3 gates remain required.
 
 ## M9 — Hosted ANSI Common Lisp completion · Pending
