@@ -6,7 +6,7 @@
             (tree (native_macro_tree call)))
         (let ((origin (deref (field-pointer tree 'origin))))
           (store (field-pointer tree 'origin) form)
-          (let ((copy (native_macro_eval call (deref (field-pointer (native_macro_definition_at registry definition) 'body)))))
+          (let ((copy (native_macro_eval_sequence call (deref (field-pointer (native_macro_definition_at registry definition) 'body)))))
             (store (field-pointer tree 'origin) origin)
             copy)))))
 

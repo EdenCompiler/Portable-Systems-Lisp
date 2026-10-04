@@ -609,7 +609,7 @@ managed compile-time values, growable compiler tables, Unicode reader case
 conversion, and package-aware/escaped source-loader directives remain pending.
 
 The native build-host macro slice accepts top-level `defmacro` with a proper
-list of fixed symbol parameters and one body form. That body can return an
+list of fixed symbol parameters and build-host body forms. A body can return an
 argument form, a constant, quoted syntax, or a backquoted template with ordinary
 unquote. It expands repeated and nested source macro calls in subsequent typed
 function bodies, including imported macro identities. Redefinitions affect
@@ -685,6 +685,13 @@ build-host values. Macro argument forms remain syntax, so an argument such as
 The evaluator also applies this control flow in optional/auxiliary defaults.
 Evaluation is depth-bounded and failed evaluation restores syntax/identity
 counts and clears unpublished bindings.
+
+Native macro bodies evaluate their forms in order and return the last value.
+An empty body yields NIL. Explicit build-host `progn` uses the same sequencing,
+including nested forms and optional/auxiliary defaults. Failures in earlier
+forms reject the expansion even when a later form could produce valid syntax.
+The evaluator retains its depth and arena bounds; declarations, general calls
+and documentation introspection remain unsupported.
 
 On POSIX native compiler hosts, included C sources are compiled and merged in
 a private directory beside the requested output. Publication uses a rename on

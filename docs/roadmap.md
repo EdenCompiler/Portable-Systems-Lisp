@@ -987,6 +987,24 @@ passes. A new native generation comparison remains pending. General build-host e
 keyword/destructuring/environment arguments, managed compiler data and the
 complete M8 Stage 1–3 gates remain required.
 
+### M8 native macro body sequencing
+
+Native macro bodies now evaluate multiple forms in order and return the last
+value; empty bodies return NIL. Explicit build-host `progn` uses the same
+sequencing, including nested conditional/progn forms and optional/auxiliary
+defaults. Earlier failures reject the expansion and roll back generated syntax.
+
+Independent C fixtures compare Stage 0/native results for implicit/explicit
+sequencing, nesting, empty bodies and defaults at O0/O1. The API caller checks
+selected caller identity/origin, empty-body NIL, unchanged input trees,
+capacity/arity rollback, failure in a discarded call and bounded nested
+execution with recovery. Discarded unknown calls are shared rejection cases.
+Focused O0/O1 checks pass on all four hosted targets, including resumed
+Windows rejection/no-host-Lisp checks; smoke passes. A new native generation
+comparison remains pending. Declarations, general build-host calls,
+keyword/destructuring/environment parameters, managed compiler data and the
+complete M8 Stage 1–3 gates remain required.
+
 ## M9 — Hosted ANSI Common Lisp completion · Pending
 
 **Dependencies:** M4 dynamic runtime and a self-host-capable compiler core.

@@ -1,0 +1,16 @@
+(include "control_eval.lisp")
+
+(defun native_macro_eval_sequence (call forms)
+  (declare (type (ptr native_macro_call) call) (type usize forms) (returns usize))
+  (let ((tree (native_macro_tree call)) (registry (deref (field-pointer call 'registry))))
+    (if (= forms 0) (native_macro_boolean_form call (deref (field-pointer call 'origin)) 0)
+        (progn
+          (store (field-pointer tree 'cursor) forms)
+          (store (field-pointer tree 'last) 0)
+          (while (if (= (deref (field-pointer call 'error)) 0)
+                     (< 0 (deref (field-pointer tree 'cursor))) nil)
+            (let ((form (deref (field-pointer tree 'cursor))))
+              (let ((next (native_macro_next registry form)) (value (native_macro_eval call form)))
+                (store (field-pointer tree 'last) value)
+                (store (field-pointer tree 'cursor) next))))
+          (if (= (deref (field-pointer call 'error)) 0) (deref (field-pointer tree 'last)) 0)))))

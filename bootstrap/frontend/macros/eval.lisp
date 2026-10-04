@@ -1,4 +1,4 @@
-(include "control_eval.lisp")
+(include "sequence_eval.lisp")
 
 (defun native_macro_copy_form (call reference preserve)
   (declare (type (ptr native_macro_call) call) (type usize reference)
@@ -130,7 +130,10 @@
                 (if (if (= value 0) t (< 0 (native_macro_next registry value)))
                     (native_macro_call_fail call 2) (native_macro_eval_quote call value)))
               (if (= (ast_builtin_word_p parser (deref (field-pointer registry 'source)) head #x6669 0 2) 1)
-                  (native_macro_eval_if call head) (native_macro_call_fail call 10)))))))
+                  (native_macro_eval_if call head)
+                  (if (= (ast_builtin_word_p parser (deref (field-pointer registry 'source)) head #x6e676f7270 0 5) 1)
+                      (native_macro_eval_sequence call (native_macro_next registry head))
+                      (native_macro_call_fail call 10))))))))
 
 (defun native_macro_eval_construct (call reference)
   (declare (type (ptr native_macro_call) call) (type usize reference) (returns usize))

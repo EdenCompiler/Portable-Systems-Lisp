@@ -488,7 +488,9 @@ missing defaults through that evaluator, and argument binding owns arity and
 rest lists. Auxiliary binding applies initializers sequentially after arguments.
 Evaluation owns quotation templates; its control module selects build-host
 conditional branches using syntax-value truth and the shared depth bound.
-Expression/function modules select target executable positions.
+The sequence module evaluates implicit macro bodies and explicit build-host
+PROGN forms through the same evaluator, preserving traversal across nested
+evaluation. Expression/function modules select target executable positions.
 Generated nodes retain original source spans and separate origin references.
 The hosted driver allocates and releases the registry/binding arenas; the
 compiler core receives this storage through its explicit context.

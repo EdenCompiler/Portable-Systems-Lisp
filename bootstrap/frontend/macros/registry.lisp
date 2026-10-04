@@ -222,8 +222,6 @@
     (cond
       ((= (native_macro_user_name_p registry name) 0) (native_macro_fail registry 4))
       ((= parameters 0) (native_macro_fail registry 4))
-      ((= body 0) (native_macro_fail registry 4))
-      ((< 0 (native_macro_next registry body)) (native_macro_fail registry 10))
       ((= (native_macro_parameter_list_p registry parameters) 0) (native_macro_fail registry 10))
       ((= (native_macro_validate_parameters registry (deref (field-pointer (parser_node parser parameters) 'first))) 0)
        (native_macro_fail registry 10))
