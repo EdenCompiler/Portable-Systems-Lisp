@@ -202,6 +202,7 @@ mkdir "$work_dir/output-directory"
 check_cli_failure 2 "$project_root/tests/bootstrap_answer.lisp" "$work_dir/output-directory"
 grep -q 'cannot write object' "$work_dir/cli.err"
 if test "$host_target" = x86_64-linux-gnu; then
+  sh "$project_root/tests/bootstrap_c_output.sh" "$work_dir/pslcc-native-slice$host_suffix"
   for level in 0 1; do
     run_host "$work_dir/pslcc-native-slice$host_suffix" "-O$level" \
       "$project_root/examples/ffi/source_import.lisp" \

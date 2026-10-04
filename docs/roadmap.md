@@ -874,8 +874,9 @@ checks duplicated target side effects and source-order redefinition. Generation
 gates retain macro fixture objects. Hosted storage fault injection covers the
 two new explicit allocations and idempotent cleanup. Focused checks pass on
 all four hosted targets, and smoke passes. The Linux native subset generation
-comparison remains pending after exposing cross-filesystem C-output publication
-in the hosted adapter; it is not the complete M8 gate. The example manifest now
+comparison remains pending; the cross-filesystem C-output publication failure
+exposed by that run has been corrected in the hosted adapter. It is not the
+complete M8 gate. The example manifest now
 requires both existing fixed-argument macro examples. General macro lambda
 lists/evaluation, managed compiler data, the complete compiler manifest and
 complete M8 Stage 1–3 gates remain open.
@@ -895,11 +896,23 @@ escaped dot symbols. Its public API harness checks spliced caller origins,
 capacity rollback and bounded repeated expansion. Focused checks pass on all
 four hosted targets, and smoke passes. Repeated names and ordinary ampersand
 parameters match the SBCL build-host oracle. The native generation gate
-exposed a separate cross-filesystem C-output publication failure, which remains
-to be corrected before recording a successful generation comparison.
+exposed a separate cross-filesystem C-output publication failure, now corrected
+in the hosted adapter. A successful generation comparison remains pending.
 Optional/key/destructuring
 lambda lists, general build-host evaluation, managed compiler data and the full
 M8 Stage 1–3 gate remain required.
+
+### M8 POSIX C-output publication across filesystems
+
+The explicit C interop adapter now stages its intermediate objects beside the
+requested destination, preserving atomic rename when `/tmp` and the workspace
+use different filesystems. Compile/link failures preserve an existing output
+and remove the private staging directory. `tests/bootstrap_c_output.sh` links
+and executes the source-import example at O0/O1, checks spaced destination
+names, failed-input preservation, missing parents and cleanup. The focused gate
+and smoke pass, and the running native generation gate passes the integrated
+C-output checks. The adapter remains hosted C support; its full PSL port and
+complete M8 compiler/generation gates remain required.
 
 ## M9 — Hosted ANSI Common Lisp completion · Pending
 

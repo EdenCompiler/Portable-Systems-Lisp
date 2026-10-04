@@ -648,3 +648,9 @@ Repeated macro parameter names select the later binding, matching the Stage 0
 build-host expander, including a rest parameter that reuses a required name.
 Macro lambda keywords compare their standard symbol identities: lowercase
 escaped `|&rest|` and a user-package `&custom` can be ordinary parameters.
+
+On POSIX native compiler hosts, included C sources are compiled and merged in
+a private directory beside the requested output. Publication uses a rename on
+the destination filesystem, so workspace outputs work when `/tmp` resides on
+a different filesystem. Failed C compilation preserves an existing object and
+reclaims intermediates. This remains an explicit C interop boundary.

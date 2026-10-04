@@ -51,16 +51,38 @@ static size_t source_count(const struct native_c_source_path *source) {
     return count;
 }
 
+/* Publish by rename from the destination filesystem. A /tmp staging directory
+   can be on a different device from the requested output. */
+static char *output_temporary_directory(const char *output) {
+    static const char suffix[] = ".psl-native-XXXXXX";
+    const char *slash;
+    size_t prefix;
+    char *directory;
+    if (!output) return NULL;
+    slash = strrchr(output, '/');
+    prefix = slash ? (size_t)(slash - output) + 1 : 0;
+    if (prefix > SIZE_MAX - sizeof suffix) return NULL;
+    directory = malloc(prefix + sizeof suffix);
+    if (!directory) return NULL;
+    memcpy(directory, output, prefix);
+    memcpy(directory + prefix, suffix, sizeof suffix);
+    if (!mkdtemp(directory)) {
+        free(directory);
+        return NULL;
+    }
+    return directory;
+}
+
 static void remove_temporary_files(char **objects, size_t count,
                                    const char *psl, const char *merged,
                                    const char *directory) {
     size_t index;
-    for (index = 0; index < count; ++index) {
+    for (index = 0; objects && index < count; ++index) {
         if (objects[index]) unlink(objects[index]);
         free(objects[index]);
     }
-    unlink(psl);
-    unlink(merged);
+    if (psl) unlink(psl);
+    if (merged) unlink(merged);
     rmdir(directory);
 }
 
@@ -117,27 +139,31 @@ int native_host_merge_c_sources(const uint8_t *output,
                                 const struct byte_buffer *object,
                                 const struct native_c_source_path *sources,
                                 uint32_t target) {
-    char directory[] = "/tmp/psl-native-XXXXXX";
     const char *compiler = target_compiler(target);
-    char psl[sizeof directory + 16] = {0};
-    char merged[sizeof directory + 16] = {0};
     size_t count = source_count(sources);
+    char *directory, *psl, *merged;
     char **objects;
+    size_t path_capacity;
     int ok = 0;
-    if (!compiler || !count || !mkdtemp(directory)) return 0;
+    if (!compiler || !count) return 0;
+    directory = output_temporary_directory((const char *)output);
+    if (!directory) return 0;
+    path_capacity = strlen(directory) + sizeof "/merged.o";
+    psl = calloc(path_capacity, 1);
+    merged = calloc(path_capacity, 1);
     objects = calloc(count, sizeof *objects);
-    if (!objects) {
-        rmdir(directory);
-        return 0;
-    }
-    if (format_path(psl, sizeof psl, directory, "psl.o") &&
-        format_path(merged, sizeof merged, directory, "merged.o") &&
+    if (psl && merged && objects &&
+        format_path(psl, path_capacity, directory, "psl.o") &&
+        format_path(merged, path_capacity, directory, "merged.o") &&
         write_object(psl, object) &&
         compile_sources(compiler, sources, directory, objects, count) &&
         merge_objects(compiler, merged, psl, objects, count))
         ok = rename(merged, (const char *)output) == 0;
     remove_temporary_files(objects, count, psl, merged, directory);
     free(objects);
+    free(psl);
+    free(merged);
+    free(directory);
     return ok;
 }
 #else

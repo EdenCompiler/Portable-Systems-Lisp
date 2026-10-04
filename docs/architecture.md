@@ -487,3 +487,9 @@ quotation templates; expression/function modules select executable positions.
 Generated nodes retain original source spans and separate origin references.
 The hosted driver allocates and releases the registry/binding arenas; the
 compiler core receives this storage through its explicit context.
+
+The POSIX C-source adapter stages compiler/linker intermediates alongside the
+requested destination. Its final rename therefore publishes within one
+filesystem, preserves an existing output on compilation failure, and removes
+its private temporary directory. The adapter remains explicit hosted C interop;
+PSL backend/object encoding uses no external assembler.
