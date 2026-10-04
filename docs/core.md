@@ -693,6 +693,14 @@ forms reject the expansion even when a later form could produce valid syntax.
 The evaluator retains its depth and arena bounds; declarations, general calls
 and documentation introspection remain unsupported.
 
+The native build-host evaluator also supports `list`. It evaluates elements
+left to right and constructs a fresh syntax list, including nested lists and
+optional/auxiliary defaults. Empty lists have NIL truth and splice no elements
+into templates. Constructed heads retain their resolved symbol identities;
+substituted elements retain caller origins. A failed element evaluation or
+partial construction restores both syntax and identity arenas. These bounded
+compile-time syntax lists do not provide target managed-cons support.
+
 On POSIX native compiler hosts, included C sources are compiled and merged in
 a private directory beside the requested output. Publication uses a rename on
 the destination filesystem, so workspace outputs work when `/tmp` resides on

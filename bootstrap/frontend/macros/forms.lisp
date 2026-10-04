@@ -20,3 +20,22 @@
                     copy))))
           (native_macro_call_fail call 1)))))
 
+
+(defun native_macro_list_form (call parameters)
+  (declare (type (ptr native_macro_call) call) (type usize parameters) (returns usize))
+  (let ((parser (native_macro_call_parser call))
+        (tree (deref (field-pointer (deref (field-pointer call 'registry)) 'tree))))
+    (let ((reader (deref (field-pointer tree 'reader))))
+      (if (< (deref (field-pointer parser 'count)) (deref (field-pointer reader 'capacity)))
+          (let ((node (parser_node parser parameters)))
+            (let ((rest (parser_new_node parser 1 (deref (field-pointer node 'start)) 0)))
+              (if (= rest 0) (native_macro_call_fail call 1)
+                  (progn
+                    (store (field-pointer reader 'count) rest)
+                    (let ((identity (pointer+ (deref (field-pointer reader 'identities))
+                                               (wrap-cast isize (wrap- rest 1)))))
+                      (store (field-pointer identity 'symbol) 0)
+                      (store (field-pointer identity 'origin) (deref (field-pointer call 'origin))))
+                    rest))))
+          (native_macro_call_fail call 1)))))
+

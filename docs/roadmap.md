@@ -1005,6 +1005,25 @@ comparison remains pending. Declarations, general build-host calls,
 keyword/destructuring/environment parameters, managed compiler data and the
 complete M8 Stage 1–3 gates remain required.
 
+### M8 native build-host list construction
+
+The macro evaluator now implements left-to-right `list` construction with fresh
+syntax nodes, nested lists, empty-list NIL behavior and optional/auxiliary
+defaults. The shared syntax constructor also owns rest-list shells. Resolved
+head identities and substituted caller origins survive construction; failed
+elements or capacity exhaustion publish no partial expansion.
+
+Independent C fixtures compare native/Stage 0 arithmetic after nested list
+construction, empty-list truth, spliced default lists and duplicated target
+side effects at O0/O1. The API
+caller checks symbol identities, caller origins, immutable input trees,
+partial-construction/binding-capacity rollback, arity, unbound elements and
+bounded nesting with recovery. Unbound list elements are a shared rejection
+case. Focused O0/O1 checks pass on all four hosted targets, and smoke passes.
+A new native generation comparison remains pending. General build-host operations,
+remaining lambda-list features, managed compiler data and the complete M8
+Stage 1–3 gates remain required.
+
 ## M9 — Hosted ANSI Common Lisp completion · Pending
 
 **Dependencies:** M4 dynamic runtime and a self-host-capable compiler core.
