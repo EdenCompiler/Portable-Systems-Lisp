@@ -84,7 +84,11 @@ including mixed integer/SSE register classes and stack fallback. On Windows,
 the first four parameter positions use `RCX`/`RDX`/`R8`/`R9` or the matching
 `XMM0`–`XMM3`; callers reserve 32 bytes of shadow space. C structs of size
 1, 2, 4, or 8 bytes pass directly, and other supported structs up to 16 bytes
-pass by pointer with an indirect result. On AAPCS64, integer and pointer
+pass by pointer with an indirect result. Windows functions reserve their
+maximum outgoing shadow/stack area in the frame, keeping RSP fixed through
+calls. Large frames probe each crossed stack page before allocation; COFF
+unwind records describe partial prologues and the fixed body stack.
+On AAPCS64, integer and pointer
 arguments use `x0`–`x7`, floating arguments use `v0`–`v7`, and later
 arguments use the stack. Supported C structs of at most 16 bytes use one or
 two general registers, or floating registers for homogeneous float

@@ -35,7 +35,7 @@ src/
   backend/
     common.lisp         encoded functions and relocation records
     x86-64.lisp         LIR to x86-64 machine code and ABI argument mapping
-    win64-abi.lisp      Microsoft x64 calls, returns, and shadow space
+    win64-abi.lisp      Microsoft x64 calls, returns, and outgoing frame sizing
     aarch64.lisp        LIR to AArch64 instructions and AAPCS64 calls
     riscv64.lisp        LIR to RISC-V64 instructions and LP64D calls
   object/
@@ -172,7 +172,10 @@ runtime/
 optional optimization → verified LIR → backend → object writer. The frontend
 does not encode machine instructions. Each machine backend receives LIR and an
 explicit target contract containing ABI registers, pointer width, stack
-alignment, and object format. The ELF and COFF writers consume encoded
+alignment, and object format. The Stage 0 x86-64 backend owns Windows stack
+page probing and passes actual prologue size and unwind frame-register metadata
+with each encoded function. The Windows ABI module computes the largest
+outgoing area; calls reuse that reserved space. The ELF and COFF writers consume encoded
 functions and relocations rather than source forms.
 The FFI toolchain runs only when source explicitly declares a C translation
 unit or the caller requests a linked artifact. Ordinary typed `-c` compilation

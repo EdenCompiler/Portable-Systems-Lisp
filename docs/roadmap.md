@@ -1102,6 +1102,21 @@ from C link inputs. Focused checks pass on all four hosted targets, including
 Windows under Wine and AArch64/RISC-V64 under QEMU; smoke passes. This provides the collection boundary needed to prove compiler roots; root-frame
 lowering, native managed source/compiler data and the full M8 gates remain open.
 
+### M8 seed Windows frame prerequisite
+
+Stage 0 now reserves the largest outgoing shadow/argument area once per
+Microsoft x64 function, preserving a fixed body RSP. Large local frames probe
+each crossed page before allocation without importing `__chkstk`. The COFF
+writer uses actual prologue lengths, correct small/large allocation codes and
+saved-RBP metadata; the epilogue restores the fixed allocation explicitly.
+
+`tests/windows_frame.sh` checks small and large linked functions at O0/O1
+under Wine, deterministic objects, `RtlVirtualUnwind` before/during/after
+prologues and from a real C callback in the large PSL frame. Its imported calls
+also check argument preservation and source order. The Windows and smoke suites
+pass. This prepares the seed for larger managed root frames; native managed
+compiler data and the complete M8 gates remain open.
+
 ## M9 — Hosted ANSI Common Lisp completion · Pending
 
 **Dependencies:** M4 dynamic runtime and a self-host-capable compiler core.

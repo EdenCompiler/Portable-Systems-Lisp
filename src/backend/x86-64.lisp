@@ -3,7 +3,7 @@
 (defstruct (emitter (:constructor make-emitter
                       (contract signatures signature abi-layouts)))
   contract signatures signature abi-layouts
-  return-buffer-slot
+  return-buffer-slot frame-size
   (bytes (byte-buffer))
   (relocations nil)
   (labels (make-hash-table))
@@ -438,7 +438,10 @@
   (let ((buffer (emitter-bytes emitter)))
     (emit-return-value emitter instruction)
     (if (eq (backend-contract-abi (emitter-contract emitter)) :win64)
-        (emit-bytes buffer #x48 #x8d #x65 0 #x5d #xc3)
+        (progn
+          (emit-bytes buffer #x48 #x81 #xc4)
+          (emit-integer buffer (emitter-frame-size emitter) 4)
+          (emit-bytes buffer #x5d #xc3))
         (emit-bytes buffer #xc9 #xc3))))
 
 (defun emit-instruction (emitter instruction)
@@ -470,43 +473,61 @@
       (patch-i32 (emitter-bytes emitter) (car fixup)
                  (- destination (+ (car fixup) 4))))))
 
-(defun emit-prologue (buffer)
-  ;; The frame-size field is patched after all LIR registers are known.
-  (emit-bytes buffer #x55 #x48 #x89 #xe5 #x48 #x81 #xec 0 0 0 0))
+(defun emit-stack-probes (buffer frame-size)
+  ;; Probe through a volatile cursor, preserving incoming ABI registers and RSP.
+  (when (>= frame-size 4096)
+    (emit-bytes buffer #x49 #x89 #xe3 #xb8) ; mov r11,rsp; mov eax,page count
+    (emit-integer buffer (floor frame-size 4096) 4)
+    (let ((loop-start (length buffer)))
+      (emit-bytes buffer #x49 #x81 #xeb 0 #x10 0 0 ; sub r11,4096
+                  #x41 #xf6 #x03 0              ; test byte [r11],0
+                  #x83 #xe8 1 #x75)             ; sub eax,1; jne
+      (emit-byte buffer (ldb (byte 8 0) (- loop-start (1+ (length buffer))))))
+    (when (plusp (mod frame-size 4096))
+      (emit-bytes buffer #x4c #x8d #x9c #x24) ; lea r11,[rsp-frame-size]
+      (emit-integer buffer (- frame-size) 4)
+      (emit-bytes buffer #x41 #xf6 #x03 0))))
+
+(defun emit-prologue (buffer frame-size windows-p)
+  (emit-bytes buffer #x55 #x48 #x89 #xe5)
+  (when windows-p (emit-stack-probes buffer frame-size))
+  (emit-bytes buffer #x48 #x81 #xec)
+  (emit-integer buffer frame-size 4)
+  (length buffer))
+
+(defun function-frame-size (emitter function)
+  (let* ((alignment (backend-contract-stack-alignment (emitter-contract emitter)))
+         (slots (+ (lir-function-register-count function)
+                   (if (emitter-return-buffer-slot emitter) 1 0)))
+         (locals (* slots 16))
+         (outgoing (if (eq (backend-contract-abi (emitter-contract emitter)) :win64)
+                       (win-outgoing-frame-size emitter function) 0)))
+    (* alignment (ceiling (+ locals outgoing) alignment))))
 
 (defun compile-function (function contract signatures abi-layouts)
   (unless (and (eq (backend-contract-architecture contract) :x86-64)
-               (member (backend-contract-abi contract)
-                       '(:sysv-amd64 :win64)))
+               (member (backend-contract-abi contract) '(:sysv-amd64 :win64)))
     (fail "x86-64 backend requires a supported AMD64 ABI"))
   (let ((emitter (make-emitter contract signatures
-                               (lir-function-signature function)
-                               abi-layouts)))
+                               (lir-function-signature function) abi-layouts))
+        (windows-p (eq (backend-contract-abi contract) :win64)))
     (when (win-indirect-return-p
-           (signature-result (lir-function-signature function))
-           contract abi-layouts)
-      (setf (emitter-return-buffer-slot emitter)
-            (lir-function-register-count function)))
-    (emit-prologue (emitter-bytes emitter))
-    (when (emitter-return-buffer-slot emitter)
-      (emit-store-slot (emitter-bytes emitter) 1
-                       (emitter-return-buffer-slot emitter)))
-    (dolist (instruction (lir-function-instructions function))
-      (let ((*source-location* (lir-instruction-source instruction)))
-        (emit-instruction emitter instruction)))
-    (patch-branches emitter)
-    (let ((frame-size
-            (* (backend-contract-stack-alignment contract)
-               (ceiling (* (+ (lir-function-register-count function)
-                              (if (emitter-return-buffer-slot emitter) 1 0))
-                           16)
-                        (backend-contract-stack-alignment contract)))))
-      (patch-i32 (emitter-bytes emitter) 7 frame-size)
-    (make-encoded-function
-     :name (lir-function-name function)
-     :bytes (emitter-bytes emitter)
-     :relocations (nreverse (emitter-relocations emitter))
-     :frame-size frame-size))))
+           (signature-result (lir-function-signature function)) contract abi-layouts)
+      (setf (emitter-return-buffer-slot emitter) (lir-function-register-count function)))
+    (setf (emitter-frame-size emitter) (function-frame-size emitter function))
+    (let ((prologue-size (emit-prologue (emitter-bytes emitter)
+                                      (emitter-frame-size emitter) windows-p)))
+      (when (emitter-return-buffer-slot emitter)
+        (emit-store-slot (emitter-bytes emitter) 1 (emitter-return-buffer-slot emitter)))
+      (dolist (instruction (lir-function-instructions function))
+        (let ((*source-location* (lir-instruction-source instruction)))
+          (emit-instruction emitter instruction)))
+      (patch-branches emitter)
+      (make-encoded-function
+       :name (lir-function-name function) :bytes (emitter-bytes emitter)
+       :relocations (nreverse (emitter-relocations emitter))
+       :frame-size (emitter-frame-size emitter) :prologue-size prologue-size
+       :unwind-frame-register (when windows-p 0)))))
 
 (defun compile-linux-exit-startup ()
   (let ((buffer (byte-buffer)))

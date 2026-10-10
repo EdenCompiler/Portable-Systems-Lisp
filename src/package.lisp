@@ -101,6 +101,7 @@
            #:relocation-kind #:relocation-addend
            #:make-encoded-function #:encoded-function-name
            #:encoded-function-bytes #:encoded-function-relocations
+           #:encoded-function-prologue-size #:encoded-function-unwind-frame-register
            #:encoded-function-frame-size #:encoded-function-local-labels))
 
 (defpackage #:psl.backend.x86-64

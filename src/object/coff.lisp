@@ -61,20 +61,22 @@
             (t (dotimes (index size) (emit-byte bytes 0)))))))
     (values bytes (nreverse definitions))))
 
-(defun coff-unwind-info (frame-size)
+(defun coff-unwind-info (frame-size &optional (prologue-size 11) (frame-register 5))
   (let ((bytes (byte-buffer))
         (allocation-slots (cond ((zerop frame-size) 0)
                                 ((<= frame-size 128) 1)
                                 ((<= frame-size 524280) 2)
+                                ((<= frame-size #xffffffff) 3)
                                 (t (fail "Windows stack frame is too large")))))
-    (emit-bytes bytes 1 11 (+ allocation-slots 2) 5)
-    (cond
-      ((= allocation-slots 1)
-       (emit-bytes bytes 11 (+ #x20 (1- (/ frame-size 8)))))
-      ((= allocation-slots 2)
-       (emit-bytes bytes 11 1)
-       (emit-integer bytes (/ frame-size 8) 2)))
-    (emit-bytes bytes 4 3 1 #x50)
+    (unless (<= 0 prologue-size 255) (fail "Windows prologue is too large"))
+    (emit-bytes bytes 1 prologue-size
+                (+ allocation-slots 1 (if (zerop frame-register) 0 1)) frame-register)
+    (case allocation-slots
+      (1 (emit-bytes bytes prologue-size (+ 2 (ash (1- (/ frame-size 8)) 4))))
+      (2 (emit-bytes bytes prologue-size 1) (emit-integer bytes (/ frame-size 8) 2))
+      (3 (emit-bytes bytes prologue-size #x11) (emit-integer bytes frame-size 4)))
+    (unless (zerop frame-register) (emit-bytes bytes 4 3))
+    (emit-bytes bytes 1 #x50)
     (coff-align bytes 4)
     bytes))
 
@@ -101,7 +103,9 @@
                      relocations)
                (coff-append-buffer xdata
                                    (coff-unwind-info
-                                    (encoded-function-frame-size function)))))
+                                    (encoded-function-frame-size function)
+                                    (or (encoded-function-prologue-size function) 11)
+                                    (or (encoded-function-unwind-frame-register function) 5)))))
     (values pdata xdata (nreverse relocations))))
 
 (defun coff-add-symbol (symbols indices name value section type storage)
