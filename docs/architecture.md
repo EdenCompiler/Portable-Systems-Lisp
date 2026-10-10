@@ -12,6 +12,7 @@ src/
   binary.lisp           little-endian byte-buffer operations
   target.lisp           architecture, ABI, OS, and object-format selection
   driver.lisp           compilation pipeline entry point
+  root-runtime.lisp     compiler root imports and hosted module dependencies
   frontend/
     layout.lisp         packed structure layout and field lookup
     reader.lisp         source input, declarations, machine types
@@ -29,15 +30,19 @@ src/
     types.lisp          machine type queries and pointer qualifiers
     ssa.lisp            portable CFG, SSA values, and explicit joins
     lower.lisp          typed HIR to SSA and SSA to portable LIR
+    roots.lisp          typed root catalogue, lowering and CFG lifetime checks
     verify/             HIR, SSA, and LIR invariant checks
     optimize.lisp       inlining, constant folding, and dead-code removal
     dump.lisp           stable, readable IR inspection
   backend/
     common.lisp         encoded functions and relocation records
     x86-64.lisp         LIR to x86-64 machine code and ABI argument mapping
+    x86-roots.lisp      registered root frames for SysV and Microsoft x64
     win64-abi.lisp      Microsoft x64 calls, returns, and outgoing frame sizing
     aarch64.lisp        LIR to AArch64 instructions and AAPCS64 calls
+    aarch64-roots.lisp  AAPCS64 registered root frame encoding
     riscv64.lisp        LIR to RISC-V64 instructions and LP64D calls
+    riscv64-roots.lisp  LP64D registered root frame encoding
   object/
     elf64.lisp          ELF sections, symbols, and relocations
     coff.lisp           COFF sections, symbols, relocations, and unwind records
@@ -193,7 +198,14 @@ The SSA representation has basic blocks, typed values, terminators, and `phi`
 joins. The current language subset has conditional branches and a Boolean
 `while` loop whose body may update raw storage.
 LIR uses virtual registers and explicit labels after `phi` edge copies are
-placed. See [the compiler pipeline](compiler.md) for stage APIs and invariants.
+placed. `ir/roots.lisp` lowers explicit initialization, registration,
+synchronization and removal operations using the typed virtual-register catalogue
+and persisted allocation summaries. The LIR receiver verifies the catalogue
+and root lifetime through control-flow joins before encoding. Each CPU root
+module owns frame offsets and runtime-call encoding; `root-runtime.lisp` installs
+checked imports and the GC dependency in the driver. Neither the frontend nor
+portable LIR contains ABI registers or stack offsets.
+See [the compiler pipeline](compiler.md) for stage APIs and invariants.
 
 The source tree separates language analysis, portable IR, machine backends,
 object formats, and external toolchain integration. Add a directory when it

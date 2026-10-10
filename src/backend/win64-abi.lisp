@@ -200,7 +200,7 @@
     (* 16 (ceiling (+ 32 (* 8 (max 0 (- positions 4)))) 16))))
 
 (defun win-outgoing-frame-size (emitter function)
-  (let ((size 0))
+  (let ((size (if (lir-function-root-registers function) 32 0)))
     (dolist (instruction (lir-function-instructions function) size)
       (when (eq (lir-instruction-op instruction) :call)
         (setf size (max size (win-call-frame-size emitter instruction)))))))

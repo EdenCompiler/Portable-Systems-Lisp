@@ -190,11 +190,22 @@ binds two managed values. The binding currently requires a direct `values`
 expression. General lambda lists and full
 Common Lisp multiple-value propagation are not implemented.
 
+Stage 0 emits explicit root frames for managed functions whose direct-call
+summaries permit allocation, collection or unknown foreign effects. It saves
+incoming arguments before registering the frame, initializes managed slots to
+NIL, synchronizes typed roots before calls and unregisters them before returning.
+This works on all four hosted targets, including mixed floating/aggregate and
+stack arguments. Machine integers and raw pointers are excluded from the root
+array. The current nonmoving collector may retain dead managed temporaries
+until the function returns.
+Allocation-free functions need no root frame. The linked artifact selects the
+GC module when compiler-inserted root operations require it.
+
 `without-allocation` checks all direct calls reachable from the region.
 Unknown imported calls, managed allocation, explicit GC, and indirect closure
 calls fail certification. An import may end with `:no-allocation` to declare a
-trusted nonallocating effect. This promise is checked at compile time;
-incorrect foreign annotations remain the caller's responsibility.
+trusted effect excluding allocation and collection. This promise is checked at
+compile time; incorrect foreign annotations remain the caller's responsibility.
 
 The runtime is a separately linked, single-threaded mark-and-sweep module set.
 Only facilities used by hosted source and their dependencies are linked.

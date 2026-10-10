@@ -76,6 +76,9 @@
       (verify-ssa-function function (compilation-signatures compilation) bits))
     (let ((lir (mapcar #'linearize-function functions)))
       (dolist (function lir)
+        (lower-root-frames function (compilation-signatures compilation))
+        (when (lir-function-root-registers function)
+          (register-root-runtime compilation))
         (verify-lir-function function (compilation-signatures compilation)
                              bits))
       (setf (compilation-lir-functions compilation) lir

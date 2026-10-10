@@ -22,16 +22,21 @@
                   "ir/verify/hir.lisp"
                   "ir/verify/ssa.lisp"
                   "ir/verify/lir.lisp"
+                  "ir/roots.lisp"
                   "ir/optimize.lisp"
                   "ir/dump.lisp"
                   "backend/common.lisp"
                   "backend/x86-64.lisp"
+                  "backend/x86-roots.lisp"
                   "backend/win64-abi.lisp"
                   "backend/aarch64.lisp"
+                  "backend/aarch64-roots.lisp"
                   "backend/riscv64.lisp"
+                  "backend/riscv64-roots.lisp"
                   "object/elf64.lisp"
                   "object/coff.lisp"
                   "ffi/toolchain.lisp"
                   "ffi/freestanding.lisp"
-                  "driver.lisp"))
+                  "driver.lisp"
+                  "root-runtime.lisp"))
     (load (merge-pathnames file root))))

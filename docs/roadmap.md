@@ -1117,6 +1117,30 @@ also check argument preservation and source order. The Windows and smoke suites
 pass. This prepares the seed for larger managed root frames; native managed
 compiler data and the complete M8 gates remain open.
 
+### M8 seed typed root frames
+
+Stage 0 now lowers and verifies explicit root frames for managed functions
+with potentially allocating/collecting calls. Managed slots are initialized
+to NIL before arguments are saved; registration follows argument capture.
+Typed snapshots precede calls, and removal precedes return-value reloads.
+The catalogue excludes machine integers and raw pointers. Persisted direct-call
+summaries omit frames from certified allocation-free functions; unknown foreign
+effects require them. Runtime imports and the GC link dependency are checked
+and installed through the compiler library. All three CPU backends implement
+the hosted ABI, including Windows shadow space and probed large frames.
+
+An independent C caller collects through the explicit-root boundary and checks
+untyped pointer bits, managed arguments/locals, control-flow joins, 1,200-level
+recursion, 4,096 loop collections, constructor arguments, large frames, stack
+arguments and floating/aggregate results. Focused O0/O1 checks include repeated
+objects and compiler-linked artifacts on all four hosted targets. API rejection
+checks cover catalogue, lifetime, synchronization, argument ordering and runtime
+symbol conflicts. Smoke and the Windows/AArch64/RISC-V regression suites pass,
+including RISC-V freestanding execution. Roots currently retain all managed
+virtual-register slots until function exit, and ordinary runtime operations
+still collect conservatively. Native lowering, native managed source/compiler
+data and the full M8 Stage 1–3 gates remain required.
+
 ## M9 — Hosted ANSI Common Lisp completion · Pending
 
 **Dependencies:** M4 dynamic runtime and a self-host-capable compiler core.

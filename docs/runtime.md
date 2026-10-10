@@ -21,8 +21,14 @@ Ordinary typed objects and binaries have no PSL runtime dependency.
 The object layout is private. The runtime has cons, byte-string, symbol,
 package, and closure objects. C functions that hold values across an allocation
 register them with `psl_rt_push_roots`, then remove the frame with
-`psl_rt_pop_roots`. Compiled PSL stack slots are scanned conservatively at a
-collection point. Objects reachable from either root source are marked; the
+`psl_rt_pop_roots`. Stage 0 emits registered root frames around potentially
+allocating/collecting calls in managed functions. Only `value` virtual registers
+enter the root array; machine integers and raw pointers are excluded. Arguments
+are saved before registration, and unused managed slots start as NIL. The array
+is synchronized before calls and removed before return. These typed roots may
+retain dead temporaries until function exit.
+The default collector additionally scans the stack conservatively.
+Objects reachable from either root source are marked; the
 rest are swept without moving live objects. The collector runs on the only
 supported thread. Conservative false positives can retain an unreachable
 object until a later collection.
@@ -39,8 +45,13 @@ collection uses the same rule. The constructor registers its two arguments
 internally; callers must register every other live managed value held across
 these operations. Unregistered pointer bits on the C stack do not retain an
 object. These functions share the existing nonmoving heap and ABI value layout.
-Stage 0 generated code continues to use the conservative operations. Compiler
-root-frame generation and native managed-source integration remain M8 work.
+Stage 0's ordinary runtime operations continue to use the conservative
+collector, while its emitted frames also support the precise C boundaries.
+Imports annotated `:no-allocation` must exclude collection as well as allocation.
+Root registration selects the GC runtime module explicitly; certified
+allocation-free managed functions remain free of this extra dependency.
+Native root-frame lowering and managed-source/compiler-data integration remain
+M8 work.
 
 ## Modules and linking
 
@@ -105,3 +116,10 @@ values, shared lists, temporary constructor arguments and automatic collection
 on the four hosted targets. It also links through `pslcc` at O0/O1 to verify
 runtime selection from the new symbols in a C link input. Collector/cons code
 is checked at C O0/O2; the OS stack-bound adapter keeps its baseline C build.
+
+`sh tests/managed_roots.sh TARGET` links generated PSL with an independent C
+caller and precise collector. It checks typed roots against untyped pointer
+bits, locals, joins, recursion, loops, constructor arguments, large frames,
+stack/float/aggregate ABI transport, root release and deterministic O0/O1
+objects. Its Linux API gate rejects malformed catalogues and frame lifetimes,
+missing synchronization, late argument saves and reserved-symbol conflicts.

@@ -45,6 +45,8 @@
 (defun dump-lir-function (function &optional (stream *standard-output*))
   (format stream "LIR ~A registers=~D~%"
           (lir-function-name function) (lir-function-register-count function))
+  (when (lir-function-root-registers function)
+    (format stream "  roots=~S~%" (lir-function-root-registers function)))
   (dolist (instruction (lir-function-instructions function))
     (format stream "  ~A~@[ %~D~]~@[ ~S~] value=~S args=~S~A~%"
             (lir-instruction-op instruction)

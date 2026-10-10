@@ -1,7 +1,7 @@
 (in-package #:psl.ir)
 
 (defstruct lir-instruction op dst type value args source)
-(defstruct lir-function name signature instructions register-count)
+(defstruct lir-function name signature instructions register-count root-registers)
 
 (defstruct (lowering-state (:constructor make-lowering-state ()))
   (blocks nil)

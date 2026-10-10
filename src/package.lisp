@@ -62,6 +62,7 @@
            #:lower-function #:linearize-function
            #:lir-function #:make-lir-function #:lir-function-name
            #:lir-function-signature #:lir-function-instructions
+           #:lir-function-root-registers #:lower-root-frames #:verify-lir-roots
            #:lir-function-register-count #:lir-instruction-op
            #:lir-instruction-dst #:lir-instruction-value
            #:lir-instruction-args #:lir-instruction-type

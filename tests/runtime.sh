@@ -21,3 +21,5 @@ cc -std=c11 -Wall -Wextra -Werror -O0 -pthread \
 "$work_dir/runtime-test"
 
 sh "$project_root/tests/runtime_precise.sh" x86_64-linux-gnu
+
+sh "$project_root/tests/managed_roots.sh" x86_64-linux-gnu

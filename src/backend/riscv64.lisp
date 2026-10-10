@@ -3,6 +3,7 @@
 (defstruct (emitter (:constructor make-emitter
                       (contract signatures signature abi-layouts)))
   contract signatures signature abi-layouts
+  root-registers root-header root-array
   (bytes (byte-buffer))
   (relocations nil)
   (local-labels nil)
@@ -430,6 +431,10 @@
 
 (defun emit-instruction (emitter instruction)
   (case (lir-instruction-op instruction)
+    (:roots-init (emit-roots-init emitter))
+    (:roots-enter (emit-roots-enter emitter))
+    (:roots-sync (emit-roots-sync emitter))
+    (:roots-leave (emit-roots-leave emitter))
     (:argument (emit-argument emitter instruction))
     (:constant (emit-constant emitter instruction))
     (:copy (emit-copy emitter instruction))
@@ -474,6 +479,7 @@
          (emitter (make-emitter contract signatures
                                 (lir-function-signature function)
                                 abi-layouts)))
+    (setf frame-size (configure-root-frame emitter function frame-size))
     (emit-prologue (emitter-bytes emitter) frame-size)
     (dolist (instruction (lir-function-instructions function))
       (let ((*source-location* (lir-instruction-source instruction)))

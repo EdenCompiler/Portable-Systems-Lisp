@@ -33,6 +33,10 @@
          (types (lir-operand-types instruction register-types))
          (value (lir-instruction-value instruction)))
     (case op
+      ((:roots-init :roots-enter :roots-sync :roots-leave)
+       (expect-count types 0 "LIR roots")
+       (when (or (lir-instruction-dst instruction) type value)
+         (fail "invalid LIR root operation fields")))
       (:label (expect-count types 0 "LIR label"))
       (:jump (expect-count types 0 "LIR jump"))
       (:branch-zero
@@ -205,6 +209,7 @@
                 "LIR return"))
              (verify-lir-operation instruction register-types
                                    signatures pointer-bits))
+    (verify-lir-roots function register-types signatures instructions labels)
     (verify-lir-assignment instructions labels
                            (lir-function-register-count function)))
   t)

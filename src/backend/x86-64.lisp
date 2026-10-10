@@ -4,6 +4,7 @@
                       (contract signatures signature abi-layouts)))
   contract signatures signature abi-layouts
   return-buffer-slot frame-size
+  root-registers root-header root-array
   (bytes (byte-buffer))
   (relocations nil)
   (labels (make-hash-table))
@@ -446,6 +447,10 @@
 
 (defun emit-instruction (emitter instruction)
   (case (lir-instruction-op instruction)
+    (:roots-init (emit-roots-init emitter))
+    (:roots-enter (emit-roots-enter emitter))
+    (:roots-sync (emit-roots-sync emitter))
+    (:roots-leave (emit-roots-leave emitter))
     (:argument (emit-argument emitter instruction))
     (:constant (emit-constant emitter instruction))
     (:copy (emit-copy emitter instruction))
@@ -499,7 +504,8 @@
   (let* ((alignment (backend-contract-stack-alignment (emitter-contract emitter)))
          (slots (+ (lir-function-register-count function)
                    (if (emitter-return-buffer-slot emitter) 1 0)))
-         (locals (* slots 16))
+         (locals (if (emitter-root-registers emitter)
+                     (- (emitter-root-array emitter)) (* slots 16)))
          (outgoing (if (eq (backend-contract-abi (emitter-contract emitter)) :win64)
                        (win-outgoing-frame-size emitter function) 0)))
     (* alignment (ceiling (+ locals outgoing) alignment))))
@@ -514,6 +520,7 @@
     (when (win-indirect-return-p
            (signature-result (lir-function-signature function)) contract abi-layouts)
       (setf (emitter-return-buffer-slot emitter) (lir-function-register-count function)))
+    (configure-root-frame emitter function)
     (setf (emitter-frame-size emitter) (function-frame-size emitter function))
     (let ((prologue-size (emit-prologue (emitter-bytes emitter)
                                       (emitter-frame-size emitter) windows-p)))
