@@ -658,8 +658,8 @@ identities. The default evaluator accepts the same argument, constant,
 quotation and backquote forms as macro bodies. Canonical `(quote datum)`
 and reader quotation agree; empty list expressions and quoted empty lists
 represent NIL. Integer zero remains true. Failed argument binding or default
-evaluation publishes no partial expansion. Keyword/destructuring parameters
-and general build-host evaluation remain unsupported.
+evaluation publishes no partial expansion. Destructuring parameters and
+general build-host evaluation remain unsupported.
 
 Native macro lambda lists also accept a final `&aux` section, with bare
 variables or `(variable [default])` specifications. Auxiliary defaults evaluate
@@ -675,6 +675,23 @@ Returning or substituting this value copies the invocation while preserving
 caller symbol identities and origins. Repeated whole-invocation expansion uses
 the existing expansion-step bound. Nested destructuring and `&environment`
 remain unsupported.
+
+Native macro lambda lists accept `&key` bare variables and
+`(variable [default [supplied-p]])` specifications, including explicit
+`((key-name variable) [default [supplied-p]])` names. Implicit keyword names
+preserve the variable's exact spelling; explicit names compare symbol identity.
+Values remain unevaluated caller syntax, defaults see earlier bindings, and
+supplied values skip initialization. The first occurrence of a repeated key
+wins. Optional/rest/body parameters may precede keys and auxiliary bindings
+may follow them; a rest binding retains the complete keyword argument list.
+
+Unknown keys reject expansion unless the lambda list has `&allow-other-keys`
+or the invocation's first `:allow-other-keys` value is true. This value is
+unevaluated syntax: NIL/empty lists are false and zero is true. Key/value lists
+must have even length. `:allow-other-keys` is accepted as a control argument
+and can also be explicitly named by a parameter. Failures restore syntax and
+identity counts and clear unpublished bindings. Destructuring key variables
+and `&environment` remain unsupported.
 
 The native build-host macro evaluator supports Common Lisp `if` with two or
 three operands. It evaluates the predicate once and only the selected branch;

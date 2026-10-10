@@ -127,6 +127,8 @@
             ((< 0 (native_macro_next registry supplied)) 0)
             (t (native_macro_parameter_p registry supplied))))))))
 
+(include "key_parameters.lisp")
+
 (defun native_macro_validate_rest_tail (registry reference)
   (declare (type (ptr native_macro_registry) registry) (type usize reference) (returns c-int))
   (let ((name (native_macro_next registry reference)))
@@ -134,12 +136,18 @@
         (let ((tail (native_macro_next registry name)))
           (if (= tail 0)
               (progn (store (field-pointer (deref (field-pointer registry 'tree)) 'cursor) 0) 1)
-              (if (= (native_macro_aux_marker_p registry tail) 1)
-                  (native_macro_validate_aux_parameters registry (native_macro_next registry tail)) 0))))))
+              (cond
+                ((= (native_macro_key_marker_p registry tail) 1)
+                 (native_macro_validate_key_parameters registry (native_macro_next registry tail)))
+                ((= (native_macro_aux_marker_p registry tail) 1)
+                 (native_macro_validate_aux_parameters registry (native_macro_next registry tail)))
+                (t 0)))))))
 
 (defun native_macro_validate_optional_step (registry reference)
   (declare (type (ptr native_macro_registry) registry) (type usize reference) (returns c-int))
   (cond
+    ((= (native_macro_key_marker_p registry reference) 1)
+     (native_macro_validate_key_parameters registry (native_macro_next registry reference)))
     ((= (native_macro_rest_marker_p registry reference) 1)
      (native_macro_validate_rest_tail registry reference))
     ((= (native_macro_aux_marker_p registry reference) 1)
@@ -161,6 +169,8 @@
 (defun native_macro_validate_parameter_step (registry reference)
   (declare (type (ptr native_macro_registry) registry) (type usize reference) (returns c-int))
   (cond
+    ((= (native_macro_key_marker_p registry reference) 1)
+     (native_macro_validate_key_parameters registry (native_macro_next registry reference)))
     ((= (native_macro_aux_marker_p registry reference) 1)
      (native_macro_validate_aux_parameters registry (native_macro_next registry reference)))
     ((= (native_macro_optional_marker_p registry reference) 1)

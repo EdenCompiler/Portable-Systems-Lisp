@@ -487,7 +487,12 @@ declaration module validates body prefixes and selects executable body forms
 without altering source trees or publishing invalid redefinitions. Binding
 values and syntax constructors support the evaluator; optional and auxiliary binding evaluate
 missing defaults through that evaluator, and argument binding owns arity and
-rest lists. Auxiliary binding applies initializers sequentially after arguments.
+rest lists. Keyword validation owns specification shape and section order;
+keyword binding validates invocation pairs, matches symbol identities or exact
+implicit keyword names, and applies defaults and supplied flags. It does not
+intern additional symbols during expansion; flat pair and parameter scans use
+iteration. Auxiliary binding applies
+initializers sequentially after arguments.
 Evaluation owns quotation templates; its control module selects build-host
 conditional branches using syntax-value truth and the shared depth bound.
 The sequence module evaluates implicit macro bodies and explicit build-host

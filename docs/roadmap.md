@@ -1059,6 +1059,31 @@ Windows under Wine and AArch64/RISC-V64 under QEMU; smoke passes. Remaining
 declarations, general build-host evaluation, remaining lambda-list features,
 managed compiler data and complete M8 Stage 1–3 gates remain required.
 
+### M8 native macro keyword arguments
+
+Native macro lambda lists now support `&key`, optional defaults/supplied flags,
+explicit key names, preceding optional/rest/body parameters, following auxiliary
+bindings and `&allow-other-keys`. Invocation pairs stay unevaluated syntax;
+leftmost duplicates win. Unknown keys reject unless a lambda-list allowance or
+the first true invocation control permits them. NIL is false and zero is true.
+Matching preserves symbol identity and exact implicit keyword spelling without
+interning symbols during expansion.
+
+Independent C callers compare Stage 0/native behavior for defaults, lazy
+initialization, supplied flags, duplicate keys, explicit package symbols,
+optional/rest/aux integration and allowance controls at O0/O1. The API caller
+checks caller/rest origins, unchanged input/environment names, leftmost
+selection, binding/partial-syntax capacity rollback, malformed invocation/default
+failure, invalid redefinition preservation and 10,000-pair flat invocations.
+Flat pair/parameter scans use iteration to avoid proportional host stack use.
+Shared rejection cases cover
+unknown/odd keys, false first allowances and malformed/misordered specifications.
+Focused O0/O1 checks pass on all four hosted targets, including Windows under
+Wine and AArch64/RISC-V64 under QEMU; smoke passes. Explicit NIL key names
+expose an SBCL seed expander discrepancy that still needs a host bridge or
+parity resolution. Destructuring/environment parameters, general build-host
+evaluation, managed compiler data and complete M8 Stage 1–3 gates remain required.
+
 ## M9 — Hosted ANSI Common Lisp completion · Pending
 
 **Dependencies:** M4 dynamic runtime and a self-host-capable compiler core.
