@@ -19,3 +19,5 @@ cc -std=c11 -Wall -Wextra -Werror -O0 -pthread \
   "$project_root/tests/runtime.c" "$work_dir/libpsl-runtime.a" \
   -o "$work_dir/runtime-test"
 "$work_dir/runtime-test"
+
+sh "$project_root/tests/runtime_precise.sh" x86_64-linux-gnu

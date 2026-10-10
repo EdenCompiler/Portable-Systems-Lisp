@@ -1084,6 +1084,24 @@ expose an SBCL seed expander discrepancy that still needs a host bridge or
 parity resolution. Destructuring/environment parameters, general build-host
 evaluation, managed compiler data and complete M8 Stage 1–3 gates remain required.
 
+### M8 explicit-root runtime collection boundary
+
+The existing hosted runtime now offers `psl_rt_collect_precise` and
+`psl_rt_cons_precise`. They use the shared heap, registered frame/permanent
+roots and existing mark/sweep traversal while excluding conservative stack
+scanning. Precise cons allocation roots its arguments internally and uses the
+same rule at automatic collection thresholds. Stage 0's existing operations
+retain conservative behavior. The linker recognizes the new public imports
+and selects their current runtime modules.
+
+An independent C caller checks unregistered stack values, explicitly rooted
+shared lists, temporary constructor arguments, automatic collection, list
+contents and full release after root-frame removal. The gate checks collector/
+cons code at C O0/O2 and linked PSL artifacts at O0/O1, including module selection
+from C link inputs. Focused checks pass on all four hosted targets, including
+Windows under Wine and AArch64/RISC-V64 under QEMU; smoke passes. This provides the collection boundary needed to prove compiler roots; root-frame
+lowering, native managed source/compiler data and the full M8 gates remain open.
+
 ## M9 — Hosted ANSI Common Lisp completion · Pending
 
 **Dependencies:** M4 dynamic runtime and a self-host-capable compiler core.

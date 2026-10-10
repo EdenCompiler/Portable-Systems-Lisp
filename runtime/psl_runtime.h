@@ -40,9 +40,14 @@ psl_object_kind psl_rt_kind(psl_value value);
 void psl_rt_push_roots(psl_root *root, psl_value *values, size_t count);
 void psl_rt_pop_roots(psl_root *root);
 void psl_rt_collect(void);
+/* Only explicitly registered roots survive. Every live value held across
+ * these operations must appear in a root frame or permanent root set. */
+void psl_rt_collect_precise(void);
 size_t psl_rt_live_objects(void);
 
 psl_value psl_rt_cons(psl_value first, psl_value rest);
+/* Registers its arguments internally; other live values require caller roots. */
+psl_value psl_rt_cons_precise(psl_value first, psl_value rest);
 psl_value psl_rt_car(psl_value pair);
 psl_value psl_rt_cdr(psl_value pair);
 

@@ -129,7 +129,7 @@ static void sweep_objects(void) {
     }
 }
 
-void psl_rt_collect(void) {
+static void collect_objects(int scan_stack) {
     psl_object **work = malloc((object_count == 0 ? 1 : object_count)
                                * sizeof(*work));
     size_t used = 0;
@@ -137,7 +137,9 @@ void psl_rt_collect(void) {
         abort();
     }
     mark_registered_roots(work, &used);
-    mark_stack(work, &used);
+    if (scan_stack) {
+        mark_stack(work, &used);
+    }
     for (size_t index = 0; index < used; index++) {
         mark_children(work[index], work, &used);
     }
@@ -146,11 +148,15 @@ void psl_rt_collect(void) {
     collection_limit = object_count < 128 ? 256 : object_count * 2;
 }
 
-psl_object *psl_rt_allocate(psl_object_kind kind, size_t extra_bytes) {
-    (void)psl_rt_stack_top();
-    if (object_count >= collection_limit) {
-        psl_rt_collect();
-    }
+void psl_rt_collect(void) {
+    collect_objects(1);
+}
+
+void psl_rt_collect_precise(void) {
+    collect_objects(0);
+}
+
+static psl_object *new_object(psl_object_kind kind, size_t extra_bytes) {
     if (extra_bytes > SIZE_MAX - sizeof(psl_object)) {
         abort();
     }
@@ -165,6 +171,25 @@ psl_object *psl_rt_allocate(psl_object_kind kind, size_t extra_bytes) {
     return object;
 }
 
+static psl_object *allocate_object(psl_object_kind kind, size_t extra_bytes,
+                                   int scan_stack) {
+    if (scan_stack) {
+        (void)psl_rt_stack_top();
+    }
+    if (object_count >= collection_limit) {
+        collect_objects(scan_stack);
+    }
+    return new_object(kind, extra_bytes);
+}
+
 size_t psl_rt_live_objects(void) {
     return object_count;
+}
+
+psl_object *psl_rt_allocate(psl_object_kind kind, size_t extra_bytes) {
+    return allocate_object(kind, extra_bytes, 1);
+}
+
+psl_object *psl_rt_allocate_precise(psl_object_kind kind, size_t extra_bytes) {
+    return allocate_object(kind, extra_bytes, 0);
 }

@@ -257,6 +257,11 @@ work in shared objects and across preemptible symbols. Identical inputs,
 options, and compiler version produce identical bytes when macros are
 deterministic. A typed object has no implicit libc, GC, tagged-object, or PSL
 startup symbol. Managed hosted objects reference only selected runtime modules.
+C link inputs that import `psl_rt_cons_precise` or `psl_rt_collect_precise` also select the
+corresponding runtime modules. They retain only registered roots and
+permanent roots; the constructor registers its arguments internally. Stage 0
+managed source continues to use conservative collection. Native compiler root
+frames and managed-source integration remain required M8 work.
 
 The native bootstrap exposes data-only writers as `write_elf64_data` and
 `write_coff64_data`. A `native_data_symbol` supplies an ASCII linker name,

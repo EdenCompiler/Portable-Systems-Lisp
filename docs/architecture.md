@@ -160,7 +160,7 @@ bootstrap/
                        native COFF section, symbol, relocation, and call writer
 runtime/
   psl_runtime.h         versioned hosted value and root ABI
-  gc.c                  mark-and-sweep collector
+  gc.c                  shared heap, explicit roots, conservative/precise collection
   startup.c             lazy hosted initialization
   platform_linux.c      Linux stack bounds
   platform_windows.c    Windows stack bounds

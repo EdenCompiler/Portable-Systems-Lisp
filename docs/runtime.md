@@ -33,6 +33,15 @@ platform code is built into the
 language frontend. The collector runs automatically after its allocation
 threshold or explicitly through `collect-garbage`.
 
+The C API additionally exposes `psl_rt_collect_precise`, which marks only
+registered frames and permanent roots, and `psl_rt_cons_precise`, whose automatic
+collection uses the same rule. The constructor registers its two arguments
+internally; callers must register every other live managed value held across
+these operations. Unregistered pointer bits on the C stack do not retain an
+object. These functions share the existing nonmoving heap and ABI value layout.
+Stage 0 generated code continues to use the conservative operations. Compiler
+root-frame generation and native managed-source integration remain M8 work.
+
 ## Modules and linking
 
 The linker compiles the transitive dependency closure of the modules used by
@@ -90,3 +99,9 @@ without a user C source or harness. `sh tests/smoke.sh` checks behavior at
 `-O0` and `-O1`, selected runtime symbols, and typed binary exclusion.
 `sh tests/runtime.sh` exercises the C ABI modules and reachable/unreachable
 collector behavior.
+
+`sh tests/runtime_precise.sh TARGET` checks explicit roots, unregistered stack
+values, shared lists, temporary constructor arguments and automatic collection
+on the four hosted targets. It also links through `pslcc` at O0/O1 to verify
+runtime selection from the new symbols in a C link input. Collector/cons code
+is checked at C O0/O2; the OS stack-bound adapter keeps its baseline C build.
