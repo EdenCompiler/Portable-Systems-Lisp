@@ -10,7 +10,9 @@
       (if (= (scalar_literal_valid_p code integer) 0)
           0
           (hir_new_scalar (deref (field-pointer context 'hir))
-                          1 (scalar_literal_bits integer) 0 0 0 body code)))))
+                          1 (if (= code 15)
+                                (wrap+ (wrap* (scalar_literal_bits integer) 2) 1)
+                                (scalar_literal_bits integer)) 0 0 0 body code)))))
 
 (defun hir_from_variable (context body)
   (declare (type (ptr native_compile_context) context)
@@ -49,9 +51,13 @@
         (arena (deref (field-pointer context 'hir))))
     (cond
       ((= (ast_word_p parser source body #x74 1) 1)
-       (hir_new_scalar arena 19 1 0 0 0 body 0))
+       (if (= (deref (field-pointer context 'expected_type)) 15)
+           (hir_new_scalar arena 1 6 0 0 0 body 15)
+           (hir_new_scalar arena 19 1 0 0 0 body 0)))
       ((= (ast_word_p parser source body #x6c696e 3) 1)
-       (hir_new_scalar arena 19 0 0 0 0 body 0))
+       (if (= (deref (field-pointer context 'expected_type)) 15)
+           (hir_new_scalar arena 1 2 0 0 0 body 15)
+           (hir_new_scalar arena 19 0 0 0 0 body 0)))
       ((= (hir_integer_atom_p context body) 1) (hir_from_literal context body))
       ((= (scalar_float_atom_p context body) 1) (hir_from_float_literal context body))
       (t (hir_from_variable context body)))))

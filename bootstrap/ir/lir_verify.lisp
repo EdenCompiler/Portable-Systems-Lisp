@@ -1,3 +1,4 @@
+(include "lir_managed_safe.lisp")
 ;; LIR verifies labels, operation shapes, types, and definitions on every
 ;; incoming path. It does not consult HIR or SSA instructions.
 (include "lir_verify_cfg.lisp")
@@ -171,4 +172,6 @@
                            (deref (field-pointer arena 'value_capacity))) 0) 0
         (if (= (ir_reference_p (deref (field-pointer arena 'count))
                                (deref (field-pointer arena 'capacity))) 0) 0
-            (if (= (lir_entry_p arena) 0) 0 (lir_verify_function_body context))))))
+            (if (= (lir_entry_p arena) 0) 0
+                (if (= (lir_verify_function_body context) 0) 0
+                    (native_lir_managed_safe_p context)))))))

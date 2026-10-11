@@ -38,7 +38,7 @@
                                               signature (wrap- remaining 1)))
                 0)))))
 
-(defun ir_verify_call_type (context types op)
+(defun ir_verify_call_type_checked (context types op)
   (declare (type (ptr native_compile_context) context)
            (type (ptr native_ir_type) types)
            (type (ptr native_scalar_op) op) (returns c-int))
@@ -76,7 +76,9 @@
        (if (= (scalar_valid_code_p code) 0) 0
            (scalar_valid_code_p (deref (field-pointer child 'scalar_code)))))
       ((= kind 20)
-       (if (= code 0) (source_valid_code_p (deref (field-pointer child 'scalar_code))) 0))
+       (if (= code 0)
+           (if (= (deref (field-pointer child 'scalar_code)) 15) 0
+               (source_context_code_p context (deref (field-pointer child 'scalar_code)))) 0))
       ((= kind 21) (if (= code 11) (ir_types_same_p context types (deref (field-pointer op 'left)) 2 0) 0))
       ((= kind 22) (if (= code 11) (if (= (deref (field-pointer child 'scalar_code)) 11) 1 0) 0))
       ((= kind 30) (if (= code 2) (if (= (deref (field-pointer child 'scalar_code)) 11) 1 0) 0))
@@ -125,3 +127,11 @@
   (declare (type u32 code kind) (returns c-int))
   (if (= code 12)
       (if (= kind 7) 1 (if (= kind 29) 1 0)) 1))
+
+(defun ir_verify_call_type (context types op)
+  (declare (type (ptr native_compile_context) context) (type (ptr native_ir_type) types)
+           (type (ptr native_scalar_op) op) (returns c-int))
+  (let ((signature (native_signature_at (deref (field-pointer context 'signatures))
+                    (wrap- (deref (field-pointer op 'target)) 1))))
+    (if (= (native_runtime_call_signature_p context signature) 0) 0
+        (ir_verify_call_type_checked context types op))))

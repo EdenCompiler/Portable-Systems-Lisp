@@ -201,6 +201,17 @@ until the function returns.
 Allocation-free functions need no root frame. The linked artifact selects the
 GC module when compiler-inserted root operations require it.
 
+The native bootstrap compiler has a smaller hosted managed contract. Explicit
+`--profile=hosted` accepts `value` parameters, locals and results, signed fixnum
+literals, NIL/T, `box-fixnum`, `unbox-fixnum`, `car`, `cdr`, `eq`, managed truth,
+and noncollecting direct/foreign calls on the four hosted targets. Predicate
+results retain their Boolean IR type; use `if` to produce managed T/NIL in a
+`value` result. It rejects any function whose typed value catalogue contains
+managed words and whose calls may allocate or collect, including unknown
+foreign calls. Native root frames, managed allocation and compiler data remain
+unimplemented. Its default and explicit freestanding profiles reject `value`.
+The same raw pointer/structure restrictions apply.
+
 `without-allocation` checks all direct calls reachable from the region.
 Unknown imported calls, managed allocation, explicit GC, and indirect closure
 calls fail certification. An import may end with `:no-allocation` to declare a

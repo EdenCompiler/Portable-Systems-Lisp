@@ -1308,3 +1308,30 @@ exact string name. The native ELF and COFF writers emit that spelling, verified
 with linked C and Windows API calls. All target gates compile this seventh PSL
 unit through three generations. Diagnostic rendering, broader source/runtime
 support, and the complete Stage 1–3 corpus remain open M8 work.
+
+
+### M8 native managed immediate values and checked runtime calls
+
+The native hosted profile now carries a distinct managed `value` class through
+verified HIR, SSA and LIR on all four hosted targets. Signed fixnum bounds,
+NIL/T, managed truth, EQ, boxing/unboxing, CAR/CDR, locals, recursion, stack
+arguments and noncollecting C calls pass the independent C harness at O0/O1.
+Mixed floating/managed C calls exercise register and stack ABI placement.
+The native profile defaults to the typed freestanding subset; explicit hosted
+selection, invalid/duplicate options and freestanding rejection are checked.
+
+Runtime imports have resolved ABI signatures and owned C symbol names, without
+fabricating source AST nodes. Their receiver validates the catalogue, and the
+compilation API reports required runtime modules after successful object output.
+Immediate leaf functions emit no runtime imports. Source/runtime symbol
+conflicts, raw managed storage, invalid tagged literals, casts and arithmetic
+are rejected. API tests also reject forged word truth and altered runtime
+signature effects.
+
+This slice deliberately rejects functions containing managed words across any
+potentially collecting call. It does not provide native root frames, allocation,
+managed compiler collections or the complete compiler/driver port. Native root
+lowering is the next managed transition; the complete M8 Stage 1–3 manifest,
+corpus and fixed-point gates remain open. Evidence is
+`tests/bootstrap_managed_values.sh`, including the receiver/API compiled by both
+Stage 0 and the native compiler, plus the native and smoke regression gates.

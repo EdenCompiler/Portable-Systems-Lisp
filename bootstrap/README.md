@@ -144,6 +144,42 @@ The native modules currently implement:
   writes from `host/platform_stdio.c`. The C main forwards argc/argv to the
   compiled PSL driver. Hosted memory and traversal are already compiled PSL modules.
 
+Explicit `--profile=hosted` adds a noncollecting managed value slice on x86-64
+Linux/Windows, AArch64 and RISC-V64. The native default and
+`--profile=freestanding` keep the typed machine subset. Hosted `value` parameters,
+locals, stack arguments and results use runtime ABI v1. Fixnum literals cover
+-2^62 through 2^62-1; NIL/T have distinct tags. `box-fixnum`, `unbox-fixnum`,
+`car`, `cdr`, `eq`, and managed `if` work, including C imports annotated
+`:no-allocation`. Predicate results remain Boolean; `(if (eq a b) t nil)`
+produces a managed value. Integer zero and boxed zero both remain true.
+
+Every potentially collecting call is rejected if its function's verified value
+catalogue contains managed words. This includes `cons` and unknown foreign
+calls, even when managed temporaries appear dead. Allocation-free summaries
+exclude collection; incorrect foreign promises remain the caller's
+responsibility. Native root frames, allocation, strings and managed compiler
+data still need ports. Raw managed fields, `(ptr value)`, integer casts and
+wrapping arithmetic on managed values are rejected. The `value` type name is
+reserved against raw layout declarations.
+
+`native_run_compiler_profile(source, output, optimization, target, profile)`
+adds an explicit profile argument (0 freestanding, 1 hosted). Existing compiler
+entry points retain profile 0. A freshly prepared context also starts in profile
+0; direct library callers can select its `profile` field before compilation.
+After successful hosted compilation, `runtime_modules` reports compiler-owned
+runtime dependencies: value=1, cons=2, GC=128, startup=256, platform=512, with the
+transitive closure included. Leaf immediate values introduce no runtime symbols.
+Objects still require explicit linking of their imports. Internal runtime
+imports use resolved signatures and real owned C names; source calls cannot
+invoke the private catalogue through `ffi:call`, and conflicting source C names
+are rejected. Profile/optimization/target options can appear in any order; each
+may appear only once.
+
+`sh tests/bootstrap_managed_values.sh build/pslcc-native TARGET` compares Stage 0
+and native behavior at O0/O1, checks deterministic objects and mixed floating/
+managed C stack calls, and executes the compilation/receiver API compiled through
+both implementations. `make test-native-managed` uses the selected `TARGET`.
+
 `driver.lisp` now owns the compilation-unit pipeline, exposed as
 `native_compile_unit(context, object, result)`. Callers supply freshly
 initialized source, syntax/signature/layout tables, IR arenas, fixup arenas,
@@ -160,6 +196,9 @@ and output buffers. It returns one on success and zero on failure. The
 | 6 | Function body pipeline | Zero-based signature `index` |
 | 7 | Call patching | No location |
 | 8 | Target object writing | No location |
+| 9 | Allocation-region certification | AST `form`, or runtime signature `index` when `form` is zero |
+| 10 | Invalid target or profile | No location |
+| 11 | Runtime signature registration | Reserved C name or insufficient table capacity |
 
 Only the failing phase's location is valid. Arenas may contain partial work
 after failure; the host writes the object file only after successful completion.

@@ -55,4 +55,6 @@
   (package_state native_package_context)
   (macro_tree native_tree_context)
   (macro_registry native_macro_registry)
-  (macro_call native_macro_call))
+  (macro_call native_macro_call)
+  (profile u32)
+  (runtime_modules u64))

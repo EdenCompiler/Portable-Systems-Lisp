@@ -346,6 +346,19 @@ uses these records directly instead of parsing declarations again. It accepts th
 headers and bodies of the complete native core. Dedicated component harnesses
 compare byte emission, arena, integer parsing, scanning, syntax parsing, and
 include decoding with Stage 0.
+`frontend/runtime_signatures.lisp` owns a resolved hosted runtime ABI catalogue:
+owned symbol names and checked scalar codes replace source AST references for
+compiler-inserted imports. The source collector predeclares source symbols before
+registering this catalogue and rejects runtime name conflicts. The native
+frontend uses a distinct managed value code and layout class; Boolean calls and
+managed truth retain receiving HIR/SSA/LIR checks. `ir/lir_managed_safe.lisp`
+rejects collecting calls when the verified catalogue contains managed words,
+until native root lowering is implemented. Backend ABI code passes accepted
+managed words as opaque 64-bit general-register values. The context's
+`runtime_modules` mask reports required compiler-owned runtime imports and their
+dependency closure after successful object writing. Leaf immediates need none.
+`host/compiler_profile_options.lisp` owns bounded profile and option parsing.
+
 The PSL unit driver first collects all signatures, then predeclares functions,
 compiles bodies, patches relative calls, and invokes the selected object writer.
 `native_compile_unit` exposes this pipeline on caller-owned source/arenas,

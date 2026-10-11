@@ -34,18 +34,3 @@
   (declare (type (ptr u8) text) (returns c-int))
   (if (= (compiler_text_matches text #x7465677261742d2d 8) 1)
       (compiler_parse_target_tail (pointer+ text 8)) -1))
-
-(defun compiler_run_parsed_options (argv optimization target)
-  (declare (type (ptr (ptr u8)) argv) (type c-int optimization target) (returns c-int))
-  (if (if (< optimization 0) t (< target 0))
-      (compiler_path_error 5 (ptr-from-address (ptr u8) 0))
-      (native_run_compiler_target (deref (pointer+ argv 3)) (deref (pointer+ argv 4))
-                                  (wrap-cast u32 optimization) (wrap-cast u32 target))))
-
-(defun compiler_main_two_options (argv)
-  (declare (type (ptr (ptr u8)) argv) (returns c-int))
-  (let ((first (deref (pointer+ argv 1))) (second (deref (pointer+ argv 2))))
-    (let ((optimization (compiler_parse_optimization first)) (target (compiler_parse_target second)))
-      (if (if (< optimization 0) t (< target 0))
-          (compiler_run_parsed_options argv (compiler_parse_optimization second) (compiler_parse_target first))
-          (compiler_run_parsed_options argv optimization target)))))

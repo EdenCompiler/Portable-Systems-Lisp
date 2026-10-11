@@ -35,6 +35,15 @@
                               'effect_ready) 1)
         (native_finish_effects context (wrap+ index 1) count))))
 
+(defun native_report_unsafe_call (context result unsafe)
+  (declare (type (ptr native_compile_context) context) (type (ptr native_unit_result) result)
+           (type usize unsafe) (returns c-int))
+  (let ((signature (native_signature_at (deref (field-pointer context 'signatures)) (wrap- unsafe 1))))
+    (store (field-pointer result 'form) (deref (field-pointer signature 'name)))
+    (if (= (deref (field-pointer signature 'name)) 0)
+        (store (field-pointer result 'index) (wrap- unsafe 1)) (wrap-cast usize 0))
+    (native_unit_fail result 9)))
+
 (defun native_check_function_regions (context result)
   (declare (type (ptr native_compile_context) context) (type (ptr native_unit_result) result)
            (returns c-int))
@@ -44,11 +53,7 @@
           (if (= root 0) (native_unit_fail result 6)
               (let ((unsafe (hir_regions_unsafe_call context 1)))
                 (if (= unsafe 0) 1
-                    (progn
-                      (store (field-pointer result 'form)
-                             (deref (field-pointer (native_signature_at
-                               (deref (field-pointer context 'signatures)) (wrap- unsafe 1)) 'name)))
-                      (native_unit_fail result 9)))))))))
+                    (native_report_unsafe_call context result unsafe))))))))
 
 (defun native_check_unit_regions (context result count)
   (declare (type (ptr native_compile_context) context) (type (ptr native_unit_result) result)

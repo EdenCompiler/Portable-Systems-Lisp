@@ -73,7 +73,7 @@
        (diagnostic_write_line
         stream
         (ffi:c-string
-         "usage: pslcc-native-slice [-O0|-O1] [--target=x86_64-linux-gnu|--target=aarch64-linux-gnu|--target=riscv64-linux-gnu|--target=x86_64-windows-gnu] SOURCE.lisp OUTPUT.o")))
+         "usage: pslcc-native-slice [-O0|-O1] [--target=x86_64-linux-gnu|--target=aarch64-linux-gnu|--target=riscv64-linux-gnu|--target=x86_64-windows-gnu] [--profile=freestanding|hosted] SOURCE.lisp OUTPUT.o")))
       ((= kind 6)
        (diagnostic_write_position stream
                                   (ffi:c-string "cannot register layout at byte ")
@@ -97,6 +97,8 @@
        (diagnostic_write_name
         stream (ffi:c-string "WITHOUT-ALLOCATION cannot certify call to ")
         text length))
+      ((= kind 12)
+       (diagnostic_write_line stream (ffi:c-string "cannot register hosted runtime: reserved symbol or insufficient storage")))
       (t (diagnostic_noop stream)))))
 
 (defun source_error_kind_p (kind)

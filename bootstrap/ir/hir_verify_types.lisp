@@ -17,7 +17,7 @@
                 (if (= code 0) 1 0)
                 (if (= (deref (field-pointer node 'type_code)) 3)
                     (if (= code 12) 1 0)
-                    (source_valid_code_p code)))
+                    (source_context_code_p context code)))
             0))))
 
 (defun hir_scalar_same_p (context reference code)
@@ -127,7 +127,7 @@
                    (wrap- remaining 1) (wrap+ depth 1)))
               0)))))
 
-(defun hir_verify_scalar_call (context node depth)
+(defun hir_verify_scalar_call_checked (context node depth)
   (declare (type (ptr native_compile_context) context)
            (type (ptr native_hir_node) node)
            (type usize depth) (returns c-int))
@@ -230,3 +230,11 @@
             0
             (if (= (hir_verify_region_metadata context 1) 0) 0
                 (hir_verify_scalar_tree context root 0))))))
+
+(defun hir_verify_scalar_call (context node depth)
+  (declare (type (ptr native_compile_context) context) (type (ptr native_hir_node) node)
+           (type usize depth) (returns c-int))
+  (let ((signature (native_signature_at (deref (field-pointer context 'signatures))
+                    (wrap- (deref (field-pointer node 'target)) 1))))
+    (if (= (native_runtime_call_signature_p context signature) 0) 0
+        (hir_verify_scalar_call_checked context node depth))))

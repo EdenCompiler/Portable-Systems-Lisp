@@ -209,6 +209,8 @@
     (store (field-pointer record 'inline_capacity) capacity)
     (store (field-pointer record 'inline_cursor) 0)
     (store (field-pointer record 'target) 0)
+    (store (field-pointer record 'profile) 0)
+    (store (field-pointer record 'runtime_modules) 0)
     (store (field-pointer record 'backend_frame_size) 0)
     (store (field-pointer record 'backend_outgoing_size) 0)
     (store (field-pointer record 'backend_prologue_size) 0)

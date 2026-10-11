@@ -12,10 +12,11 @@
         (layouts (deref (field-pointer signatures 'layouts))))
     (let ((code (layout_integer_code layouts type))
           (float-code (scalar_float_type_code layouts type)))
+      (if (= (signature_word_p signatures type #x65756c6176 5) 1) 15
       (if (< 0 code) code
           (if (< 0 float-code) float-code
               (if (= (signature_word_p signatures type #x64696f76 4) 1) 12
-                  (if (= (source_type_pointee signatures type) 0) 0 11)))))))
+                  (if (= (source_type_pointee signatures type) 0) 0 11))))))))
 
 (defun scalar_literal_code (expected integer)
   (declare (type u32 expected)
@@ -34,13 +35,16 @@
   (let ((negative (deref (field-pointer integer 'negative)))
         (magnitude (deref (field-pointer integer 'magnitude)))
         (bits (scalar_type_bits code)))
+    (if (= code 15)
+        (if (< (if (= negative 1) (wrap-cast u64 4611686018427387904)
+                      (wrap-cast u64 4611686018427387903)) magnitude) 0 1)
     (if (= (scalar_valid_code_p code) 0)
         0
         (if (= (scalar_type_signed_p code) 1)
         (if (< (scalar_signed_magnitude_limit bits negative) magnitude) 0 1)
         (if (= negative 1)
             (if (= magnitude 0) 1 0)
-            (if (< (scalar_unsigned_limit bits) magnitude) 0 1))))))
+            (if (< (scalar_unsigned_limit bits) magnitude) 0 1)))))))
 
 (defun scalar_literal_bits (integer)
   (declare (type (ptr psl_parsed_integer) integer) (returns u64))
@@ -51,16 +55,13 @@
 
 (defun scalar_signature_parameter_code (context signature index)
   (declare (type (ptr native_compile_context) context)
-           (type (ptr native_signature) signature)
-           (type usize index)
-           (returns u32))
+           (type (ptr native_signature) signature) (type usize index) (returns u32))
   (let ((signatures (deref (field-pointer context 'signatures))))
-    (let ((parameter
-           (native_parameter_at
-            signatures (wrap+ (deref (field-pointer signature 'first_parameter))
-                               index))))
-      (scalar_type_code signatures
-                        (deref (field-pointer parameter 'type_ast))))))
+    (let ((parameter (native_parameter_at signatures
+                      (wrap+ (deref (field-pointer signature 'first_parameter)) index))))
+      (if (< 0 (deref (field-pointer signature 'runtime_id)))
+          (deref (field-pointer parameter 'scalar_code))
+          (scalar_type_code signatures (deref (field-pointer parameter 'type_ast)))))))
 
 (defun scalar_current_parameter_code (context index)
   (declare (type (ptr native_compile_context) context)
@@ -72,10 +73,11 @@
 
 (defun scalar_signature_type_code (context signature)
   (declare (type (ptr native_compile_context) context)
-           (type (ptr native_signature) signature)
-           (returns u32))
-  (scalar_type_code (deref (field-pointer context 'signatures))
-                    (deref (field-pointer signature 'result_type))))
+           (type (ptr native_signature) signature) (returns u32))
+  (if (< 0 (deref (field-pointer signature 'runtime_id)))
+      (deref (field-pointer signature 'result_code))
+      (scalar_type_code (deref (field-pointer context 'signatures))
+                        (deref (field-pointer signature 'result_type)))))
 
 (defun scalar_parameter_p (context parameter)
   (declare (type (ptr native_compile_context) context)
@@ -86,9 +88,10 @@
           (deref (field-pointer context 'source))
           (deref (field-pointer parameter 'name))) 0)
       0
-      (source_valid_code_p
-       (scalar_type_code (deref (field-pointer context 'signatures))
-                         (deref (field-pointer parameter 'type_ast))))))
+      (let ((code (scalar_type_code (deref (field-pointer context 'signatures))
+                                   (deref (field-pointer parameter 'type_ast)))))
+        (if (= code 15) (if (= (deref (field-pointer context 'profile)) 1) 1 0)
+            (source_valid_code_p code)))))
 
 (defun scalar_parameter_types_p (context signature index)
   (declare (type (ptr native_compile_context) context)
@@ -108,9 +111,20 @@
                                         (wrap+ index 1))
               0)))))
 
-(defun scalar_signature_p (context signature)
+(defun source_scalar_signature_p (context signature)
   (declare (type (ptr native_compile_context) context)
            (type (ptr native_signature) signature)
            (returns c-int))
   (let ((code (scalar_signature_type_code context signature)))
-    (if (= code 0) 0 (scalar_parameter_types_p context signature 0))))
+    (if (= code 0) 0
+        (if (= code 15)
+            (if (= (deref (field-pointer context 'profile)) 1)
+                (scalar_parameter_types_p context signature 0) 0)
+            (scalar_parameter_types_p context signature 0)))))
+
+(defun scalar_signature_p (context signature)
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_signature) signature) (returns c-int))
+  (if (< 0 (deref (field-pointer signature 'runtime_id)))
+      (native_runtime_signature_p context signature)
+      (source_scalar_signature_p context signature)))

@@ -5,7 +5,8 @@
   (name usize)
   (type_ast usize)
   (size usize)
-  (kind u32))
+  (kind u32)
+  (scalar_code u32))
 
 (defcstruct native_signature
   (name usize)
@@ -21,7 +22,11 @@
   (effect_ready u8)
   (inline_base usize)
   (inline_count usize)
-  (inline_result usize))
+  (inline_result usize)
+  (runtime_id u32)
+  (result_code u32)
+  (runtime_name (ptr u8))
+  (runtime_name_length usize))
 
 (defcstruct native_signature_context
   (layouts (ptr native_layout_context))

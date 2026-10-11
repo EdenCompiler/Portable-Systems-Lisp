@@ -225,6 +225,8 @@ struct native_compile_context {
     struct native_tree_context macro_tree;
     struct native_macro_registry macro_registry;
     struct native_macro_call macro_call;
+    uint32_t profile;
+    uint64_t runtime_modules;
 };
 
 struct native_type_shape {
@@ -269,6 +271,7 @@ struct native_parameter {
     uintptr_t type_ast;
     uintptr_t size;
     uint32_t kind;
+    uint32_t scalar_code;
 };
 
 struct native_signature {
@@ -283,6 +286,9 @@ struct native_signature {
     uint8_t imported;
     uint8_t allocation_free, effect_ready;
     uintptr_t inline_base, inline_count, inline_result;
+    uint32_t runtime_id, result_code;
+    const uint8_t *runtime_name;
+    uintptr_t runtime_name_length;
 };
 
 struct native_signature_context {
@@ -477,5 +483,14 @@ extern int hir_verify_scalar_tree(struct native_compile_context *context,
    return zero without interpreting or publishing the form. */
 extern uint32_t native_source_package_kind(struct native_compile_context *, uintptr_t);
 extern int native_apply_package_form(struct native_compile_context *, uintptr_t, struct native_package_context *);
+
+/* Profile 0: typed freestanding subset. Profile 1: hosted managed values.
+ * runtime_modules reports explicitly required hosted ABI v1 modules:
+ * value=1, cons=2, gc=128, startup=256, platform=512.
+ * Compiler-owned imports include their dependency closure; leaf values need none. */
+extern int native_run_compiler_profile(const char *, const char *, uint32_t, uint32_t, uint32_t);
+extern int native_register_runtime_signatures(struct native_compile_context *);
+extern int native_runtime_signature_p(struct native_compile_context *, struct native_signature *);
+extern int native_lir_managed_safe_p(struct native_compile_context *);
 
 #endif

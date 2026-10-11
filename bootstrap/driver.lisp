@@ -122,11 +122,11 @@
   (if (= (deref (field-pointer result 'phase)) 0)
       (if (< (deref (field-pointer result 'index)) count) 1 0) 0))
 
-(defun native_predeclare_unit (context result count)
+(defun native_predeclare_from (context result start count)
   (declare (type (ptr native_compile_context) context)
-           (type (ptr native_unit_result) result) (type usize count)
+           (type (ptr native_unit_result) result) (type usize start count)
            (returns c-int))
-  (store (field-pointer result 'index) 0)
+  (store (field-pointer result 'index) start)
   (while (= (native_unit_pending_p result count) 1)
     (if (= (predeclare_scalar_form context
                                    (native_unit_signature context result)
@@ -192,25 +192,57 @@
 (include "driver_effects.lisp")
 (include "driver_inline.lisp")
 
+(defun native_compile_predeclared_unit (context result count object)
+  (declare (type (ptr native_compile_context) context) (type (ptr native_unit_result) result)
+           (type usize count) (type (ptr byte_buffer) object) (returns c-int))
+  (if (= (native_certify_effects context result count) 0) 0
+      (if (= (native_prepare_inline_unit context result count) 0) 0
+          (if (= (native_compile_unit_bodies context result count) 0) 0
+              (native_finish_unit context result count object)))))
+
+(defun native_collect_runtime_dependencies (context index)
+  (declare (type (ptr native_compile_context) context) (type usize index) (returns c-int))
+  (let ((signatures (deref (field-pointer context 'signatures))))
+    (if (= index (deref (field-pointer signatures 'signature_count))) 1
+        (let ((signature (native_signature_at signatures index))
+              (function (native_function_at (deref (field-pointer context 'functions)) index)))
+          (let ((id (deref (field-pointer signature 'runtime_id))))
+            (if (if (< 0 id) (= (deref (field-pointer function 'referenced)) 1) nil)
+                (let ((mask (if (< id 4) (wrap-cast u64 898)
+                                (if (< id 6) (wrap-cast u64 1)
+                                    (if (< id 9) (wrap-cast u64 896) (wrap-cast u64 1)))))
+                      (current (deref (field-pointer context 'runtime_modules))))
+                  (store (field-pointer context 'runtime_modules)
+                         (wrap+ current (wrap- mask (bits-and current mask))))) (wrap-cast u64 0))
+            (native_collect_runtime_dependencies context (wrap+ index 1)))))))
+
+(defun native_compile_collected_unit (context object result)
+  (declare (type (ptr native_compile_context) context) (type (ptr byte_buffer) object)
+           (type (ptr native_unit_result) result) (returns c-int))
+  (let ((signatures (deref (field-pointer context 'signatures))))
+    (let ((count (deref (field-pointer signatures 'signature_count))))
+      (if (= (native_predeclare_from context result 0 count) 0) 0
+          (if (= (deref (field-pointer context 'profile)) 0)
+              (native_compile_predeclared_unit context result count object)
+              (if (= (native_register_runtime_signatures context) 0) (native_unit_fail result 11)
+                  (let ((total (deref (field-pointer signatures 'signature_count))))
+                    (if (= (native_predeclare_from context result count total) 0) 0
+                        (if (= (native_compile_predeclared_unit context result total object) 0) 0
+                            (native_collect_runtime_dependencies context 0))))))))))
+
 (defun native_compile_unit (context object result)
   (declare (type (ptr native_compile_context) context)
-           (type (ptr byte_buffer) object)
-           (type (ptr native_unit_result) result)
+           (type (ptr byte_buffer) object) (type (ptr native_unit_result) result)
            (returns c-int) (c-export :c))
   (store (field-pointer result 'phase) 0)
   (store (field-pointer result 'form) 0)
   (store (field-pointer result 'index) 0)
+  (store (field-pointer context 'runtime_modules) 0)
   (if (= (native_target_valid_p (deref (field-pointer context 'target))) 0)
       (native_unit_fail result 10)
-      (progn
-      (native_macro_attach_unit context)
-      (store (field-pointer (source_layouts context) 'target)
-             (deref (field-pointer context 'target)))
-      (if (= (native_collect_unit context result) 0) 0
-          (let ((signatures (deref (field-pointer context 'signatures))))
-            (let ((count (deref (field-pointer signatures 'signature_count))))
-              (if (= (native_predeclare_unit context result count) 0) 0
-                  (if (= (native_certify_effects context result count) 0) 0
-                      (if (= (native_prepare_inline_unit context result count) 0) 0
-                          (if (= (native_compile_unit_bodies context result count) 0) 0
-                              (native_finish_unit context result count object)))))))))))
+      (if (< 1 (deref (field-pointer context 'profile))) (native_unit_fail result 10)
+          (progn
+            (native_macro_attach_unit context)
+            (store (field-pointer (source_layouts context) 'target) (deref (field-pointer context 'target)))
+            (if (= (native_collect_unit context result) 0) 0
+                (native_compile_collected_unit context object result))))))

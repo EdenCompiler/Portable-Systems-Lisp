@@ -7,4 +7,5 @@
   (result native_unit_result)
   (c_sources (ptr native_c_source_path))
   (optimization u32)
-  (target u32))
+  (target u32)
+  (profile u32))

@@ -219,7 +219,7 @@
         (if (= code 2) 1 0)
         (if (= code 3)
             (if (= kind 7) 1 (hir_flexible_result_kind_p kind))
-            (if (= (hir_flexible_result_kind_p kind) 1)
+            (if (if (= kind 7) t (= (hir_flexible_result_kind_p kind) 1))
                 (if (= code 1) 1 (if (= code 2) 1 0))
                 (if (= code 1) 1 0))))))
 

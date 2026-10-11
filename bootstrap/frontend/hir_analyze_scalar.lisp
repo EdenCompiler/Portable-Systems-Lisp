@@ -3,6 +3,7 @@
 
 (include "hir_analyze_integer.lisp")
 (include "hir_analyze_calls.lisp")
+(include "hir_analyze_managed.lisp")
 (include "hir_analyze_cond.lisp")
 (include "hir_analyze_memory.lisp")
 (include "hir_analyze_layout.lisp")
@@ -32,7 +33,9 @@
           (if (= (hir_scalar_code arena result) 12) 0
               (if (= (hir_child_type_p arena result 2) 1)
                   result
-                  (hir_new_scalar arena 20 0 result 0 0 body 0)))))))
+                  (if (= (hir_scalar_code arena result) 15)
+                      (hir_managed_truth context result body)
+                      (hir_new_scalar arena 20 0 result 0 0 body 0))))))))
 
 (defun analyze_if_parts (context body condition then_ast else_ast depth)
   (declare (type (ptr native_compile_context) context)
@@ -76,7 +79,9 @@
           (hir_from_binary_kind context body comparison depth)
           (let ((operation (binary_operation parser source head)))
             (if (= operation 0)
-                (hir_from_call context body depth)
+                (let ((runtime (native_managed_operator context head)))
+                  (if (= runtime 0) (hir_from_call context body depth)
+                      (hir_from_managed_call context body head runtime depth)))
                 (hir_from_binary context body operation depth)))))))
 
 (defun analyze_scalar_list (context body depth)
@@ -86,7 +91,10 @@
         (source (deref (field-pointer context 'source))))
     (let ((head (ast_first parser body)))
       (cond
-        ((= head 0) (hir_new_scalar (deref (field-pointer context 'hir)) 19 0 0 0 0 body 0))
+        ((= head 0)
+         (if (= (deref (field-pointer context 'expected_type)) 15)
+             (hir_new_scalar (deref (field-pointer context 'hir)) 1 2 0 0 0 body 15)
+             (hir_new_scalar (deref (field-pointer context 'hir)) 19 0 0 0 0 body 0)))
         ((= (allocation_region_word_p parser source head) 1)
          (analyze_allocation_region context body depth))
         ((= (ast_word_p parser source head #x6c6c61633a696666 8) 1)

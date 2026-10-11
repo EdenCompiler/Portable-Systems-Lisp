@@ -101,7 +101,7 @@
   (if (= (native_resolve_type (source_layouts context) type shape) 0) 0
       (let ((code (scalar_type_code
                    (deref (field-pointer context 'signatures)) type)))
-        (if (= (source_valid_code_p code) 1) code 0))))
+        (if (= code 15) 0 (if (= (source_valid_code_p code) 1) code 0)))))
 
 (defun native_commit_data_entry (context entry name type shape initial defined)
   (declare (type (ptr native_compile_context) context)

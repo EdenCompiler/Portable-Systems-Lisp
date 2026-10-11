@@ -143,6 +143,8 @@
            (returns c-int)
            (c-export :c))
   (let ((parser (deref (field-pointer context 'parser))))
+    (if (= (layout_word_p context type #x65756c6176 5) 1)
+        (layout_set_shape output 8 8 5 0)
     (if (= (layout_word_p context type #x64696f76 4) 1)
         (layout_set_shape output 0 1 4 0) ; void is a result/pointee, not storage
         (if (= (layout_atom_p parser type) 1)
@@ -158,7 +160,7 @@
                        output (deref (field-pointer layout 'size))
                        (deref (field-pointer layout 'alignment)) 3
                        index))))))
-        (native_resolve_pointer_type context type output)))))
+        (native_resolve_pointer_type context type output))))))
 
 (defun layout_pointer_keyword (context reference)
   (declare (type (ptr native_layout_context) context)
@@ -208,8 +210,9 @@
                                                 (parser_node parser pointee) 'next)) 0)))
                             (if (= flags 4) 0
                                 (if (= (native_resolve_type context pointee output) 1)
+                                    (if (= (deref (field-pointer output 'kind)) 5) 0
                                     (layout_set_shape output 8 8 2
-                                     (layout_qualified_pointee pointee flags))
+                                     (layout_qualified_pointee pointee flags)))
                                     0))))
                       0)))
               0)))))
@@ -270,7 +273,8 @@
                                        name)
                           'next))))
         (if (= (native_resolve_type context type shape) 1)
-            (if (= (deref (field-pointer shape 'kind)) 4) 0
+            (if (if (= (deref (field-pointer shape 'kind)) 4) t
+                    (= (deref (field-pointer shape 'kind)) 5)) 0
                 (layout_commit_field context layout name type shape packed))
             0))))
 
@@ -373,7 +377,7 @@
            (type usize name first_field)
            (type u8 packed)
            (returns c-int))
-  (if (= first_field 0)
+  (if (if (= first_field 0) t (= (layout_word_p context name #x65756c6176 5) 1))
       0
       (let ((layout (native_layout_at
                      context (deref (field-pointer context 'layout_count)))))

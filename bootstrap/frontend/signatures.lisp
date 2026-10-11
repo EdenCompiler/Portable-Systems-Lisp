@@ -344,6 +344,7 @@
   (store (field-pointer signature 'exported) 0)
   (store (field-pointer signature 'imported) 0)
   (store (field-pointer signature 'allocation_free) 1)
+  (store (field-pointer signature 'runtime_id) 0)
   (store (field-pointer signature 'effect_ready) 0)
   (store (field-pointer signature 'inline_base) 0)
   (store (field-pointer signature 'inline_count) 0)

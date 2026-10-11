@@ -147,10 +147,13 @@
       (let ((parser (deref (field-pointer context 'parser)))
             (source (deref (field-pointer context 'source)))
             (functions (deref (field-pointer context 'functions))))
+        (if (= (deref (field-pointer (native_signature_at
+                   (deref (field-pointer context 'signatures)) (wrap- index 1)) 'runtime_id)) 0)
         (if (= (ast_foreign_name_matches_function_p
                 parser source name
                 (native_function_at functions (wrap- index 1))) 1)
             index
+            (prior_foreign_function_index context name (wrap- index 1)))
             (prior_foreign_function_index context name (wrap- index 1))))))
 
 (defun call_shape_from_p (parser argument remaining)

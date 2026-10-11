@@ -12,8 +12,10 @@
 
 (defun source_word_valid_p (code value)
   (declare (type u32 code) (type u64 value) (returns c-int))
+  (if (= code 15)
+      (if (if (= value 2) t (if (= value 6) t (= (bits-and value 1) 1))) 1 0)
   (if (= code 13) (if (< 4294967295 value) 0 1)
-      (if (= code 14) 1 (scalar_word_valid_p code value))))
+      (if (= code 14) 1 (scalar_word_valid_p code value)))))
 
 (defun scalar_float_atom_scratch (context body start)
   (declare (type (ptr native_compile_context) context) (type usize body start)
