@@ -1,0 +1,110 @@
+(include "root_catalog.lisp")
+;; Capacity is checked before backward, in-place expansion. New control
+;; operations have no program destinations or operands.
+(defun native_root_copy_instruction (arena from to)
+  (declare (type (ptr native_lir_arena) arena) (type usize from to) (returns c-int))
+  (let ((source (lir_instruction_at arena from)) (destination (lir_instruction_at arena to)))
+    (store (field-pointer destination 'kind) (deref (field-pointer source 'kind)))
+    (store (field-pointer destination 'scalar_code) (deref (field-pointer source 'scalar_code)))
+    (store (field-pointer destination 'pointee) (deref (field-pointer source 'pointee)))
+    (store (field-pointer destination 'value) (deref (field-pointer source 'value)))
+    (store (field-pointer destination 'left) (deref (field-pointer source 'left)))
+    (store (field-pointer destination 'right) (deref (field-pointer source 'right)))
+    (store (field-pointer destination 'target) (deref (field-pointer source 'target)))
+    (store (field-pointer destination 'source) (deref (field-pointer source 'source)))
+    (store (field-pointer destination 'destination) (deref (field-pointer source 'destination)))
+    1))
+
+(defun native_root_write_control (arena index kind target)
+  (declare (type (ptr native_lir_arena) arena) (type usize index target) (type u32 kind) (returns c-int))
+  (let ((op (lir_instruction_at arena index)))
+    (store (field-pointer op 'kind) kind)
+    (store (field-pointer op 'scalar_code) 0)
+    (store (field-pointer op 'pointee) 0)
+    (store (field-pointer op 'value) 0)
+    (store (field-pointer op 'left) 0)
+    (store (field-pointer op 'right) 0)
+    (store (field-pointer op 'target) target)
+    (store (field-pointer op 'source) 0)
+    (store (field-pointer op 'destination) 0)
+    1))
+
+(defun native_root_extra_instructions (context)
+  (declare (type (ptr native_compile_context) context) (returns usize))
+  (let ((arena (deref (field-pointer context 'lir))))
+    (store (field-pointer context 'root_cursor) 1)
+    (store (field-pointer context 'root_extra) 2)
+    (while (< (deref (field-pointer context 'root_cursor)) (wrap+ (deref (field-pointer arena 'count)) 1))
+      (let ((kind (deref (field-pointer (lir_instruction_at arena (deref (field-pointer context 'root_cursor))) 'kind))))
+        (if (if (= kind 7) t (= kind 103))
+            (store (field-pointer context 'root_extra) (wrap+ (deref (field-pointer context 'root_extra)) 1))
+            (wrap-cast usize 0)))
+      (store (field-pointer context 'root_cursor) (wrap+ (deref (field-pointer context 'root_cursor)) 1)))
+    (deref (field-pointer context 'root_extra))))
+
+(defun native_root_expand_entry (context push)
+  (declare (type (ptr native_compile_context) context) (type usize push) (returns c-int))
+  (let ((arena (deref (field-pointer context 'lir))))
+    (native_root_copy_instruction arena 1 1)
+    (native_root_write_control arena 2 110 0)
+    (native_root_write_control arena 3 111 push)
+    1))
+
+(defun native_root_expand_instruction (context pop)
+  (declare (type (ptr native_compile_context) context) (type usize pop) (returns c-int))
+  (let ((arena (deref (field-pointer context 'lir)))
+        (from (deref (field-pointer context 'root_cursor)))
+        (to (deref (field-pointer context 'root_extra))))
+    (let ((kind (deref (field-pointer (lir_instruction_at arena from) 'kind))))
+      (native_root_copy_instruction arena from to)
+      (if (if (= kind 7) t (= kind 103))
+          (progn
+            (native_root_write_control arena (wrap- to 1)
+             (if (= kind 7) (wrap-cast u32 112) (wrap-cast u32 113))
+             (if (= kind 7) (wrap-cast usize 0) pop))
+            (store (field-pointer context 'root_extra) (wrap- to 2)))
+          (store (field-pointer context 'root_extra) (wrap- to 1)))
+      (store (field-pointer context 'root_cursor) (wrap- from 1)) 1)))
+
+(defun native_root_expand_function (context roots total push pop)
+  (declare (type (ptr native_compile_context) context) (type usize roots total push pop) (returns c-int))
+  (let ((arena (deref (field-pointer context 'lir))))
+    (store (field-pointer context 'root_cursor) (deref (field-pointer arena 'count)))
+    (store (field-pointer context 'root_extra) total)
+    (while (< 1 (deref (field-pointer context 'root_cursor)))
+      (native_root_expand_instruction context pop))
+    (if (= (deref (field-pointer context 'root_extra)) 3)
+        (progn
+          (native_root_expand_entry context push)
+          (store (field-pointer arena 'count) total)
+          (store (field-pointer arena 'root_count) roots)
+          1) 0)))
+
+(defun native_root_lower_with_capacity (context roots push pop)
+  (declare (type (ptr native_compile_context) context) (type usize roots push pop) (returns c-int))
+  (let ((arena (deref (field-pointer context 'lir))))
+    (let ((extra (native_root_extra_instructions context)))
+      (if (< (wrap- (deref (field-pointer arena 'capacity)) (deref (field-pointer arena 'count))) extra) 0
+          (native_root_expand_function context roots (wrap+ (deref (field-pointer arena 'count)) extra) push pop)))))
+
+(defun native_root_input_p (context)
+ (declare (type (ptr native_compile_context) context) (returns c-int))
+ (let ((arena (deref (field-pointer context 'lir))))
+  (if (= (ir_reference_p (deref (field-pointer arena 'value_count)) (deref (field-pointer arena 'value_capacity))) 0) 0
+   (if (= (ir_reference_p (deref (field-pointer arena 'count)) (deref (field-pointer arena 'capacity))) 0) 0
+    (if (= (lir_entry_p arena) 0) 0
+     (if (= (native_root_parameters_p context) 0) 0
+      (if (= (lir_verify_function_body context) 0) 0 (native_root_verify_empty context))))))))
+
+(defun native_lower_roots (context)
+  (declare (type (ptr native_compile_context) context) (returns c-int) (c-export :c))
+  (let ((arena (deref (field-pointer context 'lir))))
+    (if (< 0 (deref (field-pointer arena 'root_count))) (lir_verify_function context)
+        (if (= (native_root_input_p context) 0) 0
+            (let ((roots (native_root_required_count context)))
+              (if (= roots 0) 1
+                  (let ((push (native_runtime_function_index context 7 0))
+                        (pop (native_runtime_function_index context 8 0)))
+                    (if (= (native_root_target_p context push 7) 0) 0
+                      (if (= (native_root_target_p context pop 8) 0) 0
+                        (native_root_lower_with_capacity context roots push pop))))))))))

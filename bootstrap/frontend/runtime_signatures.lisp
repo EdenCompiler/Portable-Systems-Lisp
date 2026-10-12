@@ -240,5 +240,7 @@
 (defun native_runtime_call_signature_p (context signature)
   (declare (type (ptr native_compile_context) context)
            (type (ptr native_signature) signature) (returns c-int))
-  (if (= (deref (field-pointer signature 'runtime_id)) 0) 1
-      (native_runtime_signature_p context signature)))
+  (let ((id (deref (field-pointer signature 'runtime_id))))
+    (if (= id 0) 1
+        (if (if (= id 7) t (= id 8)) 0
+            (native_runtime_signature_p context signature)))))

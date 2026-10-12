@@ -144,7 +144,12 @@ run_host "$work_dir/driver-check$host_suffix"
   "$project_root/tests/harness_bootstrap_compiler.c" "$work_dir/native-driver.o" \
   -o "$work_dir/compiler-driver-check$host_suffix"
 run_host "$work_dir/compiler-driver-check$host_suffix"
-"$host_compiler" -Wall -Wextra -Werror "$project_root/bootstrap/driver.c" \
+# The recursive compiler needs the same 8 MiB stack reserve as the Linux host.
+compiler_link_flags=
+if test "$host_target" = x86_64-windows-gnu; then
+  compiler_link_flags='-Wl,--stack,8388608'
+fi
+"$host_compiler" -Wall -Wextra -Werror $compiler_link_flags "$project_root/bootstrap/driver.c" \
   "$project_root/bootstrap/host/platform_stdio.c" \
   "$project_root/bootstrap/host/platform_toolchain.c" \
   "$work_dir/native-core.o" "$work_dir/native-host.o" "$work_dir/native-source.o" \
@@ -972,7 +977,7 @@ if run_host "$work_dir/pslcc-native-slice$host_suffix" \
 fi
 test ! -e "$work_dir/duplicate.o"
 
-run_host "$work_dir/pslcc-native-slice$host_suffix" \
+run_host "$work_dir/pslcc-native-slice$host_suffix" --target="$host_target" \
     "$project_root/tests/bootstrap_symbols.lisp" "$work_dir/symbols.o"
 nm -g --defined-only "$work_dir/symbols.o" | grep -q ' T answer$'
 nm --defined-only "$work_dir/symbols.o" | grep -q ' t helper-one$'
@@ -986,7 +991,7 @@ run_host "$work_dir/symbols$host_suffix"
   "$project_root/tests/harness_bootstrap_symbols.c" \
   "$work_dir/symbols-stage0.o" -o "$work_dir/symbols-stage0$host_suffix"
 run_host "$work_dir/symbols-stage0$host_suffix"
-run_host "$work_dir/pslcc-native-slice$host_suffix" \
+run_host "$work_dir/pslcc-native-slice$host_suffix" --target="$host_target" \
     "$project_root/tests/bootstrap_symbols.lisp" "$work_dir/symbols-repeat.o"
 cmp "$work_dir/symbols.o" "$work_dir/symbols-repeat.o"
 for source in "$project_root"/tests/bootstrap_symbol_errors/*.lisp; do
@@ -1212,7 +1217,12 @@ run_host "$work_dir/source-unit-O0-check$host_suffix"
   "$project_root/tests/harness_bootstrap_driver.c" \
   "$work_dir/native-core-O0.o" "$work_dir/native-host-O0.o" -o "$work_dir/driver-O0-check$host_suffix"
 run_host "$work_dir/driver-O0-check$host_suffix"
-"$host_compiler" -Wall -Wextra -Werror "$project_root/bootstrap/driver.c" \
+# The recursive compiler needs the same 8 MiB stack reserve as the Linux host.
+compiler_link_flags=
+if test "$host_target" = x86_64-windows-gnu; then
+  compiler_link_flags='-Wl,--stack,8388608'
+fi
+"$host_compiler" -Wall -Wextra -Werror $compiler_link_flags "$project_root/bootstrap/driver.c" \
   "$project_root/bootstrap/host/platform_stdio.c" \
   "$project_root/bootstrap/host/platform_toolchain.c" \
   "$work_dir/native-core-O0.o" "$work_dir/native-host-O0.o" "$work_dir/native-source-O0.o" \
@@ -1326,6 +1336,10 @@ PSL_NATIVE_COMPILER_HOST_TARGET=$host_target \
 
 PSL_NATIVE_COMPILER_HOST_TARGET=$host_target \
   sh "$project_root/tests/bootstrap_managed_values.sh" \
+    "$work_dir/pslcc-native-slice$host_suffix" "$host_target"
+
+PSL_NATIVE_COMPILER_HOST_TARGET=$host_target \
+  sh "$project_root/tests/bootstrap_managed_roots.sh" \
     "$work_dir/pslcc-native-slice$host_suffix" "$host_target"
 
 if test -n "${PSL_NATIVE_OBJECT_SNAPSHOT_DIR:-}"; then

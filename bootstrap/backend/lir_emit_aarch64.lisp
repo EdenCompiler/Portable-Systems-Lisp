@@ -234,12 +234,15 @@
       (if (= (record_call_fixup (deref (field-pointer context 'jumps)) position target) 0) 0
           (a64_word code base)))))
 
+(include "a64_roots.lisp")
+
 (defun a64_lir_control (context op)
   (declare (type (ptr native_compile_context) context) (type (ptr native_lir_instruction) op)
            (returns c-int))
   (let ((kind (deref (field-pointer op 'kind)))
         (code (deref (field-pointer context 'code))))
     (cond
+      ((= (native_root_kind_p kind) 1) (a64_root_control context op))
       ((= kind 100)
        (store (pointer+ (deref (field-pointer context 'labels))
                         (wrap-cast isize (wrap- (deref (field-pointer op 'target)) 1)))
@@ -259,12 +262,16 @@
                    (a64_return code)))))
       (t 0))))
 
-(defun a64_lir_store_result (context op)
+(defun a64_lir_store_result_local (context op)
   (declare (type (ptr native_compile_context) context) (type (ptr native_lir_instruction) op)
            (returns c-int))
   (if (= (deref (field-pointer op 'scalar_code)) 12) 1
       (a64_store_frame (deref (field-pointer context 'code)) 9
                        (a64_local_offset (deref (field-pointer op 'destination))))))
+
+(defun a64_lir_store_result (context op)
+ (declare (type (ptr native_compile_context) context) (type (ptr native_lir_instruction) op) (returns c-int))
+ (if (= (a64_lir_store_result_local context op) 0) 0 (a64_root_publish_result context op)))
 
 (defun a64_lir_emit_instructions (context index)
   (declare (type (ptr native_compile_context) context) (type usize index) (returns c-int))
@@ -298,7 +305,7 @@
   (declare (type (ptr native_compile_context) context) (returns c-int))
   (let ((code (deref (field-pointer context 'code))))
     (if (= (a64_function_prologue code
-            (deref (field-pointer (deref (field-pointer context 'lir)) 'value_count))) 0) 0
+            (native_root_frame_slots context)) 0) 0
         (if (= (native_abi_float_parameters_p context 0) 1)
             (a64_save_float_parameters code 0) 1))))
 

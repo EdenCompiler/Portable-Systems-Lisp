@@ -234,12 +234,15 @@
                        (rv_abi_normalize code 10 scalar_code)) 0) 0
                 (rv_return code))))))
 
+(include "rv_roots.lisp")
+
 (defun rv_lir_control (context op)
   (declare (type (ptr native_compile_context) context) (type (ptr native_lir_instruction) op)
            (returns c-int))
   (let ((kind (deref (field-pointer op 'kind)))
         (code (deref (field-pointer context 'code))))
     (cond
+      ((= (native_root_kind_p kind) 1) (rv_root_control context op))
       ((= kind 100)
        (store (pointer+ (deref (field-pointer context 'labels))
                         (wrap-cast isize (wrap- (deref (field-pointer op 'target)) 1)))
@@ -253,12 +256,16 @@
       ((= kind 103) (rv_lir_return_value context op))
       (t 0))))
 
-(defun rv_lir_store_result (context op)
+(defun rv_lir_store_result_local (context op)
   (declare (type (ptr native_compile_context) context) (type (ptr native_lir_instruction) op)
            (returns c-int))
   (if (= (deref (field-pointer op 'scalar_code)) 12) 1
       (rv_store_frame (deref (field-pointer context 'code)) 5
                        (rv_local_offset (deref (field-pointer op 'destination))))))
+
+(defun rv_lir_store_result (context op)
+ (declare (type (ptr native_compile_context) context) (type (ptr native_lir_instruction) op) (returns c-int))
+ (if (= (rv_lir_store_result_local context op) 0) 0 (rv_root_publish_result context op)))
 
 (defun rv_lir_emit_instructions (context index)
   (declare (type (ptr native_compile_context) context) (type usize index) (returns c-int))
@@ -290,7 +297,7 @@
   (declare (type (ptr native_compile_context) context) (returns c-int))
   (let ((code (deref (field-pointer context 'code))))
     (if (= (rv_function_prologue code
-            (deref (field-pointer (deref (field-pointer context 'lir)) 'value_count))) 0) 0
+            (native_root_frame_slots context)) 0) 0
         (if (= (native_abi_float_parameters_p context 0) 1)
             (rv_save_float_parameters code 0) 1))))
 

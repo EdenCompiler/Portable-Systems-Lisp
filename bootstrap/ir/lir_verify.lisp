@@ -1,4 +1,3 @@
-(include "lir_managed_safe.lisp")
 ;; LIR verifies labels, operation shapes, types, and definitions on every
 ;; incoming path. It does not consult HIR or SSA instructions.
 (include "lir_verify_cfg.lisp")
@@ -14,6 +13,7 @@
     (if (= (deref (field-pointer op 'destination)) 0)
         (if (= (deref (field-pointer op 'value)) 0)
             (cond
+              ((= (native_root_kind_p kind) 1) (native_root_control_shape_p context op))
               ((= kind 100) (if (= left 0) (if (= right 0) (ir_reference_p target (deref (field-pointer arena 'label_count))) 0) 0))
               ((= kind 101) (if (= left 0) (if (= right 0) (ir_reference_p target (deref (field-pointer arena 'label_count))) 0) 0))
               ((= kind 102)
@@ -105,6 +105,7 @@
   (let ((arena (deref (field-pointer context 'lir)))
         (kind (deref (field-pointer op 'kind))))
     (cond
+      ((= (native_root_kind_p kind) 1) 1)
       ((= kind 100) 1) ((= kind 101) 1)
       ((= kind 103)
        (if (= (deref (field-pointer op 'scalar_code)) 12) 1
@@ -174,4 +175,4 @@
                                (deref (field-pointer arena 'capacity))) 0) 0
             (if (= (lir_entry_p arena) 0) 0
                 (if (= (lir_verify_function_body context) 0) 0
-                    (native_lir_managed_safe_p context)))))))
+                    (native_verify_roots context)))))))

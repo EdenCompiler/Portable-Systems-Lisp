@@ -44,7 +44,7 @@ static int compile_source_options(struct fixture *f, const uint8_t *source, uint
     };
     f->hir = (struct native_hir_arena){f->hir_nodes, 0, 256, 0};
     f->ssa = (struct native_ssa_arena){f->ssa_values, f->types, 0, 256, f->ssa_blocks, 0, 256, 0, 0};
-    f->lir = (struct native_lir_arena){f->lir_instructions, 0, 1024, f->types, 0, 256, f->lir_blocks, 0, 768, 0};
+    f->lir = (struct native_lir_arena){f->lir_instructions, 0, 1024, f->types, 0, 256, f->lir_blocks, 0, 768, 0, 0};
     f->call_fixups = (struct native_fixup_arena){f->calls, 0, 256, 0};
     f->jump_fixups = (struct native_fixup_arena){f->jumps, 0, 768, 0};
     f->code = (struct byte_buffer){f->bytes, 0, sizeof f->bytes};

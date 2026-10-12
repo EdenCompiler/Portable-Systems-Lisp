@@ -171,6 +171,8 @@
       ((= (ir_binary_kind_p kind) 1) (win64_lir_binary context op))
       (t (win64_lir_unary context op)))))
 
+(include "win64_roots.lisp")
+
 (defun win64_lir_control (context op)
   (declare (type (ptr native_compile_context) context)
            (type (ptr native_lir_instruction) op) (returns c-int))
@@ -178,6 +180,7 @@
         (code (deref (field-pointer context 'code)))
         (jumps (deref (field-pointer context 'jumps))))
     (cond
+      ((= (native_root_kind_p kind) 1) (win64_root_control context op))
       ((= kind 100)
        (progn (store (pointer+ (deref (field-pointer context 'labels))
                               (wrap-cast isize (wrap- (deref (field-pointer op 'target)) 1)))
@@ -216,7 +219,7 @@
                   (if (= (win64_lir_store_result context op) 0) 0
                       (win64_lir_emit_instructions context (wrap+ index 1)))))))))
 
-(defun win64_lir_store_result (context op)
+(defun win64_lir_store_result_local (context op)
   (declare (type (ptr native_compile_context) context)
            (type (ptr native_lir_instruction) op) (returns c-int))
   (if (= (deref (field-pointer op 'scalar_code)) 12) 1
@@ -224,6 +227,10 @@
                          (deref (field-pointer context 'backend_outgoing_size))
                          (deref (field-pointer op 'destination))
                          (deref (field-pointer (deref (field-pointer context 'lir)) 'value_count)))))
+
+(defun win64_lir_store_result (context op)
+ (declare (type (ptr native_compile_context) context) (type (ptr native_lir_instruction) op) (returns c-int))
+ (if (= (win64_lir_store_result_local context op) 0) 0 (win64_root_publish_result context op)))
 
 (defun win64_lir_max_outgoing (context index largest)
   (declare (type (ptr native_compile_context) context)
@@ -255,7 +262,7 @@
     (store (field-pointer jumps 'count) 0)
     (store (field-pointer jumps 'error) 0)
     (let ((frame (win64_frame_bytes
-                   (deref (field-pointer (deref (field-pointer context 'lir)) 'value_count))
+                   (win64_root_frame_slots context)
                    outgoing)))
       (if (= frame 0) 0
           (progn

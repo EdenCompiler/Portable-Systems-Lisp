@@ -351,10 +351,14 @@ owned symbol names and checked scalar codes replace source AST references for
 compiler-inserted imports. The source collector predeclares source symbols before
 registering this catalogue and rejects runtime name conflicts. The native
 frontend uses a distinct managed value code and layout class; Boolean calls and
-managed truth retain receiving HIR/SSA/LIR checks. `ir/lir_managed_safe.lisp`
-rejects collecting calls when the verified catalogue contains managed words,
-until native root lowering is implemented. Backend ABI code passes accepted
-managed words as opaque 64-bit general-register values. The context's
+managed truth retain receiving HIR/SSA/LIR checks. `ir/root_catalog.lisp`,
+`ir/root_lower.lisp` and `ir/root_verify.lisp` own precise root selection, checked
+in-place LIR expansion and canonical CFG lifetime validation. Original managed
+parameters have independent roots because native SSA parameter reads are lazy.
+CPU-specific root modules initialize shadow storage, publish each managed
+assignment and emit checked push/pop runtime calls. Frame sizing preserves
+original local offsets; Windows root storage follows its scratch word. Backend
+ABI code passes managed words as opaque 64-bit general-register values. The context's
 `runtime_modules` mask reports required compiler-owned runtime imports and their
 dependency closure after successful object writing. Leaf immediates need none.
 `host/compiler_profile_options.lisp` owns bounded profile and option parsing.

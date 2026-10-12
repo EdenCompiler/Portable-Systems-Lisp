@@ -177,6 +177,7 @@ struct native_lir_arena {
     struct native_lir_block *blocks;
     uintptr_t label_count, label_capacity;
     uint32_t error;
+    uintptr_t root_count;
 };
 
 struct native_package_context {
@@ -227,6 +228,8 @@ struct native_compile_context {
     struct native_macro_call macro_call;
     uint32_t profile;
     uint64_t runtime_modules;
+    uintptr_t root_cursor, root_scan_count, root_extra;
+    uint32_t root_flags;
 };
 
 struct native_type_shape {
@@ -491,6 +494,6 @@ extern int native_apply_package_form(struct native_compile_context *, uintptr_t,
 extern int native_run_compiler_profile(const char *, const char *, uint32_t, uint32_t, uint32_t);
 extern int native_register_runtime_signatures(struct native_compile_context *);
 extern int native_runtime_signature_p(struct native_compile_context *, struct native_signature *);
-extern int native_lir_managed_safe_p(struct native_compile_context *);
+extern int native_lower_roots(struct native_compile_context *);
 
 #endif

@@ -80,7 +80,7 @@ static int check_lir_body(void) {
                                    ssa_blocks, 0, CAPACITY, 0, 0};
     struct native_lir_arena lir = {lir_instructions, 0, 4 * CAPACITY,
                                    types, 0, CAPACITY, lir_blocks, 0,
-                                   3 * CAPACITY, 0};
+                                   3 * CAPACITY, 0, 0};
     struct native_fixup_arena call_fixups = {calls, 0, CAPACITY, 0};
     struct native_fixup_arena jump_fixups = {jumps, 0, 3 * CAPACITY, 0};
     struct byte_buffer code = {bytes, 0, sizeof bytes};

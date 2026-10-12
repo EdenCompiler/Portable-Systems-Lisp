@@ -27,4 +27,5 @@
   (blocks (ptr native_lir_block))
   (label_count usize)
   (label_capacity usize)
-  (error u32))
+  (error u32)
+  (root_count usize))

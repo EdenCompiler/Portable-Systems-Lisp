@@ -151,7 +151,10 @@
 (include "ir/ssa_verify.lisp")
 (include "ir/ssa_optimize.lisp")
 (include "ir/lir_lower.lisp")
+(include "ir/root_catalog.lisp")
+(include "ir/root_verify.lisp")
 (include "ir/lir_verify.lisp")
+(include "ir/root_lower.lisp")
 (include "backend/dispatch.lisp")
 
 (defun reset_scalar_function (context signature)
@@ -187,7 +190,7 @@
   (if (= (ssa_lower_function context expression) 0) 0
       (if (= (ssa_optimize_function context) 0) 0
           (if (= (lir_lower_function context) 0) 0
-              (lir_verify_function context)))))
+              (if (= (native_lower_roots context) 0) 0 (lir_verify_function context))))))
 
 (defun compile_verified_scalar_function (context expression start function)
   (declare (type (ptr native_compile_context) context) (type usize expression start)

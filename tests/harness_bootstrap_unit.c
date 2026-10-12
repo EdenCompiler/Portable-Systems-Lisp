@@ -46,7 +46,7 @@ static int compile_memory_target(const char *source, uint32_t target, uintptr_t 
     };
     struct native_lir_arena lir = {
         storage.lir, 0, 6 * CAPACITY, storage.types, 0, CAPACITY,
-        storage.lir_blocks, 0, 3 * CAPACITY, 0
+        storage.lir_blocks, 0, 3 * CAPACITY, 0, 0
     };
     struct native_fixup_arena calls = {storage.calls, 0, CAPACITY, 0};
     struct native_fixup_arena jumps = {storage.jumps, 0, 3 * CAPACITY, 0};

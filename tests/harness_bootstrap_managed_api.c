@@ -62,8 +62,8 @@ int main(void) {
     check("(defun f (x) (declare (type value x) (returns s64)) (unbox-fixnum (car x)))", 1, 0, 899);
     check("(defun f (x) (declare (type value x) (returns value)) x)", 0, 5, 0);
     check("(defun f (x) (declare (type u64 x) (returns u64)) x)", 2, 10, 0);
-    check("(defun f () (declare (returns value)) (cons 1 nil))", 1, 6, 0);
-    check("(ffi:import-function \"foreign_unknown\" ((x value)) -> void) (defun f (x) (declare (type value x) (returns value)) (ffi:call foreign_unknown x) x)", 1, 6, 0);
+    check("(defun f () (declare (returns value)) (cons 1 nil))", 1, 0, 898);
+    check("(ffi:import-function \"foreign_unknown\" ((x value)) -> void) (defun f (x) (declare (type value x) (returns value)) (ffi:call foreign_unknown x) x)", 1, 0, 896);
     check("(ffi:import-function \"foreign_safe\" ((x value)) -> value :no-allocation) (defun f (x) (declare (type value x) (returns value)) (ffi:call foreign_safe x))", 1, 0, 0);
     check("(defun psl_rt_eq (x) (declare (type u64 x) (returns u64)) x)", 1, 11, 0);
     check("(ffi:export-data \"psl_rt_eq\" u64 0)", 1, 11, 0);
@@ -76,7 +76,7 @@ int main(void) {
     check("(defun f (x) (declare (type value x) (returns u64)) (wrap-cast u64 x))", 1, 6, 0);
     check("(defun f () (declare (returns value)) (without-allocation (cons 1 nil)))", 1, 9, 0);
     check("(defun f (x) (declare (type value x) (returns value)) (without-allocation (car x)))", 1, 0, 898);
-    check("(ffi:import-function \"external_gc\" () -> void) (defun callee () (declare (returns void)) (ffi:call external_gc)) (defun f (x) (declare (type value x) (returns value)) (callee) x)", 1, 6, 0);
+    check("(ffi:import-function \"external_gc\" () -> void) (defun callee () (declare (returns void)) (ffi:call external_gc)) (defun f (x) (declare (type value x) (returns value)) (callee) x)", 1, 0, 896);
     receivers();
     puts("Native managed profile, dependency, safety, and receiver checks passed");
     return 0;

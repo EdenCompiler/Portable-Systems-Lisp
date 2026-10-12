@@ -1328,10 +1328,38 @@ conflicts, raw managed storage, invalid tagged literals, casts and arithmetic
 are rejected. API tests also reject forged word truth and altered runtime
 signature effects.
 
-This slice deliberately rejects functions containing managed words across any
-potentially collecting call. It does not provide native root frames, allocation,
-managed compiler collections or the complete compiler/driver port. Native root
-lowering is the next managed transition; the complete M8 Stage 1–3 manifest,
-corpus and fixed-point gates remain open. Evidence is
+This preceding slice initially rejected managed words across collecting calls;
+the native root transition below replaces that restriction. Managed compiler
+collections, the complete compiler/driver port and the full M8 Stage 1–3
+manifest, corpus and fixed-point gates remain open. Evidence is
 `tests/bootstrap_managed_values.sh`, including the receiver/API compiled by both
 Stage 0 and the native compiler, plus the native and smoke regression gates.
+
+
+### M8 native precise root frames
+
+The native hosted compiler now lowers CONS, explicit collection and potentially
+collecting direct/foreign calls with a typed root catalogue and verified LIR
+lifetime. Capacity is checked before in-place expansion. Canonical entry,
+synchronization and return operations reject duplicate initialization, mismatched
+root counts, altered runtime signatures, missing synchronization and invalid
+argument catalogues. Private root imports cannot be ordinary source calls.
+
+Native SSA parameter reads are lazy, so original managed arguments have extra
+shadow roots initialized before the body. Only real managed virtual words are
+rooted; call-chain metadata and raw machine payloads are excluded. Each managed
+assignment publishes its shadow root, avoiding quadratic emitted copy code at
+call sites. All managed slots remain rooted until return. Windows keeps its
+fixed outgoing area, scratch word, page probes and actual unwind metadata.
+
+Evidence is `tests/bootstrap_managed_roots.sh`: independent C runtime behavior
+at O0/O1, deterministic objects, receiver/API compiled through both Stage 0 and
+the native compiler, lazy and unused parameters, branches, 1,200-level cons
+recursion, 4,096 collecting loop iterations, nested constructors, raw integer
+and floating address exclusion, mixed register/stack arguments, large root
+frames and Windows partial-prologue unwind. The focused gates and complete
+native regressions pass on all four hosted targets, and smoke passes. The
+cross-host symbol fixture selects its output target explicitly; the Windows
+compiler binaries reserve an 8 MiB stack for their recursive compiler passes.
+Native managed compiler data, broader language/ABI features and complete M8
+Stage 1–3 fixed-point and corpus gates remain open.

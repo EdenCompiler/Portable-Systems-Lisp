@@ -108,6 +108,7 @@
   (let ((ssa (deref (field-pointer context 'ssa)))
         (lir (deref (field-pointer context 'lir))))
     (store (field-pointer lir 'count) 0)
+    (store (field-pointer lir 'root_count) 0)
     (store (field-pointer lir 'error) 0)
     (store (field-pointer lir 'types) (deref (field-pointer ssa 'types)))
     (store (field-pointer lir 'value_count) (deref (field-pointer ssa 'value_count)))

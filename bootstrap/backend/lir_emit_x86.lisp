@@ -1,3 +1,4 @@
+(include "x86_roots.lisp")
 (include "x86_stack.lisp")
 
 ;; x86-64 consumes flat LIR and virtual-register types only. Every virtual
@@ -285,6 +286,7 @@
         (code (deref (field-pointer context 'code)))
         (jumps (deref (field-pointer context 'jumps))))
     (cond
+      ((= (native_root_kind_p kind) 1) (x86_root_control context op))
       ((= kind 100)
        (progn
          (store (pointer+ (deref (field-pointer context 'labels))
@@ -322,13 +324,17 @@
                   (if (= (x86_lir_store_result context op) 0) 0
                       (x86_lir_emit_instructions context (wrap+ index 1)))))))))
 
-(defun x86_lir_store_result (context op)
+(defun x86_lir_store_result_local (context op)
   (declare (type (ptr native_compile_context) context)
            (type (ptr native_lir_instruction) op) (returns c-int))
   (if (= (deref (field-pointer op 'scalar_code)) 12) 1
       (x86_store_local (deref (field-pointer context 'code))
                        (deref (field-pointer op 'destination))
                        (deref (field-pointer (deref (field-pointer context 'lir)) 'value_count)))))
+
+(defun x86_lir_store_result (context op)
+ (declare (type (ptr native_compile_context) context) (type (ptr native_lir_instruction) op) (returns c-int))
+ (if (= (x86_lir_store_result_local context op) 0) 0 (x86_root_publish_result context op)))
 
 (defun x86_lir_patch_jumps (context index)
   (declare (type (ptr native_compile_context) context)
@@ -347,7 +353,7 @@
   (declare (type (ptr native_compile_context) context) (returns c-int))
   (let ((code (deref (field-pointer context 'code))))
     (if (= (x86_function_prologue code
-            (deref (field-pointer (deref (field-pointer context 'lir)) 'value_count))) 0) 0
+            (native_root_frame_slots context)) 0) 0
         (if (= (native_abi_float_parameters_p context 0) 1)
             (x86_save_float_parameters code 0) 1))))
 

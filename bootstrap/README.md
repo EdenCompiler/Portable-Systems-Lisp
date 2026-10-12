@@ -144,7 +144,7 @@ The native modules currently implement:
   writes from `host/platform_stdio.c`. The C main forwards argc/argv to the
   compiled PSL driver. Hosted memory and traversal are already compiled PSL modules.
 
-Explicit `--profile=hosted` adds a noncollecting managed value slice on x86-64
+Explicit `--profile=hosted` adds a managed value and precise root slice on x86-64
 Linux/Windows, AArch64 and RISC-V64. The native default and
 `--profile=freestanding` keep the typed machine subset. Hosted `value` parameters,
 locals, stack arguments and results use runtime ABI v1. Fixnum literals cover
@@ -153,12 +153,14 @@ locals, stack arguments and results use runtime ABI v1. Fixnum literals cover
 `:no-allocation`. Predicate results remain Boolean; `(if (eq a b) t nil)`
 produces a managed value. Integer zero and boxed zero both remain true.
 
-Every potentially collecting call is rejected if its function's verified value
-catalogue contains managed words. This includes `cons` and unknown foreign
-calls, even when managed temporaries appear dead. Allocation-free summaries
-exclude collection; incorrect foreign promises remain the caller's
-responsibility. Native root frames, allocation, strings and managed compiler
-data still need ports. Raw managed fields, `(ptr value)`, integer casts and
+`cons`, `collect-garbage` and unknown foreign calls use verified precise root
+frames when managed words are present. Managed virtual slots start at NIL and
+are published on each assignment. Original managed parameters are rooted before
+the body, even when their first SSA read follows collection. Raw pointer, integer
+and floating words are excluded; frames retain managed values until return.
+Allocation-free summaries exclude collection; incorrect foreign promises remain
+the caller's responsibility. Native managed strings and compiler data still need
+ports. Raw managed fields, `(ptr value)`, integer casts and
 wrapping arithmetic on managed values are rejected. The `value` type name is
 reserved against raw layout declarations.
 
@@ -633,3 +635,10 @@ checks linked C behavior, SBCL symbol observations, source rejection, repeated
 objects and the native 128-record package bound. Five records belong to the
 standard seed. Redefinition, remaining DEFPACKAGE options, growable arenas,
 source-loader identities and native macro execution remain open M8 work.
+
+The Windows native compiler host must be linked with an 8 MiB stack reserve
+(`-Wl,--stack,8388608` with MinGW-w64), matching the usual Linux compiler-host
+stack. Its current compiler traversal contains recursive passes; the default
+MinGW 2 MiB reserve is insufficient to compile the expanded native core. The
+Windows native gate applies this link setting to both compiler variants. Target
+program frame sizing, page probes and unwind metadata remain backend-owned.
