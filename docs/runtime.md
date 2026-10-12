@@ -78,7 +78,8 @@ linker or archiver. A typed program selects no modules. Generated lambda
 functions have local ELF symbols, so separately compiled closure-bearing
 objects can link into the same program. When `--link-input` names another
 object or archive, the linker also reads its undefined `psl_rt_` symbols and
-selects the corresponding modules.
+selects the corresponding modules. It also recognizes known runtime imports
+in the PSL object itself, including explicitly imported precise constructors.
 
 ## Hosted source subset
 
@@ -129,3 +130,9 @@ bits, locals, joins, recursion, loops, constructor arguments, large frames,
 stack/float/aggregate ABI transport, root release and deterministic O0/O1
 objects. Its Linux API gate rejects malformed catalogues and frame lifetimes,
 missing synchronization, late argument saves and reserved-symbol conflicts.
+
+The native compiler uses the precise symbol/package constructor and interning
+entries. They protect managed arguments internally during allocation; compiled
+callers publish their other live values through explicit root frames. Existing
+conservative C entries remain available to Stage 0. Runtime symbol/package
+cycles are traced and become collectible after all registered roots are removed.

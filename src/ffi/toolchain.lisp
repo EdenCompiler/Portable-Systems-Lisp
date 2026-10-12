@@ -39,10 +39,13 @@
     ("psl_rt_string_byte" . :string)
     ("psl_rt_string_set_byte" . :string)
     ("psl_rt_make_symbol" . :symbol)
+    ("psl_rt_make_symbol_precise" . :symbol)
     ("psl_rt_symbol_name" . :symbol)
     ("psl_rt_make_package" . :package)
+    ("psl_rt_make_package_precise" . :package)
     ("psl_rt_package_name" . :package)
     ("psl_rt_intern" . :package)
+    ("psl_rt_intern_precise" . :package)
     ("psl_rt_make_closure" . :closure)
     ("psl_rt_call_closure" . :closure)
     ("psl_rt_values2" . :values)
@@ -132,7 +135,7 @@
   (and (<= 7 (length name))
        (string= "psl_rt_" name :end2 7)))
 
-(defun input-runtime-modules (input target)
+(defun input-runtime-modules (input target &optional (strict-p t))
   (let ((output (tool-output (target-tool target "nm")
                              (list "-u" (namestring (pathname input)))))
         (modules nil))
@@ -143,10 +146,10 @@
             when (and symbol (runtime-symbol-p symbol))
               do (let ((module (cdr (assoc symbol *runtime-symbol-modules*
                                            :test #'equal))))
-                   (unless module
+                   (when (and strict-p (null module))
                      (fail "unknown PSL runtime dependency ~A in ~A"
                            symbol input))
-                   (pushnew module modules))))
+                   (when module (pushnew module modules)))))
     modules))
 
 (defun temporary-directory ()
@@ -276,11 +279,12 @@
           (file-namestring destination))
       "artifact"))
 
-(defun selected-runtime-modules (runtime-roots inputs target)
+(defun selected-runtime-modules (runtime-roots inputs target &optional source-object)
   (let ((input-roots
-          (mapcan (lambda (input) (input-runtime-modules input target))
-                  inputs)))
-    (runtime-module-closure (append runtime-roots input-roots))))
+          (mapcan (lambda (input) (input-runtime-modules input target)) inputs))
+        (source-roots
+          (when source-object (input-runtime-modules source-object target nil))))
+    (runtime-module-closure (append runtime-roots input-roots source-roots))))
 
 (defun link-source-artifact (output kind target inputs compile-object)
   (unless (or (and (eq (target-architecture target) :x86-64)
@@ -310,7 +314,7 @@
                (funcall compile-object object)
              (declare (ignore compiled))
              (let* ((modules (selected-runtime-modules
-                              runtime-roots inputs target))
+                              runtime-roots inputs target object))
                     (runtime-objects nil))
                (setf runtime-names (mapcar #'runtime-object-name modules)
                      runtime-objects

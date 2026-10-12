@@ -205,7 +205,8 @@ The native bootstrap compiler has a smaller hosted managed contract. Explicit
 `--profile=hosted` accepts `value` parameters, locals and results, signed fixnum
 literals, NIL/T, `box-fixnum`, `unbox-fixnum`, `car`, `cdr`, `eq`, managed truth,
 UTF-8 string literals, `cons`, `collect-garbage`, `make-byte-string`, `string-byte`, `set-string-byte`,
-and direct/foreign calls on the four hosted targets.
+`make-symbol`, `symbol-name`, `package-name`, `make-package-from-name`,
+`intern-symbol`, and direct/foreign calls on the four hosted targets.
 Predicate results retain their Boolean IR type; use `if` to produce managed T/NIL
 in a `value` result. Functions with potentially collecting calls root all managed
 virtual words and original managed parameters until return. Parameter roots are
@@ -220,6 +221,12 @@ UTF-8 and embedded zero bytes. Each evaluation returns a fresh mutable string;
 mutation does not alter the compiler-owned private bytes. Decoding is iterative
 and rejects malformed UTF-8. Managed compiler collections still need native ports. Its default and explicit freestanding profiles reject `value`.
 The same raw pointer/structure restrictions apply.
+Native symbol/package creation and interning use precise allocation; accessors
+are nonallocating. Fresh symbol identity, byte-name interning and case behavior
+match the documented runtime subset. Runtime package values are independent of
+the compiler's build-host package records. Package-local shadowed names remain
+ordinary calls rather than selecting a runtime primitive.
+
 
 `without-allocation` checks all direct calls reachable from the region.
 Unknown imported calls, managed allocation, explicit GC, and indirect closure

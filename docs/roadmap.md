@@ -1407,3 +1407,27 @@ regressions passed in an isolated tree whose compiler/runtime/test inputs matche
 production; all four production focused gates and production smoke passed.
 Managed compiler collections, the remaining source/ABI
 ports and complete Stage 1–3 manifest/corpus/fixed-point gates remain open.
+
+### M8 native managed symbols and runtime packages
+
+The native hosted profile now lowers `make-symbol`, `symbol-name`, `package-name`,
+`make-package-from-name` and `intern-symbol` through the checked runtime catalogue.
+Creation and interning use explicit precise entries; accessors do not allocate.
+Runtime package graphs retain symbol and string references, reuse equal byte
+names, preserve case and become collectible after roots are removed. Canonical
+CL/PSL identities keep package-local shadowed operators as ordinary functions.
+Runtime package values remain distinct from build-host compilation environments.
+Stage 0 now selects known runtime dependencies from its own emitted object,
+including explicit precise imports, as well as supplied C objects and archives.
+
+Evidence is `tests/bootstrap_runtime_symbols.sh`: all-four-target O0/O1 execution,
+deterministic objects, fresh symbol versus interned identity, case behavior,
+package names, cyclic graph tracing/release, raw alias exclusion, 4,096 collecting
+loop iterations and independent automatic precise collection. Receiver APIs
+check profiles, effect promises, dependency masks and exact managed ABI entries.
+A package-local MAKE-SYMBOL calls its own implementation with no runtime imports.
+All four full native regressions passed in an isolated tree with matching
+compiler/runtime/test inputs; all four production focused gates and production
+smoke passed before publication.
+Managed compiler collections, the remaining source/ABI ports and complete
+Stage 1–3 manifest/corpus/fixed-point gates remain open.

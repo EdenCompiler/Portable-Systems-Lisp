@@ -370,6 +370,11 @@ and produces a checked literal address plus a runtime copy call. HIR/SSA/LIR
 receivers bind the constructor extent to its owned data record; the four
 encoders reuse their data relocations. Stage 0 also lowers literals through
 private data and one conservative runtime copy, keeping large literals compact.
+The native runtime catalogue also covers precise symbol/package construction
+and interning plus nonallocating name access. Canonical package identity resolves
+these operators independently of package-local definitions. Runtime module masks
+include symbol/package dependency closure. Stage 0's link coordinator inspects
+known runtime imports in its own emitted object as well as additional link inputs.
 `host/compiler_profile_options.lisp` owns bounded profile and option parsing.
 
 The PSL unit driver first collects all signatures, then predeclares functions,

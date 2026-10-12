@@ -200,6 +200,17 @@
           (if (= (native_compile_unit_bodies context result count) 0) 0
               (native_finish_unit context result count object)))))
 
+(defun native_runtime_module_mask (id)
+  (declare (type u32 id) (returns u64))
+  (cond
+    ((< id 4) 898)
+    ((< id 6) 1)
+    ((< id 9) 896)
+    ((< id 11) 1)
+    ((< id 15) 900)
+    ((< id 17) 908)
+    (t 924)))
+
 (defun native_collect_runtime_dependencies (context index)
   (declare (type (ptr native_compile_context) context) (type usize index) (returns c-int))
   (let ((signatures (deref (field-pointer context 'signatures))))
@@ -208,10 +219,7 @@
               (function (native_function_at (deref (field-pointer context 'functions)) index)))
           (let ((id (deref (field-pointer signature 'runtime_id))))
             (if (if (< 0 id) (= (deref (field-pointer function 'referenced)) 1) nil)
-                (let ((mask (if (< id 4) (wrap-cast u64 898)
-                                (if (< id 6) (wrap-cast u64 1)
-                                    (if (< id 9) (wrap-cast u64 896)
-                                        (if (< id 11) (wrap-cast u64 1) (wrap-cast u64 900))))))
+                (let ((mask (native_runtime_module_mask id))
                       (current (deref (field-pointer context 'runtime_modules))))
                   (store (field-pointer context 'runtime_modules)
                          (wrap+ current (wrap- mask (bits-and current mask))))) (wrap-cast u64 0))

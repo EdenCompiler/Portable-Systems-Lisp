@@ -150,6 +150,7 @@ Linux/Windows, AArch64 and RISC-V64. The native default and
 locals, stack arguments and results use runtime ABI v1. Fixnum literals cover
 -2^62 through 2^62-1; NIL/T have distinct tags. `box-fixnum`, `unbox-fixnum`,
 UTF-8 string literals, `car`, `cdr`, `eq`, `make-byte-string`, `string-byte`, `set-string-byte`,
+`make-symbol`, `symbol-name`, `package-name`, `make-package-from-name`, `intern-symbol`,
 and managed `if` work, including C imports annotated
 `:no-allocation`. Predicate results remain Boolean; `(if (eq a b) t nil)`
 produces a managed value. Integer zero and boxed zero both remain true.
@@ -652,3 +653,11 @@ stack use and rejects invalid UTF-8 before publication. HIR, SSA and LIR receive
 check the private address and matching constructor extent. Embedded zero bytes
 use an explicit length. `tests/bootstrap_string_literals.sh` checks all four
 hosted targets at O0/O1, including mutation, identity, GC and large literals.
+
+Native managed symbols and runtime packages use checked precise constructors
+and interning. `make-symbol` is fresh; `intern-symbol` reuses an equal byte name
+within its supplied runtime package, with distinct case retained. Accessors do
+not allocate. Runtime package objects are separate from the build-host source
+package environment. Canonical CL/PSL identities preserve package-local
+shadowing. `tests/bootstrap_runtime_symbols.sh` checks all four hosted targets,
+O0/O1, precise collection, graph reachability/release and effects.

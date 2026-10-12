@@ -2,39 +2,39 @@
 #include <assert.h>
 #include <string.h>
 int main(void) {
-    struct native_signature records[16];
-    struct native_parameter parameters[24];
+    struct native_signature records[21];
+    struct native_parameter parameters[30];
     struct native_signature_context signatures = {0};
     struct native_compile_context context = {0};
     memset(records, 0xa5, sizeof records);
     memset(parameters, 0xa5, sizeof parameters);
-    signatures.signatures = records; signatures.signature_capacity = 14;
-    signatures.parameters = parameters; signatures.parameter_capacity = 22;
+    signatures.signatures = records; signatures.signature_capacity = 19;
+    signatures.parameters = parameters; signatures.parameter_capacity = 28;
     context.signatures = &signatures;
     assert(!native_register_runtime_signatures(&context));
     assert(!signatures.signature_count && !signatures.parameter_count);
     context.profile = 1;
-    signatures.parameter_capacity = 21;
+    signatures.parameter_capacity = 27;
     assert(!native_register_runtime_signatures(&context));
     assert(!signatures.signature_count && !signatures.parameter_count);
     assert(records[0].name == UINTPTR_MAX / 255 * 165);
-    signatures.parameter_capacity = 22;
-    signatures.signature_count = 15;
+    signatures.parameter_capacity = 28;
+    signatures.signature_count = 20;
     assert(!native_register_runtime_signatures(&context));
-    assert(signatures.signature_count == 15 && !signatures.parameter_count);
+    assert(signatures.signature_count == 20 && !signatures.parameter_count);
     signatures.signature_count = 0;
-    signatures.parameter_count = 23;
+    signatures.parameter_count = 29;
     assert(!native_register_runtime_signatures(&context));
-    assert(!signatures.signature_count && signatures.parameter_count == 23);
+    assert(!signatures.signature_count && signatures.parameter_count == 29);
     signatures.parameter_count = 0;
     assert(native_register_runtime_signatures(&context));
-    assert(signatures.signature_count == 14 && signatures.parameter_count == 22);
+    assert(signatures.signature_count == 19 && signatures.parameter_count == 28);
     assert(records[0].arity == 2 && records[0].result_code == 15);
     assert(!memcmp(records[0].runtime_name, "psl_rt_cons_precise", 18));
     assert(records[4].result_code == 9 && records[4].allocation_free == 1);
     assert(records[5].arity == 0 && records[5].result_code == 12);
     assert(records[8].arity == 2 && records[8].result_code == 0);
-    for (unsigned i = 0; i < 14; ++i) {
+    for (unsigned i = 0; i < 19; ++i) {
         assert(native_runtime_signature_p(&context, &records[i]));
         unsigned saved = records[i].result_code;
         records[i].result_code = 11;
@@ -51,6 +51,12 @@ int main(void) {
     assert(!memcmp(records[13].runtime_name, "psl_rt_make_string_from_bytes_precise", 37));
     assert(parameters[records[13].first_parameter].scalar_code == 1);
     assert(parameters[records[13].first_parameter+1].scalar_code == 2);
+    for(unsigned i=14;i<19;++i) {
+        assert(records[i].result_code==15 && records[i].result_size==8);
+        assert(records[i].arity==(i==18?2:1));
+        assert(records[i].allocation_free==(i==15 || i==17));
+        assert(parameters[records[i].first_parameter].scalar_code==15);
+    }
     context.profile = 0;
     assert(!native_runtime_signature_p(&context, &records[0]));
     return 0;

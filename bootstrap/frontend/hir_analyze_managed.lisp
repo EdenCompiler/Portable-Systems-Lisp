@@ -15,6 +15,11 @@
           ((= (ast_long_word_p parser source head #x7479622d656b616d #x676e697274732d65 16) 1) 11)
           ((= (ast_long_word_p parser source head #x622d676e69727473 #x657479 11) 1) 12)
           ((= (ast_long_word_p parser source head #x697274732d746573 #x657479622d676e 15) 1) 13)
+          ((= (ast_package_name_p parser head 1 (ffi:c-string "MAKE-SYMBOL") 11) 1) 15)
+          ((= (ast_package_name_p parser head 1 (ffi:c-string "SYMBOL-NAME") 11) 1) 16)
+          ((= (ast_package_name_p parser head 2 (ffi:c-string "MAKE-PACKAGE-FROM-NAME") 22) 1) 17)
+          ((= (ast_package_name_p parser head 1 (ffi:c-string "PACKAGE-NAME") 12) 1) 18)
+          ((= (ast_package_name_p parser head 2 (ffi:c-string "INTERN-SYMBOL") 13) 1) 19)
           (t 0)) 0)))
 
 (defun hir_from_managed_call (context body head id depth)

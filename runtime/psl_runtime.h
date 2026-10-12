@@ -62,10 +62,14 @@ uint8_t psl_rt_string_byte(psl_value string, size_t index);
 void psl_rt_string_set_byte(psl_value string, size_t index, uint8_t byte);
 
 psl_value psl_rt_make_symbol(psl_value name);
+/* Precise constructors retain their arguments internally during allocation. */
+psl_value psl_rt_make_symbol_precise(psl_value name);
 psl_value psl_rt_symbol_name(psl_value symbol);
 psl_value psl_rt_make_package(psl_value name);
+psl_value psl_rt_make_package_precise(psl_value name);
 psl_value psl_rt_package_name(psl_value package);
 psl_value psl_rt_intern(psl_value package, psl_value name);
+psl_value psl_rt_intern_precise(psl_value package, psl_value name);
 
 psl_value psl_rt_make_closure(psl_closure_code code, psl_value environment);
 psl_value psl_rt_call_closure(psl_value closure, psl_value argument);

@@ -1,0 +1,5 @@
+(defpackage "LOCAL-SYMBOLS" (:use "COMMON-LISP")
+ (:import-from "PSL" "U64" "RETURNS" "WRAP+" "C-EXPORT") (:shadow "MAKE-SYMBOL"))
+(in-package "LOCAL-SYMBOLS")
+(defun make-symbol (x) (declare (type u64 x) (returns u64)) (wrap+ x 1))
+(defun shadow_result () (declare (returns u64) (c-export :c)) (make-symbol 41))

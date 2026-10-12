@@ -32,3 +32,13 @@
     (if (= identity 0) 0
         (if (= identity (native_ct_word_symbol
                          (deref (field-pointer reader 'environment)) package first last length)) 1 0))))
+
+(defun ast_package_name_p (parser reference package name length)
+  (declare (type (ptr psl_parser) parser) (type (ptr u8) name)
+           (type usize reference package length) (returns c-int))
+  (let ((reader (deref (field-pointer parser 'environment)))
+        (identity (ast_symbol_identity parser reference)))
+    (if (= identity 0) 0
+        (if (= (ptr-address reader) 0) 0
+            (if (= identity (native_ct_find_symbol
+                             (deref (field-pointer reader 'environment)) package name length)) 1 0)))))
