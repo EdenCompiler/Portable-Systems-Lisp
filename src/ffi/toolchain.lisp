@@ -32,6 +32,7 @@
     ("psl_rt_car" . :cons)
     ("psl_rt_cdr" . :cons)
     ("psl_rt_make_string" . :string)
+    ("psl_rt_make_string_precise" . :string)
     ("psl_rt_string_length" . :string)
     ("psl_rt_string_byte" . :string)
     ("psl_rt_string_set_byte" . :string)

@@ -204,7 +204,8 @@ GC module when compiler-inserted root operations require it.
 The native bootstrap compiler has a smaller hosted managed contract. Explicit
 `--profile=hosted` accepts `value` parameters, locals and results, signed fixnum
 literals, NIL/T, `box-fixnum`, `unbox-fixnum`, `car`, `cdr`, `eq`, managed truth,
-`cons`, `collect-garbage`, and direct/foreign calls on the four hosted targets.
+`cons`, `collect-garbage`, `make-byte-string`, `string-byte`, `set-string-byte`,
+and direct/foreign calls on the four hosted targets.
 Predicate results retain their Boolean IR type; use `if` to produce managed T/NIL
 in a `value` result. Functions with potentially collecting calls root all managed
 virtual words and original managed parameters until return. Parameter roots are
@@ -212,8 +213,10 @@ installed before the body, including parameters first read after collection.
 Managed assignments publish their shadow slots immediately, so every verified
 call synchronization boundary sees the latest values. Argument-chain metadata,
 raw pointers, integers and floating payloads are excluded. Calls without
-allocation/collection need no frame. Native managed compiler collections still
-need a port. Its default and explicit freestanding profiles reject `value`.
+allocation/collection need no frame. The native byte-string constructor uses precise automatic collection. Its
+length/index arguments are `usize`, fills/bytes/results are `u8`, and managed
+strings retain the opaque `value` representation. String literals and managed
+compiler collections still need native ports. Its default and explicit freestanding profiles reject `value`.
 The same raw pointer/structure restrictions apply.
 
 `without-allocation` checks all direct calls reachable from the region.

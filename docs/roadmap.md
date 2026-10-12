@@ -1363,3 +1363,25 @@ cross-host symbol fixture selects its output target explicitly; the Windows
 compiler binaries reserve an 8 MiB stack for their recursive compiler passes.
 Native managed compiler data, broader language/ABI features and complete M8
 Stage 1–3 fixed-point and corpus gates remain open.
+
+
+### M8 native managed byte-string primitives
+
+The native hosted profile now lowers `make-byte-string`, `string-byte` and
+`set-string-byte` through checked runtime signatures. Byte-sized fill and result
+fields use their exact C ABI sizes. The constructor calls a new explicit precise
+allocator entry while the existing conservative runtime entry remains available
+to Stage 0. Root frames protect source values across allocation; string access
+and mutation do not allocate. Runtime dependency reporting includes the string
+module and its GC/startup/platform closure.
+
+Evidence is `tests/bootstrap_byte_strings.sh`: O0/O1 execution and deterministic
+objects on all four hosted targets; independent C checks of lengths, high-bit
+bytes, mutation, empty strings, raw address exclusion, cons/string composition
+and 4,096 collecting loop iterations; automatic precise collection and release;
+and native/Stage 0 receiver APIs validating byte layouts, effect certification,
+profile restrictions and runtime symbol conflicts. The runtime catalogue gate
+also checks its expanded capacity and byte-sized entries. The four full native
+regressions, four focused production gates and smoke passed before publication.
+String literals, managed compiler collections and the
+complete M8 Stage 1–3 manifest/corpus/fixed-point gates remain open.

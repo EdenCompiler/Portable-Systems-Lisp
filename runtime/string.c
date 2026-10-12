@@ -3,15 +3,24 @@
 #include <stdlib.h>
 #include <string.h>
 
-psl_value psl_rt_make_string(size_t length, uint8_t fill) {
+static psl_value make_string(size_t length, uint8_t fill, int precise) {
     if (length == SIZE_MAX) {
         abort();
     }
-    psl_object *string = psl_rt_allocate(PSL_OBJECT_STRING, length + 1);
+    psl_object *string = precise ? psl_rt_allocate_precise(PSL_OBJECT_STRING, length + 1)
+                                 : psl_rt_allocate(PSL_OBJECT_STRING, length + 1);
     string->length = length;
     memset(string->bytes, fill, length);
     string->bytes[length] = 0;
     return (psl_value)(uintptr_t)string;
+}
+
+psl_value psl_rt_make_string(size_t length, uint8_t fill) {
+    return make_string(length, fill, 0);
+}
+
+psl_value psl_rt_make_string_precise(size_t length, uint8_t fill) {
+    return make_string(length, fill, 1);
 }
 
 size_t psl_rt_string_length(psl_value value) {

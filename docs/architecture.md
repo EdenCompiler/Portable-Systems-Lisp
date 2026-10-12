@@ -361,6 +361,9 @@ original local offsets; Windows root storage follows its scratch word. Backend
 ABI code passes managed words as opaque 64-bit general-register values. The context's
 `runtime_modules` mask reports required compiler-owned runtime imports and their
 dependency closure after successful object writing. Leaf immediates need none.
+The runtime catalogue distinguishes byte-sized arguments/results from word
+arguments/results. Native byte-string creation uses the explicit precise
+allocator entry; access/mutation reuse the existing noncollecting string ABI.
 `host/compiler_profile_options.lisp` owns bounded profile and option parsing.
 
 The PSL unit driver first collects all signatures, then predeclares functions,

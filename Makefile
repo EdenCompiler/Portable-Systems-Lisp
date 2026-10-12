@@ -26,7 +26,7 @@ HOST_SOURCES := bootstrap/driver.c bootstrap/host/platform_stdio.c bootstrap/hos
 HOST_HEADERS := $(shell find bootstrap -name '*.h')
 
 .PHONY: all compiler native stage0 compile example test test-native test-static-data test-self-core test-bootstrap-corpus test-native-environment \
-        test-windows test-native-win64-frame test-native-managed test-native-roots test-native-windows test-aarch64 test-native-aarch64 test-native-riscv64 test-riscv64 clean help
+        test-windows test-native-win64-frame test-native-managed test-native-roots test-native-byte-strings test-native-windows test-aarch64 test-native-aarch64 test-native-riscv64 test-riscv64 clean help
 
 all: compiler
 compiler native: $(NATIVE_COMPILER)
@@ -94,6 +94,9 @@ test-native-managed: native
 test-native-roots: native
 	sh tests/bootstrap_managed_roots.sh "$(NATIVE_COMPILER)" "$(TARGET)"
 
+test-native-byte-strings: native
+	sh tests/bootstrap_byte_strings.sh "$(NATIVE_COMPILER)" "$(TARGET)"
+
 test-static-data:
 	sh tests/bootstrap_static_data.sh x86_64-linux-gnu
 
@@ -149,6 +152,7 @@ help:
 	@echo 'make test-native       Check native compilation and C interoperability'
 	@echo 'make test-native-managed Check hosted native values and profile safety'
 	@echo 'make test-native-roots Check native precise roots and collecting calls'
+	@echo 'make test-native-byte-strings Check native managed byte strings and ABI'
 	@echo 'make test-static-data  Check native ELF static data output on x86-64 Linux'
 	@echo 'make test-native-environment Check build-host package and symbol reader APIs'
 	@echo 'make test-self-core    Compare successive native core generations'

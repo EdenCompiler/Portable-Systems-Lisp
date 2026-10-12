@@ -13,6 +13,9 @@
     ((= id 8) (ffi:c-string "psl_rt_pop_roots"))
     ((= id 9) (ffi:c-string "psl_rt_eq"))
     ((= id 10) (ffi:c-string "psl_rt_truthy"))
+    ((= id 11) (ffi:c-string "psl_rt_make_string_precise"))
+    ((= id 12) (ffi:c-string "psl_rt_string_byte"))
+    ((= id 13) (ffi:c-string "psl_rt_string_set_byte"))
     (t (ptr-from-address (ptr u8) 0))))
 
 (defun native_runtime_name_length (id)
@@ -28,26 +31,38 @@
     ((= id 8) 16)
     ((= id 9) 9)
     ((= id 10) 13)
+    ((= id 11) 26)
+    ((= id 12) 18)
+    ((= id 13) 22)
     (t 0)))
 
 (defun native_runtime_arity (id)
   (declare (type u32 id) (returns usize))
-  (cond ((= id 1) 2) ((= id 6) 0) ((= id 7) 3) ((= id 9) 2) (t 1)))
+  (cond ((= id 1) 2) ((= id 6) 0) ((= id 7) 3) ((= id 9) 2) ((= id 11) 2) ((= id 12) 2) ((= id 13) 3) (t 1)))
 
 (defun native_runtime_result (id)
   (declare (type u32 id) (returns u32))
   (cond ((= id 5) 9) ((= id 6) 12) ((= id 7) 12) ((= id 8) 12)
-        ((= id 9) 0) ((= id 10) 0) (t 15)))
+        ((= id 9) 0) ((= id 10) 0) ((= id 12) 3) ((= id 13) 12) (t 15)))
 
 (defun native_runtime_parameter (id index)
   (declare (type u32 id) (type usize index) (returns u32))
   (cond ((= id 4) 9)
         ((= id 7) (if (= index 2) (wrap-cast u32 2) (wrap-cast u32 1)))
-        ((= id 8) 1) (t 15)))
+        ((= id 8) 1)
+        ((= id 11) (if (= index 0) (wrap-cast u32 2) (wrap-cast u32 3)))
+        ((= id 12) (if (= index 0) (wrap-cast u32 15) (wrap-cast u32 2)))
+        ((= id 13) (if (= index 0) (wrap-cast u32 15)
+                         (if (= index 1) (wrap-cast u32 2) (wrap-cast u32 3))))
+        (t 15)))
 
 (defun native_runtime_free_p (id)
   (declare (type u32 id) (returns u8))
-  (if (= id 1) (wrap-cast u8 0) (if (= id 6) (wrap-cast u8 0) (wrap-cast u8 1))))
+  (if (if (= id 1) t (if (= id 6) t (= id 11))) (wrap-cast u8 0) (wrap-cast u8 1)))
+
+(defun native_runtime_scalar_size (code)
+  (declare (type u32 code) (returns usize))
+  (if (= code 12) 0 (wrap-cast usize (shr64 (wrap-cast u64 (scalar_type_bits code)) 3))))
 
 (defun native_runtime_parameter_p (parameter id index)
   (declare (type (ptr native_parameter) parameter) (type u32 id) (type usize index) (returns c-int))
@@ -55,7 +70,7 @@
     (if (= (deref (field-pointer parameter 'name)) 0)
         (if (= (deref (field-pointer parameter 'type_ast)) 0)
             (if (= (deref (field-pointer parameter 'scalar_code)) code)
-                (if (= (deref (field-pointer parameter 'size)) 8)
+                (if (= (deref (field-pointer parameter 'size)) (native_runtime_scalar_size code))
                     (if (= (deref (field-pointer parameter 'kind))
                            (if (= code 15) (wrap-cast u32 5) (wrap-cast u32 1))) 1 0) 0) 0) 0) 0)))
 
@@ -92,7 +107,7 @@
     (if (= (deref (field-pointer signature 'arity)) (native_runtime_arity id))
         (if (= (deref (field-pointer signature 'result_code)) code)
             (if (= (deref (field-pointer signature 'result_size))
-                   (if (= code 12) (wrap-cast usize 0) (wrap-cast usize 8)))
+                   (native_runtime_scalar_size code))
                 (if (= (deref (field-pointer signature 'result_kind))
                        (if (= code 12) (wrap-cast u32 4)
                            (if (= code 15) (wrap-cast u32 5) (wrap-cast u32 1)))) 1 0) 0) 0) 0)))
@@ -111,7 +126,7 @@
   (let ((id (deref (field-pointer signature 'runtime_id))))
     (if (= (deref (field-pointer context 'profile)) 1)
         (if (= id 0) 0
-            (if (< 10 id) 0
+            (if (< 13 id) 0
                 (if (= (native_runtime_signature_name_p signature id) 0) 0
                     (if (= (native_runtime_header_p signature id) 0) 0
                         (if (= (native_runtime_result_p signature id) 0) 0
@@ -122,7 +137,7 @@
   (let ((code (native_runtime_parameter id index)))
     (store (field-pointer parameter 'name) 0)
     (store (field-pointer parameter 'type_ast) 0)
-    (store (field-pointer parameter 'size) 8)
+    (store (field-pointer parameter 'size) (native_runtime_scalar_size code))
     (store (field-pointer parameter 'kind) (if (= code 15) (wrap-cast u32 5) (wrap-cast u32 1)))
     (store (field-pointer parameter 'scalar_code) code)
     1))
@@ -134,7 +149,7 @@
     (store (field-pointer signature 'first_parameter) first)
     (store (field-pointer signature 'arity) (native_runtime_arity id))
     (store (field-pointer signature 'result_type) 0)
-    (store (field-pointer signature 'result_size) (if (= code 12) (wrap-cast usize 0) (wrap-cast usize 8)))
+    (store (field-pointer signature 'result_size) (native_runtime_scalar_size code))
     (store (field-pointer signature 'result_kind)
            (if (= code 12) (wrap-cast u32 4) (if (= code 15) (wrap-cast u32 5) (wrap-cast u32 1))))
     (store (field-pointer signature 'body) 0)
@@ -162,7 +177,7 @@
 (defun native_runtime_initialize_catalog (signatures id count first)
   (declare (type (ptr native_signature_context) signatures) (type u32 id)
            (type usize count first) (returns c-int))
-  (if (= id 11) 1
+  (if (= id 14) 1
       (progn
         (native_runtime_initialize_signature
          (native_signature_at signatures (wrap+ count (wrap-cast usize (wrap- id 1)))) id first)
@@ -196,7 +211,7 @@
 
 (defun native_runtime_names_free_p (context id)
   (declare (type (ptr native_compile_context) context) (type u32 id) (returns c-int))
-  (if (= id 11) 1
+  (if (= id 14) 1
       (if (= (native_runtime_symbol_used_p context id 0) 1) 0
           (if (= (native_runtime_data_used_p context id 0) 1) 0
               (native_runtime_names_free_p context (wrap+ id 1))))))
@@ -217,9 +232,9 @@
     (if (= (ptr-address (deref (field-pointer signatures 'signatures))) 0) 0
         (if (= (ptr-address (deref (field-pointer signatures 'parameters))) 0) 0
             (if (< capacity count) 0
-                (if (< (wrap- capacity count) 10) 0
+                (if (< (wrap- capacity count) 13) 0
                     (if (< parameter_capacity first) 0
-                        (if (< (wrap- parameter_capacity first) 13) 0 1))))))))
+                        (if (< (wrap- parameter_capacity first) 20) 0 1))))))))
 
 ;; Reserve both tables before reading source symbols or writing records. Publish
 ;; their counts only after construction; failed validation leaves them unchanged.
@@ -233,8 +248,8 @@
                     (let ((count (deref (field-pointer signatures 'signature_count)))
                           (first (deref (field-pointer signatures 'parameter_count))))
                       (native_runtime_initialize_catalog signatures 1 count first)
-                      (store (field-pointer signatures 'signature_count) (wrap+ count 10))
-                      (store (field-pointer signatures 'parameter_count) (wrap+ first 13))
+                      (store (field-pointer signatures 'signature_count) (wrap+ count 13))
+                      (store (field-pointer signatures 'parameter_count) (wrap+ first 20))
                       1))))) 0))
 
 (defun native_runtime_call_signature_p (context signature)

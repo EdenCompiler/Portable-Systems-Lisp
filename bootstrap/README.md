@@ -149,7 +149,8 @@ Linux/Windows, AArch64 and RISC-V64. The native default and
 `--profile=freestanding` keep the typed machine subset. Hosted `value` parameters,
 locals, stack arguments and results use runtime ABI v1. Fixnum literals cover
 -2^62 through 2^62-1; NIL/T have distinct tags. `box-fixnum`, `unbox-fixnum`,
-`car`, `cdr`, `eq`, and managed `if` work, including C imports annotated
+`car`, `cdr`, `eq`, `make-byte-string`, `string-byte`, `set-string-byte`,
+and managed `if` work, including C imports annotated
 `:no-allocation`. Predicate results remain Boolean; `(if (eq a b) t nil)`
 produces a managed value. Integer zero and boxed zero both remain true.
 
@@ -159,8 +160,9 @@ are published on each assignment. Original managed parameters are rooted before
 the body, even when their first SSA read follows collection. Raw pointer, integer
 and floating words are excluded; frames retain managed values until return.
 Allocation-free summaries exclude collection; incorrect foreign promises remain
-the caller's responsibility. Native managed strings and compiler data still need
-ports. Raw managed fields, `(ptr value)`, integer casts and
+the caller's responsibility. Byte-string creation uses precise automatic collection; length/index arguments
+are `usize` and fills/bytes/results are `u8`. String literals and managed compiler
+data still need native ports. Raw managed fields, `(ptr value)`, integer casts and
 wrapping arithmetic on managed values are rejected. The `value` type name is
 reserved against raw layout declarations.
 
@@ -169,7 +171,7 @@ adds an explicit profile argument (0 freestanding, 1 hosted). Existing compiler
 entry points retain profile 0. A freshly prepared context also starts in profile
 0; direct library callers can select its `profile` field before compilation.
 After successful hosted compilation, `runtime_modules` reports compiler-owned
-runtime dependencies: value=1, cons=2, GC=128, startup=256, platform=512, with the
+runtime dependencies: value=1, cons=2, string=4, GC=128, startup=256, platform=512, with the
 transitive closure included. Leaf immediate values introduce no runtime symbols.
 Objects still require explicit linking of their imports. Internal runtime
 imports use resolved signatures and real owned C names; source calls cannot

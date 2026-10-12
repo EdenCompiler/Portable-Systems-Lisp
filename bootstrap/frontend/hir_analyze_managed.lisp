@@ -12,6 +12,9 @@
           ((= (ast_long_word_p parser source head #x69662d786f626e75 #x6d756e78 12) 1) 5)
           ((= (ast_word_p parser source head #x7165 2) 1) 9)
           ((= (ast_long_word_p parser source head #x2d7463656c6c6f63 #x65676162726167 15) 1) 6)
+          ((= (ast_long_word_p parser source head #x7479622d656b616d #x676e697274732d65 16) 1) 11)
+          ((= (ast_long_word_p parser source head #x622d676e69727473 #x657479 11) 1) 12)
+          ((= (ast_long_word_p parser source head #x697274732d746573 #x657479622d676e 15) 1) 13)
           (t 0)) 0)))
 
 (defun hir_from_managed_call (context body head id depth)
