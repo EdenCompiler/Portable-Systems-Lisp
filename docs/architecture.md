@@ -364,6 +364,12 @@ dependency closure after successful object writing. Leaf immediates need none.
 The runtime catalogue distinguishes byte-sized arguments/results from word
 arguments/results. Native byte-string creation uses the explicit precise
 allocator entry; access/mutation reuse the existing noncollecting string ABI.
+`frontend/string_decode.lisp` validates UTF-8 and removes Lisp escapes with an
+iterative scratch state. `frontend/string_literals.lisp` owns private byte spans
+and produces a checked literal address plus a runtime copy call. HIR/SSA/LIR
+receivers bind the constructor extent to its owned data record; the four
+encoders reuse their data relocations. Stage 0 also lowers literals through
+private data and one conservative runtime copy, keeping large literals compact.
 `host/compiler_profile_options.lisp` owns bounded profile and option parsing.
 
 The PSL unit driver first collects all signatures, then predeclares functions,
@@ -385,7 +391,7 @@ phase/location selection.
 This permits forward calls and recursion. It is a restricted source-to-object
 proof, not Stage 1: general symbol interpretation, macro expansion, full
 semantic analysis, managed values and indirect effects, aggregate
-ABIs, general static byte data, and managed source string values still run in
+ABIs, general static byte data, and managed compiler collections still run in
 SBCL or remain outside the native subset. Native ELF and COFF writers
 handle the documented integer/pointer code, calls, unwind metadata, initialized
 scalar data, and imported data relocations without an assembler.

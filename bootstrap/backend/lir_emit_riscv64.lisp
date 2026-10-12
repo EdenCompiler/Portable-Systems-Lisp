@@ -210,7 +210,7 @@
          (if (= (rv_lir_load_abi_parameter context location) 0) 0
              (rv_normalize code 5 (deref (field-pointer op 'scalar_code))))))
       ((= kind 7) (rv_lir_call context op))
-      ((= kind 34) (rv_lir_data_address context op))
+      ((if (= kind 34) t (= kind 35)) (rv_lir_data_address context op))
       ((= kind 29) 1)
       ((= (ir_binary_kind_p kind) 1) (rv_lir_binary context op))
       (t (rv_lir_unary context op)))))

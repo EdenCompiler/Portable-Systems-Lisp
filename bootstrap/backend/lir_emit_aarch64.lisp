@@ -221,7 +221,7 @@
          (if (= (a64_lir_load_abi_parameter context location) 0) 0
              (a64_normalize code 9 (deref (field-pointer op 'scalar_code))))))
       ((= kind 7) (a64_lir_call context op))
-      ((= kind 34) (a64_lir_data_address context op))
+      ((if (= kind 34) t (= kind 35)) (a64_lir_data_address context op))
       ((= kind 29) 1)
       ((= (ir_binary_kind_p kind) 1) (a64_lir_binary context op))
       (t (a64_lir_unary context op)))))

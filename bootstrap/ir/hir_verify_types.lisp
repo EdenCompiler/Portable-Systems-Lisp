@@ -127,6 +127,21 @@
                    (wrap- remaining 1) (wrap+ depth 1)))
               0)))))
 
+(defun hir_verify_literal_call (context chain)
+  (declare (type (ptr native_compile_context) context)
+           (type usize chain) (returns c-int))
+  (let ((arena (deref (field-pointer context 'hir))))
+    (let ((last (hir_node_at arena chain)))
+      (let ((first (hir_node_at arena (deref (field-pointer last 'right))))
+            (length (hir_node_at arena (deref (field-pointer last 'left)))))
+        (let ((address (hir_node_at arena (deref (field-pointer first 'left)))))
+          (if (= (deref (field-pointer first 'right)) 0)
+              (if (= (deref (field-pointer address 'kind)) 35)
+                  (if (= (deref (field-pointer length 'kind)) 1)
+                      (native_literal_extent_p context
+                       (deref (field-pointer address 'target))
+                       (deref (field-pointer length 'value))) 0) 0) 0))))))
+
 (defun hir_verify_scalar_call_checked (context node depth)
   (declare (type (ptr native_compile_context) context)
            (type (ptr native_hir_node) node)
@@ -140,10 +155,10 @@
             (deref (field-pointer node 'pointee))
             (scalar_signature_type_code context signature)
             (scalar_signature_result_pointee context signature)) 1)
-        (hir_verify_scalar_arguments context (deref (field-pointer node 'left))
-                                     signature
-                                     (deref (field-pointer signature 'arity))
-                                     depth)
+        (if (= (hir_verify_scalar_arguments context (deref (field-pointer node 'left))
+                                           signature (deref (field-pointer signature 'arity)) depth) 0) 0
+            (if (= (deref (field-pointer signature 'runtime_id)) 14)
+                (hir_verify_literal_call context (deref (field-pointer node 'left))) 1))
         0)))
 
 (defun hir_verify_scalar_kind (context node depth)
@@ -174,6 +189,10 @@
       ((= kind 18) (hir_verify_scalar_cast context node depth))
       ((= kind 19) (if (< 1 (deref (field-pointer node 'value))) 0 1))
       ((= kind 20) (hir_verify_word_truth context node depth))
+      ((= kind 35)
+           (if (= code 1)
+               (if (= (deref (field-pointer node 'pointee)) 0)
+                   (native_literal_target_p context (deref (field-pointer node 'target))) 0) 0))
       ((= kind 34)
        (let ((target (deref (field-pointer node 'target))))
          (if (= code 11)

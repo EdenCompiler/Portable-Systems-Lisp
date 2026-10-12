@@ -25,6 +25,7 @@
 (include "frontend/ffi.lisp")
 (include "frontend/data.lisp")
 (include "frontend/c_strings.lisp")
+(include "frontend/string_literals.lisp")
 (include "frontend/symbol_names.lisp")
 (include "object/elf64_calls.lisp")
 (include "object/elf64_data_imports.lisp")

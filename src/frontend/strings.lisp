@@ -27,33 +27,21 @@
     (make-hir :kind :data-address :type '(:ptr :u8 nil nil)
               :value (cons name :u8))))
 
-(defun string-byte-write-node (name index byte context)
-  (runtime-call-node
-   "psl_rt_string_set_byte" '(:value :usize :u8) :void :string :none
-   (list (make-hir :kind :variable :type :value :value name)
-         (make-hir :kind :literal :type :usize :value index)
-         (make-hir :kind :literal :type :u8 :value byte))
-   context))
-
 (defun analyze-string-literal (text context expected)
   (require-hosted-runtime context)
   (when (and expected (not (eq expected :value)))
     (fail "string literal cannot have machine type ~A" expected))
-  (let* ((bytes (sb-ext:string-to-octets text :external-format :utf-8))
+  (let* ((bytes (nul-terminated-utf8 text))
          (name (next-string-name context))
-         (initializer
-           (runtime-call-node
-            "psl_rt_make_string" '(:usize :u8) :value :string :allocates
-            (list (make-hir :kind :literal :type :usize
-                            :value (length bytes))
-                  (make-hir :kind :literal :type :u8 :value 0))
-            context))
-         (writes (loop for byte across bytes
-                       for index from 0
-                       collect (string-byte-write-node name index byte context)))
-         (result (make-hir :kind :variable :type :value :value name))
-         (body (make-hir :kind :progn :type :value
-                         :children (append writes (list result)))))
-    (make-hir :kind :let :type :value
-              :value (list (cons name initializer))
-              :children (list body))))
+         (address (make-hir :kind :data-address :type '(:ptr :u8 nil nil)
+                            :value (cons name :u8))))
+    (push (make-data-declaration
+           :name name :type :u8 :size (length bytes) :alignment 1
+           :initial bytes :external-p nil :local-p t)
+          (analysis-context-data context))
+    (runtime-call-node
+     "psl_rt_make_string_from_bytes" '((:ptr :u8 nil nil) :usize)
+     :value :string :allocates
+     (list address (make-hir :kind :literal :type :usize
+                            :value (1- (length bytes))))
+     context)))

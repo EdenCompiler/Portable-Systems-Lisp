@@ -404,7 +404,7 @@
                             ((= kind 20)
                              (hir_verify_integer_unary arena node reference functions
                                                        prior_count arity depth))
-                            ((= kind 34)
+                            ((if (= kind 34) t (= kind 35))
                              (if (= (deref (field-pointer node 'left)) 0)
                                  (if (= (deref (field-pointer node 'right)) 0)
                                      (if (= (deref (field-pointer node 'value)) 0)

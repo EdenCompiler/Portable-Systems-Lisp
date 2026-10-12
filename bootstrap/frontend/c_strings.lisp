@@ -105,6 +105,7 @@
             (store (field-pointer entry 'defined) 1)
             (store (field-pointer entry 'global) 0)
             (store (field-pointer entry 'referenced) 0)
+            (store (field-pointer entry 'literal) 0)
             (store (field-pointer context 'data_count) (wrap+ index 1))
             (store (field-pointer context 'data_byte_count)
                    (wrap+ byte-index size))

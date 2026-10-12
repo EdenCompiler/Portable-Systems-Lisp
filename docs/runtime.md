@@ -90,6 +90,12 @@ managed value as true. PSL extensions provide `box-fixnum`, `unbox-fixnum`,
 `make-byte-string`, `string-byte`, `set-string-byte`,
 `make-package-from-name`, `intern-symbol`, and `collect-garbage`.
 
+String literals copy a private byte span into a fresh mutable string on each
+evaluation. Their explicit byte length preserves embedded zero bytes. Stage 0
+uses the conservative copy constructor; the native compiler uses its precise
+counterpart with explicit root frames. Both constructors perform one runtime
+copy rather than emitting one mutation call per literal byte.
+
 A lexical `#'(lambda (argument) ...)` captures visible `value` variables and
 can be called with `funcall`. This first closure convention has one argument
 and one result. `(multiple-value-bind (first second) (values a b) ...)`

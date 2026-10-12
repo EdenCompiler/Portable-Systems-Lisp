@@ -46,6 +46,21 @@
                   (ssa_verify_use arena (deref (field-pointer value 'right)) reference
                                   (deref (field-pointer value 'block)))) 0) 0)))
 
+(defun ssa_verify_literal_extent (context op)
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_scalar_op) op) (returns c-int))
+  (if (= (deref (field-pointer op 'kind)) 7)
+      (let ((signature (native_signature_at (deref (field-pointer context 'signatures))
+                        (wrap- (deref (field-pointer op 'target)) 1))))
+        (if (= (deref (field-pointer signature 'runtime_id)) 14)
+            (let ((arena (deref (field-pointer context 'ssa))))
+              (let ((last (ssa_value_at arena (deref (field-pointer op 'left)))))
+                (let ((first (ssa_value_at arena (deref (field-pointer last 'right))))
+                      (length (ssa_value_at arena (deref (field-pointer last 'left)))))
+                  (let ((address (ssa_value_at arena (deref (field-pointer first 'left)))))
+                    (native_literal_extent_p context (deref (field-pointer address 'target))
+                     (deref (field-pointer length 'value))))))) 1)) 1))
+
 (defun ssa_verify_value (context reference)
   (declare (type (ptr native_compile_context) context)
            (type usize reference) (returns c-int))
@@ -60,7 +75,8 @@
                     (if (= (ir_op_metadata_p context op) 0) 0
                         (if (= (ssa_catalog_matches_p arena reference value) 0) 0
                             (if (= (ssa_verify_value_edges arena reference value) 0) 0
-                                (ir_verify_scalar_type context (deref (field-pointer arena 'types)) op)))))))))))
+                                (if (= (ir_verify_scalar_type context (deref (field-pointer arena 'types)) op) 0) 0
+                                    (ssa_verify_literal_extent context op))))))))))))
 
 (defun ssa_verify_values (context index)
   (declare (type (ptr native_compile_context) context)

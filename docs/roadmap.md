@@ -23,7 +23,7 @@ is updated. Dates and staffing are deliberately unspecified.
 | x86-64 none / ELF64 | M7 executable subset | Runtime-free static image with an explicit entry or generated `linux-exit` startup, linker script, and map. QEMU user-mode executes the explicit Linux-syscall startup without libc. |
 | RISC-V64 Linux / LP64D / ELF64 | M7 complete for documented subset | Self-encoded machine code, GP/FP and stack calls, small C structs, ELF call/GOT relocations, GNU cross linking, and QEMU execution. Larger aggregates, variadics, and `long double` remain unsupported. |
 | RISC-V64 none / ELF64 | M7 executable subset | QEMU `virt` image with explicit startup, stack setup, UART access from Lisp, and SiFive Test exit status; no firmware, OS, libc, or hosted runtime is linked. Other boards require their own startup and memory map. |
-| Self hosting | M8 in progress | Native PSL modules cover source loading and C-source collection, diagnostics, typed integer/pointer analysis, verified HIR/SSA/LIR, effects and optimization, four hosted target encoders, ELF/COFF calls, unwind metadata, imported data relocations, initialized exported scalar data, and private C strings. Three native subset generations reproduce compiler modules and interop fixtures across x86-64 Linux/Windows, AArch64, and RISC-V. General macros/packages, managed and broader ABI types, managed strings/named general static bytes, a complete Stage 1, and the full corpus gate remain open. |
+| Self hosting | M8 in progress | Native PSL modules cover source loading and C-source collection, diagnostics, typed integer/pointer analysis, verified HIR/SSA/LIR, effects and optimization, four hosted target encoders, ELF/COFF calls, unwind metadata, imported data relocations, initialized exported scalar data, and private C strings. Three native subset generations reproduce compiler modules and interop fixtures across x86-64 Linux/Windows, AArch64, and RISC-V. General macros/packages, managed and broader ABI types, managed compiler collections/named general static bytes, a complete Stage 1, and the full corpus gate remain open. |
 | Hosted ANSI Common Lisp | Pending M9 | `--profile=hosted` has an M4 managed-value subset; numeric tower, conditions, CLOS, streams, `eval`, and conformance remain pending. |
 | Executables and libraries | Working on supported hosted targets | `pslcc` invokes the selected GCC linker for executables and shared libraries, and `ar` for deterministic `.a`; dynamic source selects only required runtime objects. |
 | macOS and Wasm | Pending M10 | No object writer or code generation for these targets yet. |
@@ -1385,3 +1385,25 @@ also checks its expanded capacity and byte-sized entries. The four full native
 regressions, four focused production gates and smoke passed before publication.
 String literals, managed compiler collections and the
 complete M8 Stage 1–3 manifest/corpus/fixed-point gates remain open.
+
+### M8 native hosted string literals
+
+Ordinary hosted literals now decode into private owned byte spans and construct
+fresh managed strings through an allocating precise runtime signature. Source
+spelling retains Lisp backslash semantics, UTF-8 and embedded zero bytes. An
+iterative decoder keeps stack usage bounded and rejects invalid UTF-8. Receiving
+HIR, SSA and LIR verify the private address, owned span and matching constructor
+extent before the backend uses its existing data relocation path. Stage 0 now
+uses one conservative byte-copy call per literal; this removes its per-byte HIR
+expansion and preserves its collector contract.
+
+Evidence is `tests/bootstrap_string_literals.sh`: all four hosted targets at
+O0/O1, deterministic objects, C byte/identity/mutation/GC checks, private symbols,
+empty and embedded-zero strings, UTF-8 boundaries and 10,000-byte literals.
+Receiver APIs reject malformed UTF-8, changed spans/lengths, unsupported profiles,
+machine result types and allocation-free regions. A separate prototype check
+also compiled and executed a 100,000-byte source literal. All four full native
+regressions passed in an isolated tree whose compiler/runtime/test inputs matched
+production; all four production focused gates and production smoke passed.
+Managed compiler collections, the remaining source/ABI
+ports and complete Stage 1–3 manifest/corpus/fixed-point gates remain open.

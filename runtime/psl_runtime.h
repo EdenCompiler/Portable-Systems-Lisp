@@ -52,8 +52,11 @@ psl_value psl_rt_car(psl_value pair);
 psl_value psl_rt_cdr(psl_value pair);
 
 psl_value psl_rt_make_string(size_t length, uint8_t fill);
+psl_value psl_rt_make_string_from_bytes(const uint8_t *bytes, size_t length);
 /* Precise automatic collection requires explicit roots for other live values. */
 psl_value psl_rt_make_string_precise(size_t length, uint8_t fill);
+/* Copy a compiler-owned byte span; collection uses explicit roots. */
+psl_value psl_rt_make_string_from_bytes_precise(uint64_t address, size_t length);
 size_t psl_rt_string_length(psl_value string);
 uint8_t psl_rt_string_byte(psl_value string, size_t index);
 void psl_rt_string_set_byte(psl_value string, size_t index, uint8_t byte);

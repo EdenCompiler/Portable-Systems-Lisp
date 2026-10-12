@@ -11,4 +11,5 @@
   (initial u64)
   (defined u8)
   (global u8)
-  (referenced u8))
+  (referenced u8)
+  (literal u8))

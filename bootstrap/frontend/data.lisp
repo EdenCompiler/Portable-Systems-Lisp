@@ -85,6 +85,7 @@
     (store (field-pointer entry 'defined) defined)
     (store (field-pointer entry 'global) 1)
     (store (field-pointer entry 'referenced) 0)
+            (store (field-pointer entry 'literal) 0)
     1))
 
 (defun native_data_declaration_free_p (context signatures name)

@@ -274,7 +274,7 @@
        (if (= (x86_lir_load_argument context op) 0) 0
            (x86_lir_normalize context op)))
       ((= kind 7) (x86_lir_call context op))
-      ((= kind 34) (x86_lir_data_address context op))
+      ((if (= kind 34) t (= kind 35)) (x86_lir_data_address context op))
       ((= kind 29) 1)
       ((= (ir_binary_kind_p kind) 1) (x86_lir_binary context op))
       (t (x86_lir_unary context op)))))

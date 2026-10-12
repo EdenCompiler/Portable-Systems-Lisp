@@ -149,7 +149,7 @@ Linux/Windows, AArch64 and RISC-V64. The native default and
 `--profile=freestanding` keep the typed machine subset. Hosted `value` parameters,
 locals, stack arguments and results use runtime ABI v1. Fixnum literals cover
 -2^62 through 2^62-1; NIL/T have distinct tags. `box-fixnum`, `unbox-fixnum`,
-`car`, `cdr`, `eq`, `make-byte-string`, `string-byte`, `set-string-byte`,
+UTF-8 string literals, `car`, `cdr`, `eq`, `make-byte-string`, `string-byte`, `set-string-byte`,
 and managed `if` work, including C imports annotated
 `:no-allocation`. Predicate results remain Boolean; `(if (eq a b) t nil)`
 produces a managed value. Integer zero and boxed zero both remain true.
@@ -161,8 +161,8 @@ the body, even when their first SSA read follows collection. Raw pointer, intege
 and floating words are excluded; frames retain managed values until return.
 Allocation-free summaries exclude collection; incorrect foreign promises remain
 the caller's responsibility. Byte-string creation uses precise automatic collection; length/index arguments
-are `usize` and fills/bytes/results are `u8`. String literals and managed compiler
-data still need native ports. Raw managed fields, `(ptr value)`, integer casts and
+are `usize` and fills/bytes/results are `u8`. Managed compiler
+data still needs native ports. Raw managed fields, `(ptr value)`, integer casts and
 wrapping arithmetic on managed values are rejected. The `value` type name is
 reserved against raw layout declarations.
 
@@ -482,8 +482,8 @@ power-of-two alignment, and carry caller-owned byte sequences without libc or
 an assembler. Stage 0 and the native compiler build the writer independently;
 tests compare the generated objects and link them to C on every hosted target.
 Native imported and exported scalar data use the same symbol validation in
-combined code objects. Source string literals and byte-array initializers
-remain follow-up work.
+combined code objects. Hosted source string literals now use private bytes and
+a managed copy; general named byte-array initializers remain follow-up work.
 
 Encoding and object contracts follow Arm's [AAPCS64](https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst)
 and [ELF for AArch64](https://github.com/ARM-software/abi-aa/blob/main/aaelf64/aaelf64.rst).
@@ -644,3 +644,11 @@ stack. Its current compiler traversal contains recursive passes; the default
 MinGW 2 MiB reserve is insufficient to compile the expanded native core. The
 Windows native gate applies this link setting to both compiler variants. Target
 program frame sizing, page probes and unwind metadata remain backend-owned.
+
+Native hosted string literals decode Common Lisp backslash escapes and UTF-8
+into owned private bytes. Each evaluation copies that span into a fresh managed
+string through the precise runtime constructor. An iterative decoder bounds
+stack use and rejects invalid UTF-8 before publication. HIR, SSA and LIR receivers
+check the private address and matching constructor extent. Embedded zero bytes
+use an explicit length. `tests/bootstrap_string_literals.sh` checks all four
+hosted targets at O0/O1, including mutation, identity, GC and large literals.

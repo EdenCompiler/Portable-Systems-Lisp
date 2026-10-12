@@ -13,6 +13,11 @@
         (bytes (deref (field-pointer entry 'bytes)))
         (global (deref (field-pointer entry 'global))))
     (cond
+      ((< 1 (deref (field-pointer entry 'literal))) 0)
+      ((if (= (deref (field-pointer entry 'literal)) 1)
+           (if (= global 0)
+               (if (= (deref (field-pointer entry 'type_ast)) 0)
+                   (if (= (deref (field-pointer entry 'alignment)) 1) nil t) t) t) nil) 0)
       ((= (deref (field-pointer entry 'size)) 0) 0)
       ((= (data_import_alignment_p
            (deref (field-pointer entry 'alignment))) 0) 0)

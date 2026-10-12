@@ -188,6 +188,12 @@ struct native_package_context {
     uintptr_t offset, length, package;
     uint32_t error, seen;
 };
+struct native_literal_scan {
+    uintptr_t cursor, end, count;
+    uint8_t *output;
+    uint32_t pending;
+    uint8_t minimum, maximum, quoted, valid;
+};
 struct native_compile_context {
     struct psl_parser *parser;
     const uint8_t *source;
@@ -230,6 +236,7 @@ struct native_compile_context {
     uint64_t runtime_modules;
     uintptr_t root_cursor, root_scan_count, root_extra;
     uint32_t root_flags;
+    struct native_literal_scan literal_scan;
 };
 
 struct native_type_shape {
@@ -316,6 +323,7 @@ struct native_data_import {
     uint8_t defined;
     uint8_t global;
     uint8_t referenced;
+    uint8_t literal;
 };
 
 struct native_storage {

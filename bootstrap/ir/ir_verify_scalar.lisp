@@ -38,6 +38,18 @@
                                               signature (wrap- remaining 1)))
                 0)))))
 
+(defun ir_verify_literal_call (context types chain)
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_ir_type) types) (type usize chain) (returns c-int))
+  (let ((last (ir_type_at types chain)))
+    (let ((first (ir_type_at types (deref (field-pointer last 'right))))
+          (length (ir_type_at types (deref (field-pointer last 'left)))))
+      (let ((address (ir_type_at types (deref (field-pointer first 'left)))))
+        (if (= (deref (field-pointer first 'right)) 0)
+            (if (= (deref (field-pointer address 'kind)) 35)
+                (if (= (deref (field-pointer length 'kind)) 1)
+                    1 0) 0) 0)))))
+
 (defun ir_verify_call_type_checked (context types op)
   (declare (type (ptr native_compile_context) context)
            (type (ptr native_ir_type) types)
@@ -48,8 +60,10 @@
              (deref (field-pointer op 'pointee))
              (scalar_signature_type_code context signature)
              (scalar_signature_result_pointee context signature)) 0) 0
-        (ir_verify_argument_chain context types (deref (field-pointer op 'left))
-                                  signature (deref (field-pointer signature 'arity))))))
+        (if (= (ir_verify_argument_chain context types (deref (field-pointer op 'left))
+                                        signature (deref (field-pointer signature 'arity))) 0) 0
+            (if (= (deref (field-pointer signature 'runtime_id)) 14)
+                (ir_verify_literal_call context types (deref (field-pointer op 'left))) 1)))))
 
 (defun ir_verify_parameter_type (context op)
   (declare (type (ptr native_compile_context) context)
@@ -101,7 +115,11 @@
           ((= kind 17) (ir_operand_matches_op_p context types (deref (field-pointer op 'left)) op))
           ((= kind 19) (if (= code 0) (if (< 1 (deref (field-pointer op 'value))) 0 1) 0))
           ((= kind 29) (if (= code 12) 1 0))
-          ((= kind 34)
+          ((= kind 35)
+           (if (= code 1)
+               (if (= (deref (field-pointer op 'pointee)) 0)
+                   (native_literal_target_p context (deref (field-pointer op 'target))) 0) 0))
+      ((= kind 34)
            (let ((target (deref (field-pointer op 'target))))
              (if (= code 11)
                  (if (= target 0) 0

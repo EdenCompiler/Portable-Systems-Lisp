@@ -23,6 +23,26 @@ psl_value psl_rt_make_string_precise(size_t length, uint8_t fill) {
     return make_string(length, fill, 1);
 }
 
+static psl_value copy_string_bytes(const uint8_t *bytes, size_t length, int precise) {
+    if (length && !bytes) {
+        abort();
+    }
+    psl_value value = make_string(length, 0, precise);
+    if (length) {
+        psl_object *string = psl_rt_expect_object(value, PSL_OBJECT_STRING);
+        memcpy(string->bytes, bytes, length);
+    }
+    return value;
+}
+
+psl_value psl_rt_make_string_from_bytes(const uint8_t *bytes, size_t length) {
+    return copy_string_bytes(bytes, length, 0);
+}
+
+psl_value psl_rt_make_string_from_bytes_precise(uint64_t address, size_t length) {
+    return copy_string_bytes((const uint8_t *)(uintptr_t)address, length, 1);
+}
+
 size_t psl_rt_string_length(psl_value value) {
     return psl_rt_expect_object(value, PSL_OBJECT_STRING)->length;
 }

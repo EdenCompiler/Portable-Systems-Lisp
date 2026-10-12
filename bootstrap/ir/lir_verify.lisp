@@ -70,6 +70,32 @@
                   (if (= (deref (field-pointer op 'kind)) (deref (field-pointer type 'kind)))
                       (lir_verify_value_op context scalar) 0)))))))
 
+(defun lir_literal_definition (arena destination index)
+  (declare (type (ptr native_lir_arena) arena)
+           (type usize destination index) (returns usize))
+  (if (< (deref (field-pointer arena 'count)) index) 0
+      (if (= (deref (field-pointer (lir_instruction_at arena index) 'destination)) destination)
+          index (lir_literal_definition arena destination (wrap+ index 1)))))
+
+(defun lir_verify_literal_extent (context op)
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_scalar_op) op) (returns c-int))
+  (if (= (deref (field-pointer op 'kind)) 7)
+      (let ((signature (native_signature_at (deref (field-pointer context 'signatures))
+                        (wrap- (deref (field-pointer op 'target)) 1))))
+        (if (= (deref (field-pointer signature 'runtime_id)) 14)
+            (let ((arena (deref (field-pointer context 'lir))))
+              (let ((types (deref (field-pointer arena 'types))))
+                (let ((last (ir_type_at types (deref (field-pointer op 'left)))))
+                  (let ((first (ir_type_at types (deref (field-pointer last 'right)))))
+                    (let ((length (lir_literal_definition arena (deref (field-pointer last 'left)) 1))
+                          (address (lir_literal_definition arena (deref (field-pointer first 'left)) 1)))
+                      (if (= length 0) 0
+                          (if (= address 0) 0
+                              (native_literal_extent_p context
+                               (deref (field-pointer (lir_instruction_at arena address) 'target))
+                               (deref (field-pointer (lir_instruction_at arena length) 'value)))))))))) 1)) 1))
+
 (defun lir_verify_value_op (context op)
   (declare (type (ptr native_compile_context) context)
            (type (ptr native_scalar_op) op) (returns c-int))
@@ -78,7 +104,8 @@
         (if (= (deref (field-pointer op 'kind)) 17) 0
             (if (= (ir_op_operands_p op (deref (field-pointer arena 'value_count))) 0) 0
                 (if (= (ir_op_metadata_p context op) 0) 0
-                    (ir_verify_scalar_type context (deref (field-pointer arena 'types)) op)))))))
+                    (if (= (ir_verify_scalar_type context (deref (field-pointer arena 'types)) op) 0) 0
+                        (lir_verify_literal_extent context op))))))))
 
 (defun lir_verify_shapes (context index)
   (declare (type (ptr native_compile_context) context)

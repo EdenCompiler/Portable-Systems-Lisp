@@ -204,7 +204,7 @@ GC module when compiler-inserted root operations require it.
 The native bootstrap compiler has a smaller hosted managed contract. Explicit
 `--profile=hosted` accepts `value` parameters, locals and results, signed fixnum
 literals, NIL/T, `box-fixnum`, `unbox-fixnum`, `car`, `cdr`, `eq`, managed truth,
-`cons`, `collect-garbage`, `make-byte-string`, `string-byte`, `set-string-byte`,
+UTF-8 string literals, `cons`, `collect-garbage`, `make-byte-string`, `string-byte`, `set-string-byte`,
 and direct/foreign calls on the four hosted targets.
 Predicate results retain their Boolean IR type; use `if` to produce managed T/NIL
 in a `value` result. Functions with potentially collecting calls root all managed
@@ -215,8 +215,10 @@ call synchronization boundary sees the latest values. Argument-chain metadata,
 raw pointers, integers and floating payloads are excluded. Calls without
 allocation/collection need no frame. The native byte-string constructor uses precise automatic collection. Its
 length/index arguments are `usize`, fills/bytes/results are `u8`, and managed
-strings retain the opaque `value` representation. String literals and managed
-compiler collections still need native ports. Its default and explicit freestanding profiles reject `value`.
+strings retain the opaque `value` representation. Ordinary literals preserve Lisp escapes,
+UTF-8 and embedded zero bytes. Each evaluation returns a fresh mutable string;
+mutation does not alter the compiler-owned private bytes. Decoding is iterative
+and rejects malformed UTF-8. Managed compiler collections still need native ports. Its default and explicit freestanding profiles reject `value`.
 The same raw pointer/structure restrictions apply.
 
 `without-allocation` checks all direct calls reachable from the region.
@@ -429,7 +431,7 @@ the native subset's types and spelling rules.
 Explicit libc imports such as `malloc` and `free` work; they do not become
 implicit runtime dependencies of other units.
 
-Managed strings/named general byte data and aggregate signatures
+Managed compiler collections/named general byte data and aggregate signatures
 remain unsupported by the native subset. Import effect annotations and
 allocation-effect certification are implemented for the documented direct-call
 subset; unannotated imports remain unknown.
