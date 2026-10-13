@@ -209,7 +209,8 @@
     ((< id 11) 1)
     ((< id 15) 900)
     ((< id 17) 908)
-    (t 924)))
+    ((< id 20) 924)
+    (t 960)))
 
 (defun native_collect_runtime_dependencies (context index)
   (declare (type (ptr native_compile_context) context) (type usize index) (returns c-int))

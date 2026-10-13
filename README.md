@@ -65,7 +65,7 @@ program. Use `make help` for native generation checks, cross-target tests,
 cleanup, and build variables. For example, `make PSLFLAGS=-O0` selects
 unoptimized compilation on a fresh build; `make clean` removes generated files. The
 native default remains the typed freestanding subset. Explicit `--profile=hosted`
-adds managed values, UTF-8 string literals, byte-string creation/access/mutation, symbols, runtime packages, CONS, explicit
+adds managed values, UTF-8 string literals, byte-string creation/access/mutation, symbols, runtime packages, the two-value subset, CONS, explicit
 collection and precise root frames on all
 four hosted targets. Native output still requires explicit runtime linking.
 `make test-native-managed` checks values and profile safety;
@@ -73,6 +73,7 @@ four hosted targets. Native output still requires explicit runtime linking.
 `make test-native-byte-strings` checks byte strings and their precise allocator.
 `make test-native-string-literals` checks literals, source decoding and byte-span receivers.
 `make test-native-runtime-symbols` checks symbol/package identity and precise collection.
+`make test-native-multiple-values` checks two values, lexical scope and collection.
 
 
 To compile one source file with Stage 0 through Make, provide `SOURCE`; the

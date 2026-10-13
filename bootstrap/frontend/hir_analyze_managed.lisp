@@ -20,6 +20,7 @@
           ((= (ast_package_name_p parser head 2 (ffi:c-string "MAKE-PACKAGE-FROM-NAME") 22) 1) 17)
           ((= (ast_package_name_p parser head 1 (ffi:c-string "PACKAGE-NAME") 12) 1) 18)
           ((= (ast_package_name_p parser head 2 (ffi:c-string "INTERN-SYMBOL") 13) 1) 19)
+          ((= (ast_package_name_p parser head 1 (ffi:c-string "VALUES") 6) 1) 20)
           (t 0)) 0)))
 
 (defun hir_from_managed_call (context body head id depth)

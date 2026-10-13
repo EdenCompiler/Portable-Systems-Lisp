@@ -375,6 +375,11 @@ and interning plus nonallocating name access. Canonical package identity resolve
 these operators independently of package-local definitions. Runtime module masks
 include symbol/package dependency closure. Stage 0's link coordinator inspects
 known runtime imports in its own emitted object as well as additional link inputs.
+`frontend/hir_analyze_values.lisp` lowers the restricted two-value binding through
+existing lexical HIR with real source names. Canonical CL operator identities,
+resolved runtime signatures and typed receiving verifiers preserve the source
+contract. `runtime/values.c` owns the single-thread permanent return buffer; cold
+accessors do not allocate or register roots.
 `host/compiler_profile_options.lisp` owns bounded profile and option parsing.
 
 The PSL unit driver first collects all signatures, then predeclares functions,

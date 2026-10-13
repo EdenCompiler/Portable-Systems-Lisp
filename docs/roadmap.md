@@ -1431,3 +1431,32 @@ compiler/runtime/test inputs; all four production focused gates and production
 smoke passed before publication.
 Managed compiler collections, the remaining source/ABI ports and complete
 Stage 1–3 manifest/corpus/fixed-point gates remain open.
+
+
+### M8 native two-value source subset
+
+Native hosted VALUES and MULTIPLE-VALUE-BIND now implement the existing Stage 0
+subset: exactly two managed values, a direct VALUES initializer and two distinct
+nonconstant names. Arguments evaluate once in source order in the outer lexical
+scope. Both binding locals are installed before body effects and remain rooted
+independently across nested VALUES calls and collection. Lowering uses real source
+AST names and existing lexical HIR; the runtime catalogue checks argument/result
+ABI, effects and the values/GC/startup/platform dependency closure.
+
+The single-thread return buffer uses static state. Only VALUES registers its
+permanent roots; cold accessors neither allocate nor register roots. This also
+removes MinGW emulated TLS allocation from the getter. Stage 0 now rejects NIL,
+T and keyword binding names, matching the native validation. The symbol-only
+receiver test bounds its catalogue selection to its five own entries as the
+catalogue grows.
+
+Evidence is `tests/bootstrap_multiple_values.sh`: all-four-target O0/O1 execution,
+deterministic objects, independent C checks of source order, outer scope, nested
+shadowing, precise reachability/release and 4,096 collecting iterations. Receiver
+APIs reject invalid signatures, profiles, arity, binding names, result types and
+allocation-free promises. Cold tests check root registration and Linux allocator
+calls; Windows objects have no emulated TLS imports. Corrected full native regressions passed on all four targets in an isolated
+tree with matching compiler/runtime/test inputs; all four production focused
+gates and production smoke passed before publication. General multiple-value
+propagation, managed compiler collections, the remaining source/ABI ports and the
+complete M8 Stage 1–3 manifest/corpus/fixed-point gates remain open.

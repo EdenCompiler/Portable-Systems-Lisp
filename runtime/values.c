@@ -1,8 +1,11 @@
 #include "internal.h"
 
-static _Thread_local psl_value current_values[2];
-static _Thread_local size_t current_count;
-static _Thread_local int initialized;
+/* The runtime supports one thread. Static state avoids allocating emulated TLS
+ * on Windows when a nonallocating accessor is first called. */
+
+static psl_value current_values[2];
+static size_t current_count;
+static int initialized;
 
 static void ensure_values_roots(void) {
     if (!initialized) {
@@ -20,7 +23,6 @@ psl_value psl_rt_values2(psl_value first, psl_value second) {
 }
 
 psl_value psl_rt_nth_value(size_t index) {
-    ensure_values_roots();
     return index < current_count ? current_values[index] : PSL_NIL;
 }
 

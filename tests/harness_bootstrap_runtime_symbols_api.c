@@ -36,7 +36,7 @@ int main(void) {
  unsigned seen=0;
  for(uintptr_t i=0;i<d->signature_context.signature_count;++i) {
   struct native_signature *sig=&d->signature_context.signatures[i];
-  if(sig->runtime_id>=15) {
+  if(sig->runtime_id>=15 && sig->runtime_id<=19) {
    ++seen;assert(native_runtime_signature_p(&d->context,sig));
    assert(sig->arity==(sig->runtime_id==19?2:1));
    assert(sig->result_code==15 && sig->result_size==8);

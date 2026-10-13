@@ -187,8 +187,10 @@ are not traced.
 called with `funcall`; this first closure convention accepts one argument
 and returns one managed value. `(multiple-value-bind (a b) (values x y) ...)`
 binds two managed values. The binding currently requires a direct `values`
-expression. General lambda lists and full
-Common Lisp multiple-value propagation are not implemented.
+expression and two distinct variable names; NIL, T and keywords cannot be
+binding names. The initializer evaluates once, left to right, in the outer
+lexical environment. Both variables are bound before the body starts. General
+lambda lists and full Common Lisp multiple-value propagation are not implemented.
 
 Stage 0 emits explicit root frames for managed functions whose direct-call
 summaries permit allocation, collection or unknown foreign effects. It saves
@@ -206,7 +208,8 @@ The native bootstrap compiler has a smaller hosted managed contract. Explicit
 literals, NIL/T, `box-fixnum`, `unbox-fixnum`, `car`, `cdr`, `eq`, managed truth,
 UTF-8 string literals, `cons`, `collect-garbage`, `make-byte-string`, `string-byte`, `set-string-byte`,
 `make-symbol`, `symbol-name`, `package-name`, `make-package-from-name`,
-`intern-symbol`, and direct/foreign calls on the four hosted targets.
+`intern-symbol`, the two-value `values`/`multiple-value-bind` subset, and
+direct/foreign calls on the four hosted targets.
 Predicate results retain their Boolean IR type; use `if` to produce managed T/NIL
 in a `value` result. Functions with potentially collecting calls root all managed
 virtual words and original managed parameters until return. Parameter roots are
@@ -226,6 +229,12 @@ are nonallocating. Fresh symbol identity, byte-name interning and case behavior
 match the documented runtime subset. Runtime package values are independent of
 the compiler's build-host package records. Package-local shadowed names remain
 ordinary calls rather than selecting a runtime primitive.
+Native `values` accepts exactly two managed arguments and returns the first;
+`multiple-value-bind` has the same restricted initializer and lexical rules as
+Stage 0. The single-thread runtime retains the latest pair in permanent roots
+until the next `values` call. Binding locals have independent precise roots.
+The `psl_rt_nth_value` C accessor returns NIL before the first call without allocating
+or registering roots; `values` registers its buffer on first use.
 
 
 `without-allocation` checks all direct calls reachable from the region.

@@ -18,7 +18,9 @@
   (unless (and (>= (length form) 4)
                (listp (second form))
                (= (length (second form)) 2)
-               (every #'symbolp (second form))
+               (every (lambda (name) (and (symbolp name) name
+                                          (not (eq name t)) (not (keywordp name))))
+                      (second form))
                (form-p (third form) "values"))
     (fail "Stage 0 MULTIPLE-VALUE-BIND needs two names and a VALUES form"))
   (let* ((names (mapcar #'lexical-name (second form)))

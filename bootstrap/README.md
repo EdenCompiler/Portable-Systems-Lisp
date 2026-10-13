@@ -427,14 +427,14 @@ recursive calls, dead arms, initializers, conditions, arguments, malformed
 annotations, and empty regions. Unit API and diagnostic-provider fixtures check
 failure phase/name selection and no output; metadata mutations reject invalid
 region references. Native generations compare accepted objects and rejection
-diagnostics. Managed allocation, GC, and indirect closures remain outside the
-native source subset; their runtime/effect ports are still pending M8 work.
+diagnostics. Managed allocation and GC now use the documented precise native
+root path. Indirect closures remain outside the native source subset.
 
-The remaining bootstrap work is general symbol and string interpretation,
-macro execution, the broader Stage 0 source/interop corpus, optimization for broader types
-and managed/indirect effects, remaining target backends and object features, and the remaining
-file/diagnostic/path adapter services. Full Stage 1–3 builds and their corpus comparisons remain
-the M8 gate.
+The remaining bootstrap work includes general build-host macro evaluation and
+lambda-list features, the broader Stage 0 source/interop corpus, aggregate ABIs,
+indirect closures, general static data, managed compiler collections and complete
+CLI/profile/IR/diagnostic parity. Full Stage 1–3 builds and their corpus
+comparisons remain the M8 gate.
 
 ## Native AArch64 output
 
@@ -661,3 +661,13 @@ not allocate. Runtime package objects are separate from the build-host source
 package environment. Canonical CL/PSL identities preserve package-local
 shadowing. `tests/bootstrap_runtime_symbols.sh` checks all four hosted targets,
 O0/O1, precise collection, graph reachability/release and effects.
+
+
+Native hosted VALUES accepts exactly two managed arguments and returns the first.
+MULTIPLE-VALUE-BIND accepts two distinct nonconstant variable names and a direct
+VALUES initializer. It evaluates the initializer once in the outer lexical scope,
+binds both variables before body effects, and uses existing checked lexical HIR
+with real source names. General multiple-value propagation remains unsupported.
+`tests/bootstrap_multiple_values.sh` checks all four hosted targets at O0/O1,
+source order, nested shadowing, collection, exact runtime signatures and a cold
+nonallocating accessor. Both frontends reject NIL, T and keyword binding names.

@@ -50,8 +50,8 @@ collector, while its emitted frames also support the precise C boundaries.
 Imports annotated `:no-allocation` must exclude collection as well as allocation.
 Root registration selects the GC runtime module explicitly; certified
 allocation-free managed functions remain free of this extra dependency.
-Native root-frame lowering and managed-source/compiler-data integration remain
-M8 work.
+The native compiler also emits precise root frames for its documented hosted
+source subset. Native managed compiler collections remain M8 work.
 
 ## Modules and linking
 
@@ -100,8 +100,10 @@ copy rather than emitting one mutation call per literal byte.
 A lexical `#'(lambda (argument) ...)` captures visible `value` variables and
 can be called with `funcall`. This first closure convention has one argument
 and one result. `(multiple-value-bind (first second) (values a b) ...)`
-provides two managed values; the binding form currently requires a direct
-`values` expression. General lambda lists and full
+provides two managed values in both Stage 0 and the native hosted compiler. The
+binding requires two distinct nonconstant names and a direct `values` expression.
+Arguments evaluate once in source order in the outer lexical environment, and
+both bindings are installed before the body starts. General lambda lists and full
 Common Lisp multiple-value propagation remain for later milestones. These
 limits are diagnosed rather than given different silent semantics.
 
@@ -136,3 +138,13 @@ entries. They protect managed arguments internally during allocation; compiled
 callers publish their other live values through explicit root frames. Existing
 conservative C entries remain available to Stage 0. Runtime symbol/package
 cycles are traced and become collectible after all registered roots are removed.
+
+
+The two-value buffer uses static state, matching the single-thread runtime. Its
+latest pair is permanently rooted until overwritten by `psl_rt_values2`; compiled
+binding locals remain independently rooted. The first VALUES call registers the
+buffer. `psl_rt_nth_value` and `psl_rt_value_count` allocate nothing, including
+before initialization. This avoids an emulated TLS allocation in the Windows
+accessor. `tests/bootstrap_multiple_values.sh` checks cold accessors, exact C ABI,
+O0/O1 execution, source order, nested bindings and precise collection on all four
+hosted targets.
