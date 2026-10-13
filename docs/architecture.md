@@ -111,6 +111,7 @@ bootstrap/
     pointer_references.lisp  storage qualifiers on compiler pointee references
     scalar_syntax.lisp, scalar_types.lisp, scalar_resolve.lisp, pointer_types.lisp
                        source navigation, type equality, and symbol lookup
+    aggregate_types.lisp  natural layout validation and nominal by-value type metadata
     hir_analyze_*.lisp integer, pointer, layout query, call, control, and lexical analysis
     effects_syntax.lisp region recognition and HIR source markers
     effects.lisp      direct-call allocation summaries and region traversal

@@ -169,6 +169,17 @@ padding. Nested structures are supported when declared first. `sizeof`, `alignof
 `offset-of` use the selected target's layout. The C layout tests compare
 integer, floating, pointer, and nested fields with a C compiler.
 
+The native compiler also transports natural integer/pointer C records of
+exactly 1, 2, 4 or 8 bytes by value on all four hosted targets, in both typed
+freestanding and hosted profiles. Parameters, locals, conditional joins,
+direct/foreign calls and returns retain nominal record types through verified
+HIR, SSA and LIR. Equal layouts with different declared names remain distinct.
+Records are true in Lisp conditions even when every payload bit is zero.
+The native receiver checks every field offset, size, alignment and final extent,
+including nested records and target-dependent C integer widths. Whole-record
+raw loads/stores, packed records by value, floating fields and larger records
+remain unsupported; scalar field access through pointers remains available.
+
 ## Hosted managed values
 
 `--profile=hosted` accepts the opaque 64-bit `value` type. Integer literals

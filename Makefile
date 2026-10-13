@@ -26,7 +26,7 @@ HOST_SOURCES := bootstrap/driver.c bootstrap/host/platform_stdio.c bootstrap/hos
 HOST_HEADERS := $(shell find bootstrap -name '*.h')
 
 .PHONY: all compiler native stage0 compile example test test-native test-static-data test-self-core test-bootstrap-corpus test-native-environment \
-        test-windows test-native-win64-frame test-native-managed test-native-roots test-native-byte-strings test-native-string-literals test-native-runtime-symbols test-native-multiple-values test-native-windows test-aarch64 test-native-aarch64 test-native-riscv64 test-riscv64 clean help
+        test-windows test-native-win64-frame test-native-managed test-native-roots test-native-byte-strings test-native-string-literals test-native-runtime-symbols test-native-multiple-values test-native-word-aggregates test-native-windows test-aarch64 test-native-aarch64 test-native-riscv64 test-riscv64 clean help
 
 all: compiler
 compiler native: $(NATIVE_COMPILER)
@@ -106,6 +106,9 @@ test-native-runtime-symbols: native
 test-native-multiple-values: native
 	sh tests/bootstrap_multiple_values.sh "$(NATIVE_COMPILER)" "$(TARGET)"
 
+test-native-word-aggregates: native
+	sh tests/bootstrap_word_aggregates.sh "$(NATIVE_COMPILER)" "$(TARGET)"
+
 test-static-data:
 	sh tests/bootstrap_static_data.sh x86_64-linux-gnu
 
@@ -165,6 +168,7 @@ help:
 	@echo 'make test-native-string-literals Check native string literals and byte spans'
 	@echo 'make test-native-runtime-symbols Check managed symbols and runtime packages'
 	@echo 'make test-native-multiple-values Check two values, lexical bindings and roots'
+	@echo 'make test-native-word-aggregates Check natural integer/pointer records in one word'
 	@echo 'make test-static-data  Check native ELF static data output on x86-64 Linux'
 	@echo 'make test-native-environment Check build-host package and symbol reader APIs'
 	@echo 'make test-self-core    Compare successive native core generations'

@@ -14,7 +14,7 @@
            (type (ptr native_hir_node) node) (type usize depth) (returns c-int))
   (let ((child (deref (field-pointer node 'left))))
     (let ((code (hir_scalar_code (deref (field-pointer context 'hir)) child)))
-      (if (= code 15) 0
+      (if (if (= code 15) t (= code 16)) 0
           (if (= (source_context_code_p context code) 0) 0
               (hir_verify_scalar_tree context child (wrap+ depth 1)))))))
 

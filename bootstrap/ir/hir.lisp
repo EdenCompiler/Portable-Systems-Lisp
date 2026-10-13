@@ -11,7 +11,7 @@
 ;; 17 call-argument link, 18 integer cast, 19 Boolean literal, 20 word truth,
 ;; 21 address to pointer, 22 pointer cast, 23 field pointer, 24 load,
 ;; 25 store, 26 while, 27 pointer arithmetic, 30 pointer address.
-;; Pointee is a type AST reference.
+;; Pointee retains a pointed-to type or an aggregate's own source type AST.
 ;; Call links chain backward through
 ;; right references.
 ;; Source is a parser-node

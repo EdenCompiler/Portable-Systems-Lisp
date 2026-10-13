@@ -387,6 +387,7 @@
         (store (field-pointer layout 'count) 0)
         (store (field-pointer layout 'size) 0)
         (store (field-pointer layout 'alignment) 1)
+        (store (field-pointer layout 'packed) packed)
         (if (= (layout_add_fields context layout first_field
                                  (deref (field-pointer context 'scratch)) packed) 0)
             (progn (store (field-pointer context 'error) 1) 0)

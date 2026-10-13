@@ -53,6 +53,15 @@ The native modules currently implement:
   The pass accepts the declarations in the native byte emitter, arena, integer
   reader, and scanner modules. The byte emitter, arena, integer reader, and scanner bodies
   now compile through the native executable.
+- Natural integer/pointer C records of exactly 1, 2, 4 or 8 bytes pass by value
+  on all four native targets in both profiles. Layout metadata retains the real
+  source type through HIR, SSA and LIR; receiving checks reject changed field
+  spans, offsets, sizes, alignments and nominal types. Calls, returns, lexical
+  locals, pure inlining and conditional joins preserve the record. Zero-filled
+  records are true. `tests/bootstrap_word_aggregates.sh` checks independent C
+  execution, repeated objects and receiver APIs at O0/O1 through both compiler
+  paths. Larger or floating records, packed by-value records and whole-record
+  raw loads/stores remain outside this native slice.
 - Decimal and `#x`, `#o`, `#b`, and `#d` machine integer atoms with overflow
   detection.
 - A first ELF64 writer for one exported x86-64, AArch64, or RISC-V64 function

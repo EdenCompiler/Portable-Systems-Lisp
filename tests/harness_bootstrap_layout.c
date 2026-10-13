@@ -57,6 +57,7 @@ struct native_layout {
     uintptr_t count;
     uintptr_t size;
     uintptr_t alignment;
+    uint8_t packed;
 };
 
 struct native_layout_context {

@@ -74,6 +74,10 @@ four hosted targets. Native output still requires explicit runtime linking.
 `make test-native-string-literals` checks literals, source decoding and byte-span receivers.
 `make test-native-runtime-symbols` checks symbol/package identity and precise collection.
 `make test-native-multiple-values` checks two values, lexical scope and collection.
+Natural integer/pointer C records of 1, 2, 4 or 8 bytes pass by value in the
+native typed and hosted profiles on all four targets. `make test-native-word-aggregates`
+checks their nominal types and linked C behavior. Larger and floating records
+remain outside this native slice.
 
 
 To compile one source file with Stage 0 through Make, provide `SOURCE`; the

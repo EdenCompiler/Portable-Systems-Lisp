@@ -123,7 +123,7 @@
       (let ((code (scalar_type_code signatures type))
             (pointee (source_type_pointee signatures type))
             (size (source_type_size context type)))
-        (if (= (source_valid_code_p code) 0) 0
+        (if (if (= code 16) t (= (source_valid_code_p code) 0)) 0
             (if (= (if (= kind 25) (source_pointer_const_p type)
                        (wrap-cast c-int 0)) 1) 0
             (let ((value (if (= kind 24) (wrap-cast usize 0)

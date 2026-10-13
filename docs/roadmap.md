@@ -1386,6 +1386,7 @@ regressions, four focused production gates and smoke passed before publication.
 String literals, managed compiler collections and the
 complete M8 Stage 1–3 manifest/corpus/fixed-point gates remain open.
 
+
 ### M8 native hosted string literals
 
 Ordinary hosted literals now decode into private owned byte spans and construct
@@ -1460,3 +1461,25 @@ tree with matching compiler/runtime/test inputs; all four production focused
 gates and production smoke passed before publication. General multiple-value
 propagation, managed compiler collections, the remaining source/ABI ports and the
 complete M8 Stage 1–3 manifest/corpus/fixed-point gates remain open.
+
+### M8 native one-word natural C records
+
+The native typed and hosted profiles now accept natural integer/pointer C
+records of exactly 1, 2, 4 or 8 bytes on all four targets. Real source layout
+references preserve nominal type distinctions across parameters, locals, calls,
+returns, optimized inlining and joins. Receiving HIR/SSA/LIR checks validate
+field spans, offsets, sizes, alignments, nested shapes and final record extents.
+Zero-filled records remain true in Lisp conditions. ABI register/stack transport
+uses the existing per-target machine encoders without runtime dependencies.
+
+Evidence is `tests/bootstrap_word_aggregates.sh`: O0/O1 native and Stage 0 C
+execution, deterministic objects, high-bit and signed fields, nested records,
+pointers, target-dependent C long, exhausted registers and mixed scalar floating
+arguments. Native/seed receiver APIs reject forged layouts, changed nominal
+types, invalid arithmetic/casts and unsupported whole-record memory operations.
+All four full native regressions passed in an isolated tree with matching
+compiler/runtime/test inputs. All four production focused gates and production
+smoke passed before publication.
+Larger/floating records, packed records by value, closures, managed compiler
+collections, remaining source/driver ports and the complete M8 Stage 1–3 gates
+remain open.

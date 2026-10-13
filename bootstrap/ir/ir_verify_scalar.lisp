@@ -91,7 +91,8 @@
            (scalar_valid_code_p (deref (field-pointer child 'scalar_code)))))
       ((= kind 20)
        (if (= code 0)
-           (if (= (deref (field-pointer child 'scalar_code)) 15) 0
+           (if (if (= (deref (field-pointer child 'scalar_code)) 15) t
+                   (= (deref (field-pointer child 'scalar_code)) 16)) 0
                (source_context_code_p context (deref (field-pointer child 'scalar_code)))) 0))
       ((= kind 21) (if (= code 11) (ir_types_same_p context types (deref (field-pointer op 'left)) 2 0) 0))
       ((= kind 22) (if (= code 11) (if (= (deref (field-pointer child 'scalar_code)) 11) 1 0) 0))

@@ -8,9 +8,10 @@
 
 (defun source_valid_code_p (code)
   (declare (type u32 code) (returns c-int))
+  (if (= code 16) 1
   (if (= code 15) 1
   (if (= code 11) 1
-      (if (= (source_float_code_p code) 1) 1 (scalar_valid_code_p code)))))
+      (if (= (source_float_code_p code) 1) 1 (scalar_valid_code_p code))))))
 
 (defun source_context_code_p (context code)
   (declare (type (ptr native_compile_context) context) (type u32 code) (returns c-int))
@@ -64,6 +65,7 @@
                                      (source_type_pointee signatures left)
                                      (source_type_pointee signatures right)
                                      (wrap+ depth 1)))
+            ((= a 16) (layout_names_equal_p (source_layouts context) left right))
             ((= a 0) (layout_names_equal_p (source_layouts context) left right))
             (t 1))
           0))))
@@ -84,7 +86,7 @@
            (type u32 left_code right_code)
            (type usize left_pointee right_pointee) (returns c-int))
   (if (= left_code right_code)
-      (if (= left_code 11)
+      (if (if (= left_code 11) t (= left_code 16))
           (source_ast_type_equal_p context left_pointee right_pointee 0)
           (if (= left_pointee 0) (if (= right_pointee 0) 1 0) 0))
       0))
@@ -114,14 +116,14 @@
                       signatures (wrap+ (deref (field-pointer signature 'first_parameter))
                                          index))))
       (if (< 0 (deref (field-pointer signature 'runtime_id))) 0
-          (source_type_pointee signatures (deref (field-pointer parameter 'type_ast)))))))
+          (source_type_metadata signatures (deref (field-pointer parameter 'type_ast)))))))
 
 (defun scalar_signature_result_pointee (context signature)
   (declare (type (ptr native_compile_context) context)
            (type (ptr native_signature) signature) (returns usize))
   (if (< 0 (deref (field-pointer signature 'runtime_id))) 0
-      (source_type_pointee (deref (field-pointer context 'signatures))
-                           (deref (field-pointer signature 'result_type)))))
+      (source_type_metadata (deref (field-pointer context 'signatures))
+                            (deref (field-pointer signature 'result_type)))))
 
 (defun source_find_field_from (layouts name first count)
   (declare (type (ptr native_layout_context) layouts)

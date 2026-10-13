@@ -20,6 +20,7 @@
 (include "frontend/runtime_signatures.lisp")
 (include "frontend/scalar_types.lisp")
 (include "frontend/pointer_types.lisp")
+(include "frontend/aggregate_types.lisp")
 (include "ir/ir_verify_type_helpers.lisp")
 (include "frontend/scalar_resolve.lisp")
 (include "frontend/ffi.lisp")

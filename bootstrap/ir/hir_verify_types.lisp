@@ -8,6 +8,9 @@
            (type (ptr native_hir_node) node) (returns c-int))
   (let ((code (deref (field-pointer node 'scalar_code)))
         (pointee (deref (field-pointer node 'pointee))))
+    (if (= code 16)
+        (if (= (deref (field-pointer node 'type_code)) 1)
+            (source_aggregate_type_p context pointee) 0)
     (if (= code 11)
         (if (= (deref (field-pointer node 'type_code)) 1)
             (source_pointer_pointee_p context pointee)
@@ -18,7 +21,7 @@
                 (if (= (deref (field-pointer node 'type_code)) 3)
                     (if (= code 12) 1 0)
                     (source_context_code_p context code)))
-            0))))
+            0)))))
 
 (defun hir_scalar_same_p (context reference code)
   (declare (type (ptr native_compile_context) context)

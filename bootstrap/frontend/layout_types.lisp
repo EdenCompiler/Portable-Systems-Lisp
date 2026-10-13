@@ -19,7 +19,8 @@
   (first usize)
   (count usize)
   (size usize)
-  (alignment usize))
+  (alignment usize)
+  (packed u8))
 
 (defcstruct native_layout_context
   (parser (ptr psl_parser))

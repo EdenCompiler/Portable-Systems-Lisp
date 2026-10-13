@@ -36,7 +36,10 @@
                   result
                   (if (= (hir_scalar_code arena result) 15)
                       (hir_managed_truth context result body)
-                      (hir_new_scalar arena 20 0 result 0 0 body 0))))))))
+                      (if (= (hir_scalar_code arena result) 16)
+                          (hir_new_scalar arena 13 0 result
+                           (hir_new_scalar arena 19 1 0 0 0 body 0) 0 body 0)
+                          (hir_new_scalar arena 20 0 result 0 0 body 0)))))))))
 
 (defun analyze_if_parts (context body condition then_ast else_ast depth)
   (declare (type (ptr native_compile_context) context)
