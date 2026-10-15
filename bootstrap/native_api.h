@@ -237,6 +237,7 @@ struct native_compile_context {
     uintptr_t root_cursor, root_scan_count, root_extra;
     uint32_t root_flags;
     struct native_literal_scan literal_scan;
+    struct native_ir_dump *ir_dump;
 };
 
 struct native_type_shape {
@@ -422,6 +423,20 @@ extern int native_source_include_copy(struct psl_parser *, const uint8_t *, uint
 extern uintptr_t native_source_ffi_size(struct psl_parser *, const uint8_t *, uintptr_t);
 extern int native_source_ffi_copy(struct psl_parser *, const uint8_t *, uintptr_t,
                                   uint8_t *, uintptr_t);
+/* IR stage bits HIR=1, SSA=2, LIR=4. Failure preserves output bytes and
+   length; required is the final needed length. Empty output sizes the dump.
+   Error values: 1 invalid input/IR, 2 capacity, 3 length overflow. */
+struct native_ir_dump {
+    struct byte_buffer *output;
+    uint32_t stages;
+    uintptr_t required;
+    uint32_t error;
+    uintptr_t cursor;
+    uint8_t writing;
+};
+extern int native_ir_dump_function(struct native_compile_context *, uintptr_t,
+                                   struct native_ir_dump *);
+
 extern int predeclare_scalar_form(struct native_compile_context *context,
                                   struct native_signature *signature,
                                   struct native_function *function);

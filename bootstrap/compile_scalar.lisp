@@ -158,6 +158,7 @@
 (include "ir/lir_verify.lisp")
 (include "ir/root_lower.lisp")
 (include "backend/dispatch.lisp")
+(include "ir/dump.lisp")
 
 (defun reset_scalar_function (context signature)
   (declare (type (ptr native_compile_context) context)
@@ -194,13 +195,19 @@
           (if (= (lir_lower_function context) 0) 0
               (if (= (native_lower_roots context) 0) 0 (lir_verify_function context))))))
 
+(defun native_dump_compiled_function (context expression)
+  (declare (type (ptr native_compile_context) context) (type usize expression) (returns c-int))
+  (let ((dump (deref (field-pointer context 'ir_dump))))
+    (if (= (ptr-address dump) 0) 1 (native_ir_dump_function context expression dump))))
+
 (defun compile_verified_scalar_function (context expression start function)
   (declare (type (ptr native_compile_context) context) (type usize expression start)
            (type (ptr native_function) function) (returns c-int))
   (if (= (hir_regions_unsafe_call context 1) 0)
       (if (= (lower_scalar_function context expression) 0) 0
-          (if (= (native_emit_lir_function context) 0) 0
-              (finish_scalar_function context start function))) 0))
+          (if (= (native_dump_compiled_function context expression) 0) 0
+              (if (= (native_emit_lir_function context) 0) 0
+                  (finish_scalar_function context start function)))) 0))
 
 (defun compile_scalar_form (context signature function)
   (declare (type (ptr native_compile_context) context)

@@ -1557,3 +1557,24 @@ the two lexical closure examples. The accepted minima now include floating
 and mixed-record examples. Packed records by value, whole-record raw memory,
 extents over 16 bytes, remaining source/driver ports and the complete M8
 Stage 1–3 gates remain open.
+
+
+### M8 native verified IR text and unit capture
+
+The native core now owns HIR/SSA/LIR text formatting in `bootstrap/ir/`.
+The exported caller-owned snapshot API validates selected representations and
+measures before writing. The unit pipeline can append each defined function
+once after verified lowering, retaining source order, PHI/control metadata,
+exact value bits and precise root operations. Capture preserves object bytes;
+a failed capture prevents unit object publication. Text uses the native arena
+representation; native CLI dump flags and complete Stage 1–3 IR/diagnostic
+comparison remain open.
+
+`tests/bootstrap_ir_dump.sh` executes snapshot and unit API callers compiled by
+native and Stage 0 compilers at O0/O1 against independent C O0/O2 harnesses.
+It covers all target/profile selections, exact integer bits, PHI/control/root
+metadata, ordering, append/selection, corrupted IR and transactional capacity
+failures. All four isolated and production target gates and smoke passed.
+A separate production API caller captured the complete native core twice at
+O1: both 34,211,401-byte texts matched, both emitted objects matched, and those
+objects also matched compilation with capture disabled.

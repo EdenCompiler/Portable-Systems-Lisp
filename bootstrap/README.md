@@ -697,3 +697,11 @@ with real source names. General multiple-value propagation remains unsupported.
 `tests/bootstrap_multiple_values.sh` checks all four hosted targets at O0/O1,
 source order, nested shadowing, collection, exact runtime signatures and a cold
 nonallocating accessor. Both frontends reject NIL, T and keyword binding names.
+
+Native IR text is available through `native_ir_dump_function` and optional
+`context.ir_dump` unit capture. Select HIR/SSA/LIR with stage bits 1/2/4 and
+provide a separate caller-owned byte buffer. Formatting verifies selected IR,
+measures capacity before appending, retains exact value bits and has no hosted
+formatting dependency. `make test-native-ir` checks native- and Stage0-built
+receivers, object identity, roots, source order, text determinism, capacity and
+invalid IR on the selected target. Native CLI dump flags remain open M8 work.

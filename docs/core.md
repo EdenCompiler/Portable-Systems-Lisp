@@ -593,6 +593,31 @@ targets and ABI/object features, and the remaining C file/diagnostic/path adapte
 open, so it is still an M8 development slice. See [the bootstrap contract](../bootstrap/README.md)
 for its tests and remaining gate.
 
+### Native IR text capture
+
+The native library exports `native_ir_dump_function(context, root, dump)`.
+Stage bits 1, 2 and 4 select HIR, optimized SSA and lowered LIR. The context must
+own a complete compiled function and its parser, signatures and IR arenas.
+The selected representations pass their existing verifiers before formatting.
+Text includes source function spelling, operations, scalar types, exact unsigned
+value bits, operand references, PHI predecessors, branches and precise roots.
+It uses the native arena representation; Stage 0's printed IR has a different
+layout.
+
+`native_ir_dump.output` points to a caller-owned `byte_buffer`. The API measures
+before appending. Capacity or validation failures preserve its bytes and length;
+`required` reports the final length needed after sizing. An empty zero-capacity
+buffer requests sizing and returns capacity error 2. Error 1 denotes invalid
+arguments/IR, and error 3 denotes length overflow. Text has no trailing NUL.
+Callers keep source, IR and output storage separate.
+
+Setting optional `context.ir_dump` captures each defined function once in source
+order, after verification and root lowering and before encoding. The default
+null pointer disables capture. A capacity failure stops compilation before the
+unit object is published; successfully captured earlier functions remain in the
+caller-owned buffer. Capturing text preserves generated object bytes. Native
+CLI dump options remain separate unfinished driver work.
+
 ### Native output target selection
 
 The native subset uses target IDs 0 (x86-64 Linux / SysV / ELF64, default) and

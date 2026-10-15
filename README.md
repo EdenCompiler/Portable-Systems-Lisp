@@ -75,6 +75,7 @@ four hosted targets. Native output still requires explicit runtime linking.
 `make test-native-string-literals` checks literals, source decoding and byte-span receivers.
 `make test-native-runtime-symbols` checks symbol/package identity and precise collection.
 `make test-native-multiple-values` checks two values, lexical scope and collection.
+`make test-native-ir` checks verified IR text and optional unit capture through the library API.
 Natural integer, pointer and floating C records through 16 bytes pass by value in the native
 typed and hosted profiles on all four targets. `make test-native-word-aggregates`
 checks the smaller records; `make test-native-integer-aggregates` checks larger

@@ -25,7 +25,7 @@ NATIVE_OBJECTS := $(NATIVE_CORE) $(NATIVE_HOST) $(NATIVE_SOURCE) $(NATIVE_INPUT)
 HOST_SOURCES := bootstrap/driver.c bootstrap/host/platform_stdio.c bootstrap/host/platform_toolchain.c
 HOST_HEADERS := $(shell find bootstrap -name '*.h')
 
-.PHONY: all compiler native stage0 compile example test test-native test-static-data test-self-core test-bootstrap-corpus test-native-environment test-native-cli \
+.PHONY: all compiler native stage0 compile example test test-native test-static-data test-self-core test-bootstrap-corpus test-native-environment test-native-cli test-native-ir \
         test-windows test-native-win64-frame test-native-managed test-native-roots test-native-byte-strings test-native-string-literals test-native-runtime-symbols test-native-multiple-values test-native-word-aggregates test-native-integer-aggregates test-native-float-aggregates test-native-windows test-aarch64 test-native-aarch64 test-native-riscv64 test-riscv64 clean help
 
 all: compiler
@@ -115,6 +115,9 @@ test-native-integer-aggregates: native
 test-native-float-aggregates: native
 	sh tests/bootstrap_float_aggregates.sh "$(NATIVE_COMPILER)" "$(TARGET)"
 
+test-native-ir: native
+	sh tests/bootstrap_ir_dump.sh "$(NATIVE_COMPILER)" "$(TARGET)"
+
 test-native-cli: native
 	sh tests/bootstrap_native_cli.sh "$(NATIVE_COMPILER)" "$(TARGET)"
 
@@ -180,6 +183,7 @@ help:
 	@echo 'make test-native-word-aggregates Check natural integer/pointer records in one word'
 	@echo 'make test-native-integer-aggregates Check natural records through 16 bytes and ABI frames'
 	@echo 'make test-native-float-aggregates Check floating and mixed natural C records'
+	@echo 'make test-native-ir         Check verified IR text and unit capture'
 	@echo 'make test-static-data  Check native ELF static data output on x86-64 Linux'
 	@echo 'make test-native-cli Check native object command-line syntax and parser ABI'
 	@echo 'make test-native-environment Check build-host package and symbol reader APIs'

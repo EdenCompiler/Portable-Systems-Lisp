@@ -117,6 +117,7 @@ bootstrap/
     effects_syntax.lisp region recognition and HIR source markers
     effects.lisp      direct-call allocation summaries and region traversal
   ir/
+    dump.lisp, dump_types.lisp  verified HIR/SSA/LIR text in caller-owned bytes
     hir.lisp, hir_verify_*.lisp
                        typed HIR and structural, scope, and source checks
     integer_types.lisp integer width and representation rules

@@ -1,5 +1,6 @@
 ;; Layout declarations shared by compiler code and hosted driver storage.
 (include "binary_types.lisp")
+(include "ir/dump_types.lisp")
 (include "frontend/parser_types.lisp")
 (include "frontend/package_forms_types.lisp")
 (include "frontend/macros/types.lisp")
@@ -63,4 +64,5 @@
   (root_scan_count usize)
   (root_extra usize)
   (root_flags u32)
-  (literal_scan native_literal_scan))
+  (literal_scan native_literal_scan)
+  (ir_dump (ptr native_ir_dump)))
