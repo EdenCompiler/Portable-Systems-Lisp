@@ -2,6 +2,7 @@
 ;; records use immutable frame-owned bytes; ordinary virtual words keep their
 ;; offsets and hold private addresses for these records. No managed roots or
 ;; target-visible pointer semantics are introduced by this representation.
+(include "aggregate_fields.lisp")
 
 (defun native_aggregate_words (context code type)
   (declare (type (ptr native_compile_context) context)

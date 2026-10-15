@@ -41,8 +41,8 @@
         (words (x86_aggregate_parameter_words context signature cursor)))
     (if (= cursor index) location
         (x86_lir_param_location context signature index (wrap+ cursor 1)
-         (if (= (native_abi_location_class location) 1) (wrap+ gp words) gp)
-         (if (= (native_abi_location_class location) 2) (wrap+ fp 1) fp)
+         (x86_aggregate_next_register context signature cursor location gp 1)
+         (x86_aggregate_next_register context signature cursor location fp 2)
          (if (= (native_abi_location_class location) 3) (wrap+ stack words) stack)))))
 
 (defun x86_lir_load_abi_parameter (context location)
@@ -67,7 +67,8 @@
                     (deref (field-pointer context 'current_signature))
                     (wrap-cast usize (wrap- (deref (field-pointer op 'value)) 1)) 0 0 0 0)))
     (if (= (deref (field-pointer op 'scalar_code)) 16)
-        (x86_aggregate_incoming_parts context (deref (field-pointer op 'destination)) location 0
+        (x86_aggregate_incoming_parts context (deref (field-pointer op 'destination))
+          (deref (field-pointer op 'pointee)) location 0
           (native_aggregate_words context 16 (deref (field-pointer op 'pointee))))
         (x86_lir_load_abi_parameter context location))))
 

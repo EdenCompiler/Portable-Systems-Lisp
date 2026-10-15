@@ -62,6 +62,7 @@ static void check_receivers(unsigned target,unsigned level) {
 }
 int main(void) {
  static const char *accepted[]={
+ "(defcstruct r (x f64)) (defun f (x) (declare (type r x) (returns r)) x)",
  "(defcstruct r (a u8) (b u8) (c u8)) (defun f (x) (declare (type r x) (returns r)) x)",
  "(defcstruct r (x u64) (y u64)) (defun f (x) (declare (type r x) (returns r)) x)",
  "(defcstruct r (x u8)) (defun f (x) (declare (type r x) (returns r)) x)",
@@ -75,7 +76,6 @@ int main(void) {
  };
  static const char *rejected[]={
  "(defcstruct r (x u64) (y u64) (z u64)) (defun f (x) (declare (type r x) (returns r)) x)",
- "(defcstruct r (x f64)) (defun f (x) (declare (type r x) (returns r)) x)",
  "(defstruct/packed r (x u32)) (defun f (x) (declare (type r x) (returns r)) x)",
  "(defstruct/packed inner (x u8)) (defcstruct r (x inner)) (defun f (x) (declare (type r x) (returns r)) x)",
  "(defcstruct r (x u32)) (defcstruct s (x u32)) (defun f (x) (declare (type r x) (returns s)) x)",

@@ -17,7 +17,8 @@
            (type usize type depth) (returns c-int))
   (let ((signatures (deref (field-pointer context 'signatures))))
     (let ((code (scalar_type_code signatures type)))
-      (if (= (scalar_valid_code_p code) 1) 1
+      (if (if (= (scalar_valid_code_p code) 1) t
+              (if (= code 13) t (= code 14))) 1
           (if (= code 11)
               (source_pointer_pointee_p context (source_type_pointee signatures type))
               (if (= code 16) (source_aggregate_at_depth_p context type depth) 0))))))

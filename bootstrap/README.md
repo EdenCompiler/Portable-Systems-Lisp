@@ -61,7 +61,7 @@ The native modules currently implement:
   The pass accepts the declarations in the native byte emitter, arena, integer
   reader, and scanner modules. The byte emitter, arena, integer reader, and scanner bodies
   now compile through the native executable.
-- Natural integer/pointer C records through 16 bytes pass by value
+- Natural integer, pointer and floating C records through 16 bytes pass by value
   on all four native targets in both profiles. Layout metadata retains the real
   source type through HIR, SSA and LIR; receiving checks reject changed field
   spans, offsets, sizes, alignments and nominal types. Calls, returns, lexical
@@ -73,8 +73,12 @@ The native modules currently implement:
   large Windows frames with actual unwind behavior. Backend-owned private
   storage preserves records through calls and joins; indirect Windows arguments
   receive fresh aligned copies, so C mutation cannot alter a live source record.
-  Floating records, packed by-value records and whole-record raw loads/stores
-  remain outside this native slice.
+  `tests/bootstrap_float_aggregates.sh` covers floating and mixed records,
+  nested layouts, partial/exhausted register banks and exact IEEE payloads.
+  System V classifies INTEGER/SSE pieces, AAPCS64 uses homogeneous FP leaves,
+  and LP64D supports its floating and mixed integer/FP field rules.
+  Packed by-value records and whole-record raw loads/stores remain outside
+  this native slice.
 - Decimal and `#x`, `#o`, `#b`, and `#d` machine integer atoms with overflow
   detection.
 - A first ELF64 writer for one exported x86-64, AArch64, or RISC-V64 function

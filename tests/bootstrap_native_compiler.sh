@@ -1367,6 +1367,10 @@ PSL_NATIVE_COMPILER_HOST_TARGET=$host_target \
     "$work_dir/pslcc-native-slice$host_suffix" "$host_target"
 
 PSL_NATIVE_COMPILER_HOST_TARGET=$host_target \
+  sh "$project_root/tests/bootstrap_float_aggregates.sh" \
+    "$work_dir/pslcc-native-slice$host_suffix" "$host_target"
+
+PSL_NATIVE_COMPILER_HOST_TARGET=$host_target \
   sh "$project_root/tests/bootstrap_native_cli.sh" \
     "$work_dir/pslcc-native-slice$host_suffix" "$host_target"
 

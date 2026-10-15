@@ -86,7 +86,7 @@
         (words (native_aggregate_parameter_words context signature cursor)))
     (if (= cursor index) location
         (rv_lir_param_location context signature index (wrap+ cursor 1)
-         (rv_aggregate_next_gp location words gp) (rv_lir_next_fp location fp)
+         (rv_aggregate_next_gp context signature cursor location words gp) (rv_aggregate_next_fp context signature cursor location fp)
          (rv_aggregate_next_stack location words stack)))))
 
 (defun rv_lir_load_abi_parameter (context location)
@@ -149,7 +149,7 @@
       (let ((location (rv_aggregate_location context signature cursor gp fp stack))
             (words (native_aggregate_parameter_words context signature cursor)))
         (rv_lir_stack_count context signature (wrap+ cursor 1) arity
-         (rv_aggregate_next_gp location words gp) (rv_lir_next_fp location fp)
+         (rv_aggregate_next_gp context signature cursor location words gp) (rv_aggregate_next_fp context signature cursor location fp)
          (rv_aggregate_next_stack location words stack)))))
 
 (defun rv_lir_call_reserved (context op target arity bytes)

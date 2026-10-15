@@ -1531,3 +1531,26 @@ All four target gates and smoke passed on a fresh isolated compiler and the
 production tree. Native
 executable/library linking, freestanding target/CLI expansion, IR and diagnostic
 parity and the complete M8 Stage 1–3 gate remain open.
+
+### M8 native floating and mixed C records through 16 bytes
+
+The native typed and hosted profiles now transport natural `f32`/`f64` and
+mixed integer/pointer/floating records through 16 bytes on all four targets.
+The frontend and IR preserve nominal types; the shared backend field module
+exposes checked leaf types and offsets, while each CPU module owns ABI classes.
+System V uses INTEGER/SSE pieces and whole-record fallback without consuming
+either register bank. AAPCS64 handles homogeneous FP leaves, including nested
+records, and saturates only the bank used by a failed register allocation.
+LP64D handles its FP and mixed field rules, exact widths and final-GP split.
+Windows retains exact caller copies and hidden returns for indirect records.
+
+`tests/bootstrap_float_aggregates.sh` executes independent C callers at O0/O2
+against native and Stage 0 O0/O1 objects. It covers nested/mixed layouts,
+partial and exhausted GP/FP banks, joins, original managed roots, raw heap-bit
+exclusion, exact signed-zero/infinity/NaN bits, repeated objects and receiving
+API failures. All four full native regressions passed on the repaired inputs;
+all four production focused gates and smoke also passed. The separately
+published object CLI was checked with this record implementation on all four
+targets. Packed records by value, whole-record raw memory, extents over
+16 bytes, remaining source/driver ports and the complete M8 Stage 1–3 gates
+remain open.

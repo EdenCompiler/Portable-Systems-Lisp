@@ -169,7 +169,7 @@ padding. Nested structures are supported when declared first. `sizeof`, `alignof
 `offset-of` use the selected target's layout. The C layout tests compare
 integer, floating, pointer, and nested fields with a C compiler.
 
-The native compiler also transports natural integer/pointer C records
+The native compiler also transports natural integer, pointer and floating C records
 through 16 bytes by value on all four hosted targets, in both typed
 freestanding and hosted profiles. Parameters, locals, conditional joins,
 direct/foreign calls and returns retain nominal record types through verified
@@ -177,13 +177,16 @@ HIR, SSA and LIR. Equal layouts with different declared names remain distinct.
 Records are true in Lisp conditions even when every payload bit is zero.
 The native receiver checks every field offset, size, alignment and final extent,
 including nested records and target-dependent C integer widths. Whole-record
-raw loads/stores, packed records by value, floating fields and records over 16 bytes
+raw loads/stores, packed records by value and records over 16 bytes
 remain unsupported; scalar field access through pointers remains available.
 Backend-owned private copies preserve record values through joins and calls;
 their addresses remain compiler storage rather than source pointer values.
-System V uses one/two INTEGER pieces or a whole stack record when registers
-cannot hold all pieces. AAPCS64 uses one/two general registers or the whole
-stack record; LP64D also supports the final-register/stack split. Microsoft x64
+System V classifies each eight-byte piece as INTEGER or SSE and falls back
+with the whole record when either register bank cannot hold all pieces.
+AAPCS64 uses FP registers for one to four homogeneous floating leaves within
+the 16-byte extent, otherwise one/two general registers or a whole stack record.
+LP64D implements floating and mixed integer/FP leaf rules, with integer fallback
+and the final-register/stack split. Microsoft x64
 passes 1, 2, 4 or 8-byte records directly and other extents through fresh aligned
 caller copies, with a hidden result pointer. Exact byte copies preserve odd
 extents and isolate live source values from C by-value mutation. Stage 0 now
@@ -608,7 +611,7 @@ saved FP/LR, direct internal calls, and `R_AARCH64_CALL26` imports. The native
 writer emits machine 183 and a local `$x` mapping symbol. Its existing ELF call
 API defaults to x86-64; `write_elf64_calls_target` selects explicitly. Backend
 and ELF validation reject unaligned AArch64 call/function spans and malformed
-import placeholders. Natural integer/pointer records through 16 bytes use the
+import placeholders. Natural integer, pointer and floating records through 16 bytes use the
 verified native aggregate path described above. Broader hosted language support
 remains pending.
 

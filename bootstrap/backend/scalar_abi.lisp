@@ -22,6 +22,9 @@
   (let ((signature (deref (field-pointer context 'current_signature))))
     (if (= (ptr-address signature) 0) 0
         (if (= index (deref (field-pointer signature 'arity))) 0
-            (if (= (native_abi_float_p
-                    (scalar_signature_parameter_code context signature index)) 1) 1
+            (if (if (= (native_abi_float_p
+                       (scalar_signature_parameter_code context signature index)) 1) t
+                    (if (= (scalar_signature_parameter_code context signature index) 16)
+                        (< 0 (native_aggregate_float_leaf_count context
+                               (scalar_signature_parameter_pointee context signature index) 0)) nil)) 1
                 (native_abi_float_parameters_p context (wrap+ index 1)))))))
