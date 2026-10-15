@@ -18,6 +18,7 @@ struct unit_storage {
     struct native_lir_instruction lir[6 * CAPACITY];
     struct native_lir_block lir_blocks[3 * CAPACITY];
     struct native_call_fixup calls[CAPACITY], jumps[3 * CAPACITY];
+    struct native_call_fixup addresses[CAPACITY];
     uintptr_t bindings[CAPACITY], labels[3 * CAPACITY];
     uint8_t code[4096], object[16384];
 };
@@ -50,13 +51,15 @@ static int compile_memory_target(const char *source, uint32_t target, uintptr_t 
     };
     struct native_fixup_arena calls = {storage.calls, 0, CAPACITY, 0};
     struct native_fixup_arena jumps = {storage.jumps, 0, 3 * CAPACITY, 0};
+    struct native_fixup_arena addresses = {storage.addresses, 0, CAPACITY, 0};
     struct byte_buffer code = {storage.code, 0, sizeof storage.code};
     *object = (struct byte_buffer){storage.object, 0, object_capacity};
     struct native_compile_context context = {
         .parser = &parser, .source = (const uint8_t *)source, .integer = &integer,
         .hir = &hir, .code = &code, .fixups = &calls, .functions = storage.functions,
         .signatures = &signatures, .ssa = &ssa, .bindings = storage.bindings,
-        .lir = &lir, .labels = storage.labels, .jumps = &jumps, .target = target
+        .lir = &lir, .labels = storage.labels, .jumps = &jumps, .target = target,
+        .function_addresses = &addresses
     };
     return native_compile_unit(&context, object, result);
 }

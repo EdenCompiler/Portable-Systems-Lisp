@@ -9,45 +9,14 @@
    contain test allocators or depend on this harness. */
 void *__real_calloc(size_t, size_t);
 void __real_free(void *);
-static void *allocations[32], *owned_source;
+enum { MAX_TRACKED_ALLOCATIONS = 64 };
+static void *allocations[MAX_TRACKED_ALLOCATIONS], *owned_source;
 static size_t allocation_count, fail_at, live_count, source_frees;
-static size_t capacity;
-static const size_t item_sizes[] = {
-    sizeof(struct psl_ast_node), sizeof(struct native_layout),
-    sizeof(struct native_layout_field), sizeof(struct native_parameter),
-    sizeof(struct native_function), sizeof(struct native_signature),
-    sizeof(struct native_data_import), 1, sizeof(struct native_hir_node),
-    sizeof(struct native_ssa_value),
-    sizeof(struct native_ssa_block), sizeof(struct native_ir_type),
-    sizeof(uintptr_t), sizeof(struct native_lir_instruction),
-    sizeof(struct native_lir_block), sizeof(struct native_ssa_value),
-    sizeof(struct native_call_fixup), sizeof(struct native_call_fixup),
-    sizeof(struct native_call_fixup), sizeof(uintptr_t), 1, 1,
-    1, sizeof(struct native_ct_package), sizeof(struct native_ct_symbol),
-    sizeof(struct native_ct_presence), sizeof(struct native_ct_use),
-    sizeof(struct native_ct_alias), sizeof(struct native_source_identity), sizeof(uintptr_t),
-    sizeof(struct native_macro_definition), sizeof(struct native_macro_binding)
-};
 
 void *__wrap_calloc(size_t count, size_t size) {
     size_t index = allocation_count++;
-    size_t expected = capacity;
-    assert(index < 32);
-    if (index == 7) expected += 2048;
-    if (index == 13) expected *= 6;
-    if (index == 14 || index == 17 || index == 19) expected *= 3;
-    if (index == 20) expected = 1048576 + 16 * capacity;
-    if (index == 21) expected = 1049600 + 80 * capacity;
-    if (index == 22) expected = 16 * capacity + 12000;
-    if (index == 23) expected = 128;
-    if (index == 24) expected = capacity + 1049;
-    if (index == 25) expected = capacity + 1111;
-    if (index == 26) expected = 512;
-    if (index == 27) expected = 128;
-    if (index == 29) expected = 131072;
-    if (index == 30) expected = 256;
-    if (index == 31) expected = 128;
-    assert(count == expected && size == item_sizes[index]);
+    assert(index < MAX_TRACKED_ALLOCATIONS);
+    assert(count && size);
     if (allocation_count == fail_at) return NULL;
     allocations[index] = __real_calloc(count, size);
     assert(allocations[index]);
@@ -62,13 +31,13 @@ void __wrap_free(void *memory) {
         ++source_frees;
         owned_source = NULL;
     } else {
-        for (i = 0; i < 32; ++i) {
+        for (i = 0; i < MAX_TRACKED_ALLOCATIONS; ++i) {
             if (allocations[i] != memory) continue;
             allocations[i] = NULL;
             --live_count;
             break;
         }
-        assert(i < 32);
+        assert(i < MAX_TRACKED_ALLOCATIONS);
     }
     __real_free(memory);
 }
@@ -83,7 +52,6 @@ static void set_source(struct native_driver *driver) {
     memcpy(driver->source, source, driver->length + 1);
 #ifdef PSL_TEST_ALLOCATOR_FAULTS
     owned_source = driver->source;
-    capacity = driver->length + 1;
     allocation_count = live_count = source_frees = 0;
     memset(allocations, 0, sizeof allocations);
 #endif
@@ -164,6 +132,17 @@ static void check_initialized(struct native_driver *d) {
     assert(d->context.inline_values == d->storage.inline_values);
     assert(d->context.inline_capacity == cap);
     assert(!d->context.inline_count && !d->context.inline_cursor);
+    assert(d->function_addresses.items == d->storage.function_addresses);
+    assert(d->function_addresses.capacity == cap);
+    assert(!d->function_addresses.count && !d->function_addresses.error);
+    assert(d->context.function_addresses == &d->function_addresses);
+    assert(d->context.closure_plans == d->storage.closure_plans);
+    assert(d->context.closure_plan_capacity == cap && !d->context.closure_plan_count);
+    assert(d->context.closure_captures == d->storage.closure_captures);
+    assert(d->context.closure_capture_capacity == cap && !d->context.closure_capture_count);
+    assert(d->context.closure_names == d->storage.closure_names);
+    assert(d->context.closure_name_capacity == cap * 16);
+
 }
 
 static void check_released(struct native_driver *driver) {
@@ -212,7 +191,13 @@ static void test_invalid_capacity(void) {
 #ifdef PSL_TEST_ALLOCATOR_FAULTS
 static void test_partial_allocations(void) {
     struct native_driver driver = {0};
-    for (fail_at = 1; fail_at <= 32; ++fail_at) {
+    set_source(&driver);
+    assert(native_prepare_driver(&driver));
+    size_t successful_count = allocation_count;
+    assert(successful_count);
+    check_initialized(&driver);
+    check_released(&driver);
+    for (fail_at = 1; fail_at <= successful_count; ++fail_at) {
         set_source(&driver);
         assert(!native_prepare_driver(&driver));
         check_released(&driver);

@@ -148,3 +148,12 @@ before initialization. This avoids an emulated TLS allocation in the Windows
 accessor. `tests/bootstrap_multiple_values.sh` checks cold accessors, exact C ABI,
 O0/O1 execution, source order, nested bindings and precise collection on all four
 hosted targets.
+
+The precise closure constructor `psl_rt_make_closure_precise` and rooted
+invocation entry `psl_rt_call_closure` protect their environment, closure and argument
+through allocation or collection. Native source closures select these explicit
+entries and the closure/GC/startup/platform dependency closure. Generated body
+addresses use PSL-owned same-text instruction encoding and patching. Closure
+allocation and indirect invocation cannot certify a WITHOUT-ALLOCATION region.
+`tests/runtime_precise_closures.sh` checks capture/argument lifetimes and release;
+`tests/bootstrap_native_closures.sh` checks native and Stage 0 source behavior.

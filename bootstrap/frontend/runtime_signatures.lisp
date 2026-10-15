@@ -24,6 +24,8 @@
     ((= id 19) (ffi:c-string "psl_rt_intern_precise"))
     ((= id 20) (ffi:c-string "psl_rt_values2"))
     ((= id 21) (ffi:c-string "psl_rt_nth_value"))
+    ((= id 22) (ffi:c-string "psl_rt_make_closure_precise"))
+    ((= id 23) (ffi:c-string "psl_rt_call_closure"))
     (t (ptr-from-address (ptr u8) 0))))
 
 (defun native_runtime_name_length (id)
@@ -50,11 +52,13 @@
     ((= id 19) 21)
     ((= id 20) 14)
     ((= id 21) 16)
+    ((= id 22) 27)
+    ((= id 23) 19)
     (t 0)))
 
 (defun native_runtime_arity (id)
   (declare (type u32 id) (returns usize))
-  (cond ((= id 1) 2) ((= id 6) 0) ((= id 7) 3) ((= id 9) 2) ((= id 11) 2) ((= id 12) 2) ((= id 13) 3) ((= id 14) 2) ((= id 19) 2) ((= id 20) 2) (t 1)))
+  (cond ((= id 1) 2) ((= id 6) 0) ((= id 7) 3) ((= id 9) 2) ((= id 11) 2) ((= id 12) 2) ((= id 13) 3) ((= id 14) 2) ((= id 19) 2) ((= id 20) 2) ((= id 22) 2) ((= id 23) 2) (t 1)))
 
 (defun native_runtime_result (id)
   (declare (type u32 id) (returns u32))
@@ -64,6 +68,7 @@
 (defun native_runtime_parameter (id index)
   (declare (type u32 id) (type usize index) (returns u32))
   (cond ((= id 21) 2) ((= id 4) 9)
+        ((= id 22) (if (= index 0) (wrap-cast u32 2) (wrap-cast u32 15)))
         ((= id 7) (if (= index 2) (wrap-cast u32 2) (wrap-cast u32 1)))
         ((= id 8) 1)
         ((= id 14) (if (= index 0) (wrap-cast u32 1) (wrap-cast u32 2)))
@@ -78,6 +83,7 @@
   (cond
     ((= id 1) 0) ((= id 6) 0) ((= id 11) 0) ((= id 14) 0)
     ((= id 15) 0) ((= id 17) 0) ((= id 19) 0) ((= id 20) 0)
+    ((= id 22) 0) ((= id 23) 0)
     (t 1)))
 
 (defun native_runtime_scalar_size (code)
@@ -146,7 +152,7 @@
   (let ((id (deref (field-pointer signature 'runtime_id))))
     (if (= (deref (field-pointer context 'profile)) 1)
         (if (= id 0) 0
-            (if (< 21 id) 0
+            (if (< 23 id) 0
                 (if (= (native_runtime_signature_name_p signature id) 0) 0
                     (if (= (native_runtime_header_p signature id) 0) 0
                         (if (= (native_runtime_result_p signature id) 0) 0
@@ -197,7 +203,7 @@
 (defun native_runtime_initialize_catalog (signatures id count first)
   (declare (type (ptr native_signature_context) signatures) (type u32 id)
            (type usize count first) (returns c-int))
-  (if (= id 22) 1
+  (if (= id 24) 1
       (progn
         (native_runtime_initialize_signature
          (native_signature_at signatures (wrap+ count (wrap-cast usize (wrap- id 1)))) id first)
@@ -231,7 +237,7 @@
 
 (defun native_runtime_names_free_p (context id)
   (declare (type (ptr native_compile_context) context) (type u32 id) (returns c-int))
-  (if (= id 22) 1
+  (if (= id 24) 1
       (if (= (native_runtime_symbol_used_p context id 0) 1) 0
           (if (= (native_runtime_data_used_p context id 0) 1) 0
               (native_runtime_names_free_p context (wrap+ id 1))))))
@@ -252,9 +258,9 @@
     (if (= (ptr-address (deref (field-pointer signatures 'signatures))) 0) 0
         (if (= (ptr-address (deref (field-pointer signatures 'parameters))) 0) 0
             (if (< capacity count) 0
-                (if (< (wrap- capacity count) 21) 0
+                (if (< (wrap- capacity count) 23) 0
                     (if (< parameter_capacity first) 0
-                        (if (< (wrap- parameter_capacity first) 31) 0 1))))))))
+                        (if (< (wrap- parameter_capacity first) 35) 0 1))))))))
 
 ;; Reserve both tables before reading source symbols or writing records. Publish
 ;; their counts only after construction; failed validation leaves them unchanged.
@@ -268,8 +274,8 @@
                     (let ((count (deref (field-pointer signatures 'signature_count)))
                           (first (deref (field-pointer signatures 'parameter_count))))
                       (native_runtime_initialize_catalog signatures 1 count first)
-                      (store (field-pointer signatures 'signature_count) (wrap+ count 21))
-                      (store (field-pointer signatures 'parameter_count) (wrap+ first 31))
+                      (store (field-pointer signatures 'signature_count) (wrap+ count 23))
+                      (store (field-pointer signatures 'parameter_count) (wrap+ first 35))
                       1))))) 0))
 
 (defun native_runtime_call_signature_p (context signature)

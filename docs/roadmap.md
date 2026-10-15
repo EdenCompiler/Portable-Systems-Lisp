@@ -1596,3 +1596,24 @@ external COMMON-LISP symbols satisfying CONSTANTP and matches all 62 names in
 the rejection fixture. All four production target gates and smoke passed.
 General build-host calls, destructuring/environment parameters, EVAL-WHEN,
 managed compiler collections and the complete M8 Stage 1–3 gates remain open.
+
+### M8 native lexical closures and defined function addresses
+
+The native hosted compiler lowers one-argument lexical lambdas, FUNCTION forms
+and FUNCALL through explicitly rooted runtime entries. Hidden functions retain lexical
+VALUE captures, including nested returned closures and shadowing. Machine
+captures and unsafe allocation-free regions reject before object publication.
+Function-address HIR crosses all receiving verifiers; PSL-owned CPU modules
+encode and patch same-text addresses with checked extents and capacities.
+Captured/argument roots remain live through collection and are released with
+their owning frames. Unit IR capture includes hidden bodies with stable labels.
+
+Isolated function-address/closure and runtime gates passed on all four targets
+at O0/O1 with independent C O0/O2 execution, deterministic objects, large code
+arenas, metadata/capacity failures and precise collection. Full isolated Linux
+and Windows native regressions passed. The combined production LET/IR/closure and precise-runtime-link gates passed
+on all four targets, including generated-body capture/object identity and
+forged header rejection. Production smoke passed, with the compiler, runtime
+and test input hashes unchanged through validation. General
+lambda lists, managed compiler collections, remaining source/driver ports and
+the complete M8 Stage 1–3 gate remain open.

@@ -99,6 +99,34 @@
       ((= kind 30) (if (= code 2) (if (= (deref (field-pointer child 'scalar_code)) 11) 1 0) 0))
       (t 0))))
 
+(defun ir_verify_closure_callback (context target source)
+  (declare (type (ptr native_compile_context) context)
+           (type usize target source) (returns c-int))
+  (if (= target 0) 0
+      (if (< (deref (field-pointer context 'prior_count)) target) 0
+          (let ((signature (native_signature_at
+                            (deref (field-pointer context 'signatures))
+                            (wrap- target 1))))
+            (if (= (native_closure_callback_target_p context target source) 1)
+                (if (= (deref (field-pointer signature 'imported)) 0)
+                    (if (= (deref (field-pointer signature 'arity)) 2)
+                        (if (= (scalar_signature_type_code context signature) 15)
+                            (if (= (scalar_signature_parameter_code context signature 0) 15)
+                                (if (= (scalar_signature_parameter_code context signature 1) 15)
+                                    1 0) 0) 0) 0) 0) 0))))
+)
+(defun ir_verify_function_address (context op)
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_scalar_op) op) (returns c-int))
+  (if (= (deref (field-pointer op 'scalar_code)) 2)
+      (if (= (deref (field-pointer op 'pointee)) 0)
+          (if (= (deref (field-pointer op 'value)) 0)
+              (if (= (native_lambda_origin_p
+                      context (deref (field-pointer op 'source))) 1)
+                  (ir_verify_closure_callback
+                   context (deref (field-pointer op 'target))
+                   (deref (field-pointer op 'source))) 0) 0) 0) 0))
+
 (defun ir_verify_scalar_type (context types op)
   (declare (type (ptr native_compile_context) context)
            (type (ptr native_ir_type) types)
@@ -120,6 +148,7 @@
            (if (= code 1)
                (if (= (deref (field-pointer op 'pointee)) 0)
                    (native_literal_target_p context (deref (field-pointer op 'target))) 0) 0))
+          ((= kind 36) (ir_verify_function_address context op))
       ((= kind 34)
            (let ((target (deref (field-pointer op 'target))))
              (if (= code 11)

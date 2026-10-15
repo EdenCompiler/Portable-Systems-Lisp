@@ -228,6 +228,13 @@ struct native_compile_context {
     uint8_t *data_bytes;
     uintptr_t data_byte_count, data_byte_capacity;
     struct native_fixup_arena *data_fixups;
+    struct native_fixup_arena *function_addresses;
+    struct native_closure_plan *closure_plans;
+    uintptr_t closure_plan_count, closure_plan_capacity;
+    struct native_closure_capture *closure_captures;
+    uintptr_t closure_capture_count, closure_capture_capacity;
+    uint8_t *closure_names;
+    uintptr_t closure_name_capacity;
     struct native_package_context package_state;
     struct native_tree_context macro_tree;
     struct native_macro_registry macro_registry;
@@ -301,7 +308,18 @@ struct native_signature {
     uint32_t runtime_id, result_code;
     const uint8_t *runtime_name;
     uintptr_t runtime_name_length;
+    uint8_t generated;
+    uintptr_t generated_origin, generated_argument, generated_body;
+    uintptr_t generated_plan;
 };
+
+struct native_closure_plan {
+    uintptr_t origin, argument, body, function_index;
+    uintptr_t capture_first, capture_count;
+    uint8_t captures_ready;
+};
+
+struct native_closure_capture { uintptr_t name; };
 
 struct native_signature_context {
     struct native_layout_context *layouts;
@@ -343,7 +361,10 @@ struct native_storage {
     struct native_ir_type *types;
     struct native_lir_instruction *lir;
     struct native_lir_block *lir_blocks;
-    struct native_call_fixup *calls, *jumps, *data_fixups;
+    struct native_call_fixup *calls, *jumps, *data_fixups, *function_addresses;
+    struct native_closure_plan *closure_plans;
+    struct native_closure_capture *closure_captures;
+    uint8_t *closure_names;
     uintptr_t *bindings, *labels;
     uint8_t *code, *object;
     struct native_ssa_value *inline_values;
@@ -373,7 +394,7 @@ struct native_driver {
     struct native_hir_arena hir;
     struct native_ssa_arena ssa;
     struct native_lir_arena lir;
-    struct native_fixup_arena calls, jumps, data_fixups;
+    struct native_fixup_arena calls, jumps, data_fixups, function_addresses;
     struct byte_buffer code, object;
     struct native_compile_context context;
     struct native_ct_environment environment;
@@ -528,5 +549,17 @@ extern int native_run_compiler_profile(const char *, const char *, uint32_t, uin
 extern int native_register_runtime_signatures(struct native_compile_context *);
 extern int native_runtime_signature_p(struct native_compile_context *, struct native_signature *);
 extern int native_lower_roots(struct native_compile_context *);
+
+
+/* Compiler-owned same-text addresses; FUNCTION is a one-based defined function
+ * index. Caller-owned address fixups remain separate from call/data relocations.
+ * Encodes RAX/X9/T0, or a complete C-ABI leaf returning uintptr_t. */
+extern int native_encode_function_address(uint32_t,struct byte_buffer *,
+                                           struct native_fixup_arena *,uintptr_t);
+extern int native_encode_function_address_return(uint32_t,struct byte_buffer *,
+                                                  struct native_fixup_arena *,uintptr_t);
+extern int native_patch_function_addresses(uint32_t,struct byte_buffer *,
+                                            const struct native_function *,uintptr_t,
+                                            struct native_fixup_arena *);
 
 #endif

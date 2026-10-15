@@ -250,11 +250,23 @@
                                              (deref (field-pointer context 'target))) 2)
                                         #x8d #x8b)) 0) 0
                       (if (= (emit_byte code #x05) 0) 0
-                          (if (= (emit_integer code 0 4) 0) 0
+              (if (= (emit_integer code 0 4) 0) 0
                               (record_call_fixup
                                (deref (field-pointer context 'data_fixups))
                                start target))))))))))
 
+(defun x86_lir_function_address (context op)
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_lir_instruction) op) (returns c-int))
+  (let ((target (deref (field-pointer op 'target)))
+        (code (deref (field-pointer context 'code)))
+        (lir (deref (field-pointer context 'lir))))
+    (if (= (native_encode_function_address
+            (deref (field-pointer context 'target)) code
+            (deref (field-pointer context 'function_addresses)) target) 0) 0
+        (x86_store_local code (deref (field-pointer op 'destination))
+                         (deref (field-pointer lir 'value_count)))))
+)
 (defun x86_lir_value (context op)
   (declare (type (ptr native_compile_context) context)
            (type (ptr native_lir_instruction) op) (returns c-int))
@@ -268,6 +280,7 @@
            (x86_lir_normalize context op)))
       ((= kind 7) (x86_lir_call context op))
       ((if (= kind 34) t (= kind 35)) (x86_lir_data_address context op))
+      ((= kind 36) (x86_lir_function_address context op))
       ((= kind 29) 1)
       ((= (ir_binary_kind_p kind) 1) (x86_lir_binary context op))
       (t (x86_lir_unary context op)))))

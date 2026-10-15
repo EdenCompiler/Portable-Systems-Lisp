@@ -1380,6 +1380,16 @@ PSL_NATIVE_COMPILER_HOST_TARGET=$host_target \
   sh "$project_root/tests/bootstrap_ir_dump.sh" \
     "$work_dir/pslcc-native-slice$host_suffix" "$host_target"
 
+PSL_NATIVE_COMPILER_HOST_TARGET=$host_target \
+  sh "$project_root/tests/bootstrap_function_addresses.sh" \
+    "$work_dir/pslcc-native-slice$host_suffix" "$host_target"
+
+PSL_NATIVE_COMPILER_HOST_TARGET=$host_target \
+  sh "$project_root/tests/bootstrap_native_closures.sh" \
+    "$work_dir/pslcc-native-slice$host_suffix" "$host_target"
+
+sh "$project_root/tests/runtime_precise_closure_link.sh" "$host_target"
+
 if test -n "${PSL_NATIVE_OBJECT_SNAPSHOT_DIR:-}"; then
   mkdir -p "$PSL_NATIVE_OBJECT_SNAPSHOT_DIR"
   for object in "$work_dir"/*.o; do

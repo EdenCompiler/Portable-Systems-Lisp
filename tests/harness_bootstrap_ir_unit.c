@@ -50,6 +50,21 @@ static void check(const char *source,unsigned level,unsigned target,unsigned pro
         assert(strstr((char *)text,"ROOT-POP"));
         assert(strstr((char *)text," :VALUE"));
     }
+    if(strstr(source,"lambda")) {
+        assert(strstr((char *)text,"HIR LAMBDA#1\n"));
+        assert(strstr((char *)text,"SSA LAMBDA#1\n"));
+        assert(strstr((char *)text,"LIR LAMBDA#1\n"));
+        assert(strstr((char *)text,"FUNCTION-ADDRESS :USIZE"));
+        assert(!strstr((char *)text,"HIR LAMBDA#2\n"));
+        /* A forged generated header cannot append text to a successful dump. */
+        struct native_signature *signature=observed->context.current_signature;
+        assert(signature->generated && signature->generated_plan==1);
+        uintptr_t length=output.length;
+        signature->generated_plan=0;
+        assert(!native_ir_dump_function(&observed->context,observed->hir.count,&dump));
+        assert(dump.error==1 && output.length==length);
+        signature->generated_plan=1;
+    }
     release(plain);release(observed);
     /* A capture capacity failure prevents native object publication. */
     observed=prepare(source,level,target,profile);
@@ -69,8 +84,12 @@ int main(void) {
         "(defun second (x) (declare (type u64 x) (returns u64)) (first x))";
     const char *managed="(defun first (x) (declare (type value x) (returns value)) x)"
         "(defun second (x) (declare (type value x) (returns value)) (cons (first x) nil))";
+    const char *closure="(defun first (x) (declare (type value x) (returns value)) "
+        "(lambda (y) (cons x y)))"
+        "(defun second (x) (declare (type value x) (returns value)) (funcall (first x) nil))";
     for(unsigned level=0;level<2;++level)for(unsigned target=0;target<4;++target) {
         check(typed,level,target,0);check(managed,level,target,1);
+        check(closure,level,target,1);
     }
     puts("whole-unit verified IR capture preserves object bytes, source order, roots and failed-output ownership");
 }

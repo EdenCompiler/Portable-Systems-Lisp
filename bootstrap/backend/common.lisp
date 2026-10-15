@@ -8,6 +8,22 @@
            (returns (ptr native_function)))
   (pointer+ functions (wrap-cast isize index)))
 
+(defun native_function_defined_target_from (functions index target)
+  (declare (type (ptr native_function) functions)
+           (type usize index target) (returns c-int))
+  (if (= index target) 1
+      (if (= (deref (field-pointer (native_function_at functions index) 'imported)) 1) 0
+          (native_function_defined_target_from functions (wrap+ index 1) target))))
+
+(defun native_function_defined_target_p (functions count target)
+  (declare (type (ptr native_function) functions)
+           (type usize count target) (returns c-int))
+  (if (= target 0) 0
+      (if (= (ptr-address functions) 0) 0
+          (if (< count target) 0
+              (if (= (deref (field-pointer (native_function_at functions
+                                            (wrap- target 1)) 'imported)) 1) 0
+                  (native_function_defined_target_from functions 0 (wrap- target 1)))))))
 
 (defun native_function_global_p (function)
   (declare (type (ptr native_function) function) (returns usize))

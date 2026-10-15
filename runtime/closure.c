@@ -2,17 +2,28 @@
 
 #include <stdlib.h>
 
-psl_value psl_rt_make_closure(psl_closure_code code, psl_value environment) {
+static psl_value make_closure(psl_closure_code code, psl_value environment,
+                              int precise) {
     if (code == NULL) {
         abort();
     }
     psl_root root;
     psl_rt_push_roots(&root, &environment, 1);
-    psl_object *closure = psl_rt_allocate(PSL_OBJECT_CLOSURE, 0);
+    psl_object *closure = precise ? psl_rt_allocate_precise(PSL_OBJECT_CLOSURE, 0)
+                                  : psl_rt_allocate(PSL_OBJECT_CLOSURE, 0);
     closure->slots[0] = environment;
     closure->code = code;
     psl_rt_pop_roots(&root);
     return (psl_value)(uintptr_t)closure;
+}
+
+psl_value psl_rt_make_closure(psl_closure_code code, psl_value environment) {
+    return make_closure(code, environment, 0);
+}
+
+psl_value psl_rt_make_closure_precise(psl_closure_code code,
+                                    psl_value environment) {
+    return make_closure(code, environment, 1);
 }
 
 psl_value psl_rt_call_closure(psl_value closure_value, psl_value argument) {

@@ -47,6 +47,7 @@
     ("psl_rt_intern" . :package)
     ("psl_rt_intern_precise" . :package)
     ("psl_rt_make_closure" . :closure)
+    ("psl_rt_make_closure_precise" . :closure)
     ("psl_rt_call_closure" . :closure)
     ("psl_rt_values2" . :values)
     ("psl_rt_nth_value" . :values)

@@ -72,6 +72,9 @@ psl_value psl_rt_intern(psl_value package, psl_value name);
 psl_value psl_rt_intern_precise(psl_value package, psl_value name);
 
 psl_value psl_rt_make_closure(psl_closure_code code, psl_value environment);
+/* Retains its environment internally; other live values require caller roots. */
+psl_value psl_rt_make_closure_precise(psl_closure_code code,
+                                    psl_value environment);
 psl_value psl_rt_call_closure(psl_value closure, psl_value argument);
 
 psl_value psl_rt_values2(psl_value first, psl_value second);

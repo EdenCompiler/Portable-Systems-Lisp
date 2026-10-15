@@ -568,3 +568,9 @@ requested destination. Its final rename therefore publishes within one
 filesystem, preserves an existing output on compilation failure, and removes
 its private temporary directory. The adapter remains explicit hosted C interop;
 PSL backend/object encoding uses no external assembler.
+
+The native function-address module owns same-text fixup validation and dispatch;
+x86-64, AArch64 and RISC-V modules own their instruction forms and patching.
+The frontend creates hidden closure signatures and capture plans before unit
+compilation, while IR receivers verify address targets and managed call shapes.
+Unit output applies function-address fixups before writing the object.

@@ -22,4 +22,7 @@ cc -std=c11 -Wall -Wextra -Werror -O0 -pthread \
 
 sh "$project_root/tests/runtime_precise.sh" x86_64-linux-gnu
 
+sh "$project_root/tests/runtime_precise_closures.sh" x86_64-linux-gnu
+sh "$project_root/tests/runtime_precise_closure_link.sh" x86_64-linux-gnu
+
 sh "$project_root/tests/managed_roots.sh" x86_64-linux-gnu

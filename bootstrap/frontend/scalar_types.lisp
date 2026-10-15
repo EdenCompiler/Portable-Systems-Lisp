@@ -62,7 +62,10 @@
                       (wrap+ (deref (field-pointer signature 'first_parameter)) index))))
       (if (< 0 (deref (field-pointer signature 'runtime_id)))
           (deref (field-pointer parameter 'scalar_code))
-          (scalar_type_code signatures (deref (field-pointer parameter 'type_ast)))))))
+          (if (= (deref (field-pointer signature 'generated)) 1)
+              (deref (field-pointer parameter 'scalar_code))
+              (scalar_type_code signatures
+                                (deref (field-pointer parameter 'type_ast))))))))
 
 (defun scalar_current_parameter_code (context index)
   (declare (type (ptr native_compile_context) context)
@@ -77,8 +80,10 @@
            (type (ptr native_signature) signature) (returns u32))
   (if (< 0 (deref (field-pointer signature 'runtime_id)))
       (deref (field-pointer signature 'result_code))
-      (scalar_type_code (deref (field-pointer context 'signatures))
-                        (deref (field-pointer signature 'result_type)))))
+      (if (= (deref (field-pointer signature 'generated)) 1)
+          (deref (field-pointer signature 'result_code))
+          (scalar_type_code (deref (field-pointer context 'signatures))
+                            (deref (field-pointer signature 'result_type))))))
 
 (defun scalar_parameter_p (context parameter)
   (declare (type (ptr native_compile_context) context)
@@ -109,7 +114,10 @@
                           (wrap+ (deref (field-pointer signature
                                                       'first_parameter))
                                  index))))
-          (if (= (scalar_parameter_p context parameter) 1)
+          (if (= (if (= (deref (field-pointer signature 'generated)) 1)
+                     (if (= (deref (field-pointer parameter 'kind)) 5)
+                         (wrap-cast c-int 1) (wrap-cast c-int 0))
+                     (scalar_parameter_p context parameter)) 1)
               (scalar_parameter_types_p context signature
                                         (wrap+ index 1))
               0)))))
@@ -131,6 +139,7 @@
 (defun scalar_signature_p (context signature)
   (declare (type (ptr native_compile_context) context)
            (type (ptr native_signature) signature) (returns c-int))
-  (if (< 0 (deref (field-pointer signature 'runtime_id)))
+  (if (= (deref (field-pointer signature 'generated)) 1) 1
+      (if (< 0 (deref (field-pointer signature 'runtime_id)))
       (native_runtime_signature_p context signature)
-      (source_scalar_signature_p context signature)))
+      (source_scalar_signature_p context signature))))

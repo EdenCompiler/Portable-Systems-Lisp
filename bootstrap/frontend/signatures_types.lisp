@@ -26,7 +26,24 @@
   (runtime_id u32)
   (result_code u32)
   (runtime_name (ptr u8))
-  (runtime_name_length usize))
+  (runtime_name_length usize)
+  (generated u8)
+  (generated_origin usize)
+  (generated_argument usize)
+  (generated_body usize)
+  (generated_plan usize))
+
+(defcstruct native_closure_plan
+  (origin usize)
+  (argument usize)
+  (body usize)
+  (function_index usize)
+  (capture_first usize)
+  (capture_count usize)
+  (captures_ready u8))
+
+(defcstruct native_closure_capture
+  (name usize))
 
 (defcstruct native_signature_context
   (layouts (ptr native_layout_context))

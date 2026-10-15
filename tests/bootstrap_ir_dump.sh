@@ -11,10 +11,10 @@ for level in 0 1; do
   for unit in native-core host/driver; do
     name=${unit##*/}
     source=$project_root/bootstrap/$unit.lisp
-    run_compiler_host "$compiler" "-O$level" --target="$target" \
+    bootstrap_fixture_compile native "$compiler" "$level" "$target" freestanding \
       "$source" "$work_dir/native-$name.o"
-    "$project_root/pslcc" "-O$level" --target="$target" -c "$source" \
-      -o "$work_dir/seed-$name.o"
+    bootstrap_fixture_compile seed "$project_root/pslcc" "$level" "$target" freestanding \
+      "$source" "$work_dir/seed-$name.o"
   done
   for version in native seed; do
     for c_level in 0 2; do

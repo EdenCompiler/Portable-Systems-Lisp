@@ -28,3 +28,12 @@
       ((= (native_target_architecture target) 2) (a64_patch_calls code functions count fixups))
       ((= (native_target_architecture target) 3) (rv_patch_calls code functions count fixups))
       (t 0))))
+
+(defun native_patch_unit_function_addresses (context count)
+  (declare (type (ptr native_compile_context) context)
+           (type usize count) (returns c-int))
+  (native_patch_function_addresses
+   (deref (field-pointer context 'target))
+   (deref (field-pointer context 'code))
+   (deref (field-pointer context 'functions)) count
+   (deref (field-pointer context 'function_addresses))))

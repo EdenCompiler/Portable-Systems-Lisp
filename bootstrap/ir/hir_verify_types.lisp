@@ -109,6 +109,22 @@
             0
             (hir_verify_scalar_tree context child (wrap+ depth 1))))))
 
+(defun hir_verify_closure_callback_signature (context target source)
+  (declare (type (ptr native_compile_context) context)
+           (type usize target source) (returns c-int))
+  (if (= target 0) 0
+      (if (< (deref (field-pointer context 'prior_count)) target) 0
+          (let ((signature (native_signature_at
+                            (deref (field-pointer context 'signatures))
+                            (wrap- target 1))))
+            (if (= (native_closure_callback_target_p context target source) 1)
+                (if (= (deref (field-pointer signature 'imported)) 0)
+                    (if (= (deref (field-pointer signature 'arity)) 2)
+                        (if (= (scalar_signature_type_code context signature) 15)
+                            (if (= (scalar_signature_parameter_code context signature 0) 15)
+                                (if (= (scalar_signature_parameter_code context signature 1) 15)
+                                    1 0) 0) 0) 0) 0) 0))))
+)
 (defun hir_verify_scalar_arguments (context chain signature remaining depth)
   (declare (type (ptr native_compile_context) context)
            (type (ptr native_signature) signature)
@@ -196,6 +212,15 @@
            (if (= code 1)
                (if (= (deref (field-pointer node 'pointee)) 0)
                    (native_literal_target_p context (deref (field-pointer node 'target))) 0) 0))
+      ((= kind 36)
+       (if (= code 2)
+           (if (= (deref (field-pointer node 'pointee)) 0)
+               (if (= (deref (field-pointer node 'value)) 0)
+                   (if (= (native_lambda_origin_p
+                           context (deref (field-pointer node 'source))) 1)
+                       (hir_verify_closure_callback_signature
+                        context (deref (field-pointer node 'target))
+                        (deref (field-pointer node 'source))) 0) 0) 0) 0))
       ((= kind 34)
        (let ((target (deref (field-pointer node 'target))))
          (if (= code 11)

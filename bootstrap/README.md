@@ -460,12 +460,16 @@ recursive calls, dead arms, initializers, conditions, arguments, malformed
 annotations, and empty regions. Unit API and diagnostic-provider fixtures check
 failure phase/name selection and no output; metadata mutations reject invalid
 region references. Native generations compare accepted objects and rejection
-diagnostics. Managed allocation and GC now use the documented precise native
-root path. Indirect closures remain outside the native source subset.
+diagnostics. Managed allocation, GC and one-argument lexical closures use the precise native
+root path. Closures capture needed VALUE bindings, support nested returned
+functions and retain environments/arguments across collection. Machine captures
+and allocation-free certification of indirect calls are rejected.
+`make test-native-function-addresses` checks same-text code addresses and large
+arenas; `make test-native-closures` checks source behavior and receiving APIs.
 
 The remaining bootstrap work includes general build-host macro evaluation and
 lambda-list features, the broader Stage 0 source/interop corpus, aggregate ABIs,
-indirect closures, general static data, managed compiler collections and complete
+general static data, managed compiler collections and complete
 CLI/profile/IR/diagnostic parity. Full Stage 1–3 builds and their corpus
 comparisons remain the M8 gate.
 

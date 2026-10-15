@@ -110,6 +110,7 @@
     ((= code 31) (ffi:c-string "COPY"))
     ((= code 34) (ffi:c-string "DATA-ADDRESS"))
     ((= code 35) (ffi:c-string "LITERAL-ADDRESS"))
+    ((= code 36) (ffi:c-string "FUNCTION-ADDRESS"))
     ((= code 110) (ffi:c-string "ROOT-INIT"))
     ((= code 111) (ffi:c-string "ROOT-PUSH"))
     ((= code 112) (ffi:c-string "ROOT-SYNC"))
@@ -143,19 +144,29 @@
     ((= code 16) (ffi:c-string "RECORD"))
     (t (ffi:c-string "UNKNOWN"))))
 
+(defun native_ir_dump_function_name (context dump)
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_ir_dump) dump) (returns c-int))
+  (let ((signature (deref (field-pointer context 'current_signature))))
+    (if (= (deref (field-pointer signature 'generated)) 1)
+        (progn
+          (native_ir_dump_text dump (ffi:c-string "LAMBDA#"))
+          (native_ir_dump_number dump
+            (wrap-cast u64 (deref (field-pointer signature 'generated_plan)))))
+        (let ((name (parser_node (deref (field-pointer context 'parser))
+                                (deref (field-pointer signature 'name)))))
+          (native_ir_dump_span dump
+            (pointer+ (deref (field-pointer context 'source))
+                      (wrap-cast isize (deref (field-pointer name 'start))))
+            (deref (field-pointer name 'length)))))))
+
 (defun native_ir_dump_header (context dump stage)
   (declare (type (ptr native_compile_context) context)
            (type (ptr native_ir_dump) dump) (type (ptr u8) stage) (returns c-int))
-  (let ((signature (deref (field-pointer context 'current_signature))))
-    (let ((name (parser_node (deref (field-pointer context 'parser))
-                            (deref (field-pointer signature 'name)))))
-      (native_ir_dump_text dump stage)
-      (native_ir_dump_byte dump 32)
-      (native_ir_dump_span dump
-        (pointer+ (deref (field-pointer context 'source))
-                  (wrap-cast isize (deref (field-pointer name 'start))))
-        (deref (field-pointer name 'length)))
-      (native_ir_dump_byte dump 10))))
+  (native_ir_dump_text dump stage)
+  (native_ir_dump_byte dump 32)
+  (native_ir_dump_function_name context dump)
+  (native_ir_dump_byte dump 10))
 
 (defun native_ir_dump_value (dump kind code value pointee source left right target)
   (declare (type (ptr native_ir_dump) dump) (type u32 kind code)
@@ -281,6 +292,38 @@
       (if (if (= (bits-and stages 2) 0) t (= (ssa_verify_function context) 1))
           (if (= (bits-and stages 4) 0) 1 (lir_verify_function context)) 0) 0))
 
+(defun native_ir_dump_generated_header_p (context signature)
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_signature) signature) (returns c-int))
+  (let ((reference (deref (field-pointer signature 'generated_plan))))
+    (if (= reference 0) 0
+        (if (< (deref (field-pointer context 'closure_plan_count)) reference) 0
+            (if (= (ptr-address (deref (field-pointer context 'closure_plans))) 0) 0
+                (let ((plan (pointer+ (deref (field-pointer context 'closure_plans))
+                                     (wrap-cast isize (wrap- reference 1)))))
+                  (if (= (deref (field-pointer plan 'origin))
+                         (deref (field-pointer signature 'generated_origin)))
+                      (if (= (deref (field-pointer plan 'argument))
+                             (deref (field-pointer signature 'generated_argument)))
+                          (if (= (deref (field-pointer plan 'body))
+                                 (deref (field-pointer signature 'generated_body))) 1 0) 0) 0)))))))
+
+(defun native_ir_dump_source_header_p (context signature parser)
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_signature) signature) (type (ptr psl_parser) parser)
+           (returns c-int))
+  (let ((name (deref (field-pointer signature 'name)))
+        (scanner (deref (field-pointer parser 'scanner))))
+    (if (= (ptr-address scanner) 0) 0
+        (if (= (ir_reference_p name (deref (field-pointer parser 'count))) 0) 0
+            (let ((node (parser_node parser name)))
+              (if (= (deref (field-pointer node 'kind)) 8)
+                  (if (< (deref (field-pointer scanner 'length))
+                         (deref (field-pointer node 'start))) 0
+                      (if (< (wrap- (deref (field-pointer scanner 'length))
+                                    (deref (field-pointer node 'start)))
+                             (deref (field-pointer node 'length))) 0 1)) 0))))))
+
 (defun native_ir_dump_header_valid_p (context)
   (declare (type (ptr native_compile_context) context) (returns c-int))
   (let ((parser (deref (field-pointer context 'parser)))
@@ -288,17 +331,9 @@
     (if (= (ptr-address parser) 0) 0
         (if (= (ptr-address signature) 0) 0
             (if (= (ptr-address (deref (field-pointer context 'source))) 0) 0
-                (let ((name (deref (field-pointer signature 'name)))
-                      (scanner (deref (field-pointer parser 'scanner))))
-                  (if (= (ptr-address scanner) 0) 0
-                      (if (= (ir_reference_p name (deref (field-pointer parser 'count))) 0) 0
-                          (let ((node (parser_node parser name)))
-                            (if (= (deref (field-pointer node 'kind)) 8)
-                                (if (< (deref (field-pointer scanner 'length))
-                                       (deref (field-pointer node 'start))) 0
-                                    (if (< (wrap- (deref (field-pointer scanner 'length))
-                                                  (deref (field-pointer node 'start)))
-                                           (deref (field-pointer node 'length))) 0 1)) 0))))))))))
+                (if (= (deref (field-pointer signature 'generated)) 1)
+                    (native_ir_dump_generated_header_p context signature)
+                    (native_ir_dump_source_header_p context signature parser)))))))
 
 (defun native_ir_dump_write (context dump)
   (declare (type (ptr native_compile_context) context)

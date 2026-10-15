@@ -201,6 +201,17 @@
                   (if (= (rv_word code #x00000297) 0) 0
                       (rv_i code #x03 5 5 3 0))))))))
 
+(defun rv_lir_function_address (context op)
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_lir_instruction) op) (returns c-int))
+  (let ((code (deref (field-pointer context 'code)))
+        (destination (deref (field-pointer op 'destination))))
+    (if (= (native_encode_function_address
+            (deref (field-pointer context 'target)) code
+            (deref (field-pointer context 'function_addresses))
+            (deref (field-pointer op 'target))) 0) 0
+        (rv_store_frame code 5 (rv_local_offset destination))))
+)
 (defun rv_lir_value (context op)
   (declare (type (ptr native_compile_context) context) (type (ptr native_lir_instruction) op)
            (returns c-int))
@@ -219,6 +230,7 @@
                  (rv_normalize code 5 (deref (field-pointer op 'scalar_code)))))))
       ((= kind 7) (rv_lir_call context op))
       ((if (= kind 34) t (= kind 35)) (rv_lir_data_address context op))
+      ((= kind 36) (rv_lir_function_address context op))
       ((= kind 29) 1)
       ((= (ir_binary_kind_p kind) 1) (rv_lir_binary context op))
       (t (rv_lir_unary context op)))))

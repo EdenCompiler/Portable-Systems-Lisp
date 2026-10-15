@@ -189,6 +189,17 @@
                   (if (= (a64_word code #x90000009) 0) 0
                       (a64_word code #xf9400129))))))))
 
+(defun a64_lir_function_address (context op)
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_lir_instruction) op) (returns c-int))
+  (let ((code (deref (field-pointer context 'code)))
+        (destination (deref (field-pointer op 'destination))))
+    (if (= (native_encode_function_address
+            (deref (field-pointer context 'target)) code
+            (deref (field-pointer context 'function_addresses))
+            (deref (field-pointer op 'target))) 0) 0
+        (a64_store_frame code 9 (a64_local_offset destination))))
+)
 (defun a64_lir_value (context op)
   (declare (type (ptr native_compile_context) context) (type (ptr native_lir_instruction) op)
            (returns c-int))
@@ -208,6 +219,7 @@
                  (a64_normalize code 9 (deref (field-pointer op 'scalar_code)))))))
       ((= kind 7) (a64_lir_call context op))
       ((if (= kind 34) t (= kind 35)) (a64_lir_data_address context op))
+      ((= kind 36) (a64_lir_function_address context op))
       ((= kind 29) 1)
       ((= (ir_binary_kind_p kind) 1) (a64_lir_binary context op))
       (t (a64_lir_unary context op)))))

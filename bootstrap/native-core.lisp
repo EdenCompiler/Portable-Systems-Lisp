@@ -14,3 +14,4 @@
 (include "backend/x86_control.lisp")
 (include "compile_scalar.lisp")
 (include "driver.lisp")
+(include "backend/function_addresses.lisp")

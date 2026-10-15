@@ -208,9 +208,13 @@ is false in `if`; every other managed value is true. The `psl` extensions
 rejected in raw structure fields and raw pointer types because those locations
 are not traced.
 
-`#'(lambda (argument) ...)` captures visible `value` bindings and can be
-called with `funcall`; this first closure convention accepts one argument
-and returns one managed value. `(multiple-value-bind (a b) (values x y) ...)`
+`(lambda (argument) ...)`, `#'(lambda (argument) ...)`, and
+`(function (lambda (argument) ...))` capture visible `value` bindings and can be
+called with `(funcall closure value)`. Stage 0 and the native hosted compiler
+support this one-argument, one-managed-result convention on all four targets.
+Captures follow exact lexical identities, including nested returned closures,
+shadowing and parallel initializers. Unused machine bindings are omitted;
+a machine binding needed by a closure is rejected. `(multiple-value-bind (a b) (values x y) ...)`
 binds two managed values. The binding currently requires a direct `values`
 expression and two distinct variable names; NIL, T and keywords cannot be
 binding names. The initializer evaluates once, left to right, in the outer
@@ -233,8 +237,8 @@ The native bootstrap compiler has a smaller hosted managed contract. Explicit
 literals, NIL/T, `box-fixnum`, `unbox-fixnum`, `car`, `cdr`, `eq`, managed truth,
 UTF-8 string literals, `cons`, `collect-garbage`, `make-byte-string`, `string-byte`, `set-string-byte`,
 `make-symbol`, `symbol-name`, `package-name`, `make-package-from-name`,
-`intern-symbol`, the two-value `values`/`multiple-value-bind` subset, and
-direct/foreign calls on the four hosted targets.
+`intern-symbol`, the two-value `values`/`multiple-value-bind` subset, lexical
+closures and direct/foreign calls on the four hosted targets.
 Predicate results retain their Boolean IR type; use `if` to produce managed T/NIL
 in a `value` result. Functions with potentially collecting calls root all managed
 virtual words and original managed parameters until return. Parameter roots are
@@ -473,8 +477,8 @@ the native subset's types and spelling rules.
 Explicit libc imports such as `malloc` and `free` work; they do not become
 implicit runtime dependencies of other units.
 
-Managed compiler collections/named general byte data and aggregate signatures
-remain unsupported by the native subset. Import effect annotations and
+Managed compiler collections and named general byte data remain unsupported
+by the native subset. Import effect annotations and
 allocation-effect certification are implemented for the documented direct-call
 subset; unannotated imports remain unknown.
 
@@ -616,7 +620,8 @@ order, after verification and root lowering and before encoding. The default
 null pointer disables capture. A capacity failure stops compilation before the
 unit object is published; successfully captured earlier functions remain in the
 caller-owned buffer. Capturing text preserves generated object bytes. Native
-CLI dump options remain separate unfinished driver work.
+Generated closure bodies use stable `LAMBDA#N` labels and include verified
+function-address operations. CLI dump options remain unfinished driver work.
 
 ### Native output target selection
 

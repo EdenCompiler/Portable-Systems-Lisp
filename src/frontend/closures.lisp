@@ -49,9 +49,9 @@
           :from-end t
           :initial-value (make-hir :kind :literal :type :value :value 2)))
 
-(defun captured-binding-nodes (captures context)
+(defun captured-binding-nodes (captures environment-name context)
   (let ((tail (make-hir :kind :variable :type :value
-                        :value "%closure-environment"))
+                        :value environment-name))
         (bindings nil))
     (dolist (entry captures)
       (push (cons (car entry)
@@ -67,16 +67,21 @@
                  (analysis-context-lambda-counter context))
     (incf (analysis-context-lambda-counter context))))
 
+(defun simple-closure-parameter-p (parameter)
+  (and (symbolp parameter)
+       (not (member parameter lambda-list-keywords :test #'eq))))
+
 (defun analyze-lambda-expression (form environment context)
   (require-hosted-runtime context)
   (unless (and (>= (length form) 3)
                (listp (second form)) (= (length (second form)) 1)
-               (symbolp (first (second form))))
+               (simple-closure-parameter-p (first (second form))))
     (fail "hosted closures currently require one simple parameter"))
   (let* ((argument-name (lexical-name (first (second form))))
+         (environment-name (lexical-name (gensym "CLOSURE-ENVIRONMENT-")))
          (visible (visible-bindings environment argument-name))
          (name (next-lambda-name context))
-         (parameters (list (cons "%closure-environment" :value)
+         (parameters (list (cons environment-name :value)
                            (cons argument-name :value)))
          (signature (make-signature :name name :arguments '(:value :value)
                                     :result :value :external-p nil
@@ -85,7 +90,7 @@
                                    visible))
          (body (analyze-progn (cddr form) body-environment context :value))
          (captures (required-value-captures visible body argument-name))
-         (bindings (captured-binding-nodes captures context))
+         (bindings (captured-binding-nodes captures environment-name context))
          (wrapped (if bindings
                       (make-hir :kind :let :type :value :value bindings
                                 :children (list body))
