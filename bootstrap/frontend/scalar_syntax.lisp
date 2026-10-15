@@ -75,7 +75,7 @@
              (deref (field-pointer node 'length)))
             0))))
 
-(defun ast_variable_name_p (parser source reference)
+(defun ast_unresolved_variable_name_p (parser source reference)
   (declare (type (ptr psl_parser) parser)
            (type (ptr u8) source)
            (type usize reference) (returns c-int))
@@ -84,6 +84,31 @@
       (if (= (ast_word_p parser source reference #x74 1) 1)
           0
           (if (= (ast_word_p parser source reference #x6c696e 3) 1) 0 1))))
+
+(defun ast_resolved_variable_name_p (parser reference)
+  (declare (type (ptr psl_parser) parser) (type usize reference) (returns c-int))
+  (let ((identity (ast_symbol_identity parser reference))
+        (reader (deref (field-pointer parser 'environment))))
+    (if (= identity 0) 0
+        (let ((env (deref (field-pointer reader 'environment))))
+          (if (= (native_ct_symbol_valid_p env identity) 0) 0
+              (if (= identity (deref (field-pointer env 'nil_symbol))) 0
+                  (if (= identity (deref (field-pointer env 'true_symbol))) 0
+                      (let ((symbol (native_ct_symbol_at env identity)))
+                        (if (= (deref (field-pointer symbol 'package))
+                               (deref (field-pointer env 'keyword_package))) 0
+                            (if (= (deref (field-pointer symbol 'package)) 1)
+                                (if (= (deref (field-pointer symbol 'length)) 0) 1
+                                    (if (= (deref (pointer+ (deref (field-pointer env 'names))
+                                             (wrap-cast isize (deref (field-pointer symbol 'name))))) 38)
+                                        0 1)) 1))))))))))
+
+(defun ast_variable_name_p (parser source reference)
+  (declare (type (ptr psl_parser) parser) (type (ptr u8) source)
+           (type usize reference) (returns c-int))
+  (if (= (ptr-address (deref (field-pointer parser 'environment))) 0)
+      (ast_unresolved_variable_name_p parser source reference)
+      (ast_resolved_variable_name_p parser reference)))
 
 (defun ast_raw_names_equal_p (parser source left right)
   (declare (type (ptr psl_parser) parser) (type (ptr u8) source)

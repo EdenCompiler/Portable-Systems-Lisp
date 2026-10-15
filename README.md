@@ -78,6 +78,8 @@ four hosted targets. Native output still requires explicit runtime linking.
 `make test-native-ir` checks verified IR text and optional unit capture through the library API.
 `make test-native-function-addresses` checks native same-text code addresses;
 `make test-native-closures` checks lexical closures and captured root lifetimes.
+`make test-native-source-identities` checks escaped lexical bindings and captures;
+`make test-lexical-validation` checks duplicate rejection and nested shadowing.
 Natural integer, pointer and floating C records through 16 bytes pass by value in the native
 typed and hosted profiles on all four targets. `make test-native-word-aggregates`
 checks the smaller records; `make test-native-integer-aggregates` checks larger

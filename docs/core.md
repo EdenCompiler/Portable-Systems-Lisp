@@ -108,7 +108,8 @@ lexical variables, `let`, `progn`, three-operand `if`, direct calls, `psl:wrap+`
 `psl:ptr-cast`, `psl:ptr-from-address`, `psl:ptr-address`, and
 `psl:field-pointer`. The compile-time
 queries `psl:sizeof`, `psl:alignof`, and `psl:offset-of` accept quoted type or
-field designators. `let` initializers see the outer lexical environment;
+field designators. Duplicate variable identities in one `let` binding list
+are rejected; nested shadowing remains valid. Initializers see the outer lexical environment;
 `if` treats only `nil` as false, so integer zero is true. Unsupported forms
 produce a nonzero compiler exit and a diagnostic.
 
@@ -686,8 +687,11 @@ declarations, scalar/pointer types, layout names, ordinary calls, and lexical
 references use these identities. Standard package aliases, internal/external
 qualification, and uppercase escaped references therefore resolve consistently;
 `|VALUE|` refers to the parameter `value`, whereas `|value|` and `ffi::value`
-do not. C linker names retain their separate exact boundary rules. Binder and
-linker declarations still require the documented simple spelling subset.
+do not. C linker names retain their separate exact boundary rules. Lexical parameters, LET bindings, closure captures and multiple-value binders
+accept escaped lowercase names and preserve unrelated same-spelling package
+identities. NIL, T, keywords and canonical lambda-list markers remain invalid
+binders. C linker declarations and structure/field spellings retain their
+separate documented restrictions.
 
 Package presence can use a caller-supplied index with a power-of-two bucket
 count up to 1,024 per package, or the original linked search with count zero.

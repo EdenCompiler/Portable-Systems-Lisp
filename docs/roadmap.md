@@ -1627,3 +1627,23 @@ matches Stage 0, including both lexical-closure examples. The accepted minima
 now require every inventoried example. This example gate does not replace the
 complete source/object/interop corpus or the Stage 1–3 fixed-point gate; those
 remain open.
+
+
+### M8 escaped lexical binders and duplicate LET validation
+
+Native lexical binders now validate resolved symbol identities rather than raw
+token spelling. Escaped lowercase and unrelated package names remain distinct
+through parameters, LET, multiple-value bindings and closure captures. NIL, T,
+keywords and canonical lambda-list markers remain invalid binders; linker and
+layout-name restrictions are unchanged. Stage 0 rejects duplicate variable
+identities in one LET binding list while retaining parallel initialization and
+nested shadowing.
+
+The focused source-identity and lexical-validation gates passed on all four
+targets at O0/O1, with independent C O0/O2 callers, collecting managed captures,
+deterministic objects/diagnostics and invalid-source output checks. A fresh
+compile-only inventory accepts all 74 Stage 0 accepted top-level test units in
+the native compiler; its earlier three disagreements are resolved. All four
+production focused gates and smoke passed with unchanged compiler, runtime and
+test hashes. This inventory leaves the complete
+source/object/interop and Stage 1–3 fixed-point gate open.
