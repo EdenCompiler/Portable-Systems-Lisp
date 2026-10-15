@@ -1551,6 +1551,9 @@ exclusion, exact signed-zero/infinity/NaN bits, repeated objects and receiving
 API failures. All four full native regressions passed on the repaired inputs;
 all four production focused gates and smoke also passed. The separately
 published object CLI was checked with this record implementation on all four
-targets. Packed records by value, whole-record raw memory, extents over
-16 bytes, remaining source/driver ports and the complete M8 Stage 1–3 gates
-remain open.
+targets. A fresh x86-64 hosted O0/O1 example inventory accepts 29 of 31
+examples with matching Stage 0 linked behavior; its only remaining gaps are
+the two lexical closure examples. The accepted minima now include floating
+and mixed-record examples. Packed records by value, whole-record raw memory,
+extents over 16 bytes, remaining source/driver ports and the complete M8
+Stage 1–3 gates remain open.

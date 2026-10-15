@@ -1,9 +1,9 @@
 # source	minimum native status	remaining capability	execution
 # This inventories examples, not the complete M8 source/object/interop corpus.
 # A gap may start accepting as a port progresses; an accepted row may not regress.
-# Accepted minima reflect published natural integer/pointer records through 16 bytes.
-examples/abi/aarch64_hfa.lisp	gap	floating and aggregate ABI values	harness
-examples/abi/aggregate.lisp	gap	floating and aggregate ABI values	harness
+# Accepted minima include published natural integer/pointer/floating C records through 16 bytes.
+examples/abi/aarch64_hfa.lisp	accepted	-	harness
+examples/abi/aggregate.lisp	accepted	-	harness
 examples/abi/float.lisp	accepted	-	harness
 examples/abi/layout.lisp	accepted	-	harness
 examples/abi/riscv64_edges.lisp	accepted	-	harness
