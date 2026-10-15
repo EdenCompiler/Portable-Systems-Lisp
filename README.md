@@ -58,8 +58,9 @@ POSIX path service, driver, output writer, and diagnostic renderer into `build/n
 `build/native-diagnostics.o`, then links the process entry and primitive stdio adapter.
 The small C toolchain adapter is used only when a unit explicitly declares
 `ffi:source`; PSL still encodes its own machine code and object records.
-`build/pslcc-native [-O0|-O1] [--target=TARGET] [--profile=freestanding|hosted] SOURCE OUTPUT.o` accepts the
-[documented bootstrap subset](bootstrap/README.md); it is not yet the complete
+`build/pslcc-native -c SOURCE -o OUTPUT.o [-O0|-O1] [--target=TARGET] [--profile=freestanding|hosted]` accepts the
+[documented bootstrap subset](bootstrap/README.md). The legacy `SOURCE OUTPUT.o`
+syntax also works; options may appear before or after the source. It is not yet the complete
 Stage 0 compiler. `make example` uses Stage 0 to build and run a pure Lisp
 program. Use `make help` for native generation checks, cross-target tests,
 cleanup, and build variables. For example, `make PSLFLAGS=-O0` selects

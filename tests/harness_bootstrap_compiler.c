@@ -14,6 +14,7 @@ static size_t event_count, reads, prepares, compiles, writes, releases;
 static uintptr_t phase;
 static uint32_t expected_optimization = 1;
 static uint32_t expected_target = NATIVE_TARGET_X86_64_LINUX;
+static uint32_t expected_profile;
 static struct psl_ast_node nodes[3];
 static struct native_signature signatures[2];
 static struct native_function functions[2];
@@ -82,6 +83,7 @@ int native_compile_unit(struct native_compile_context *context, struct byte_buff
     assert(context->parser->nodes == nodes && context->source);
     assert(context->optimization == expected_optimization);
     assert(context->target == expected_target);
+    assert(context->profile == expected_profile);
     assert(object->data == object_bytes && object->length == sizeof object_bytes);
     assert(!result->phase && !result->form && !result->index);
     if (scenario != COMPILE_FAILURE) return 1;
@@ -200,9 +202,10 @@ static void check_target_arguments(void) {
     }
     char *duplicates[] = {"pslcc-native", "--target=aarch64-linux-gnu",
         "--target=x86_64-linux-gnu", "source.lisp", "result.o", NULL};
+    expected_target = NATIVE_TARGET_X86_64_LINUX;
     reset(SUCCESS);
-    assert(native_compiler_main(5, duplicates) == 2);
-    assert(event_count == 1 && events[0].kind == NATIVE_HOST_USAGE && !reads && !releases);
+    assert(native_compiler_main(5, duplicates) == 0);
+    assert(!event_count && reads == 1 && writes == 1 && releases == 1);
     reset(SUCCESS);
     assert(native_run_compiler_target("source.lisp", "result.o", 1, 4) == 2);
     assert(event_count == 1 && events[0].kind == NATIVE_HOST_USAGE && !reads && !releases);
@@ -243,6 +246,71 @@ static void check_arguments(void) {
     expected_optimization = 1;
 }
 
+static void check_object_arguments(void) {
+    const char *targets[] = {"x86_64-linux-gnu", "aarch64-linux-gnu",
+                            "riscv64-linux-gnu", "x86_64-windows-gnu"};
+    for (uint32_t target = 0; target < 4; target++) {
+        for (uint32_t profile = 0; profile < 2; profile++) {
+            for (uint32_t level = 0; level < 2; level++) {
+                char *args[] = {"pslcc-native", "--target", (char *)targets[target],
+                    "-c", "source.lisp", "--profile", profile ? "hosted" : "freestanding",
+                    "-o", "result.o", level ? "-O1" : "-O0", NULL};
+                expected_target = target;
+                expected_profile = profile;
+                expected_optimization = level;
+                reset(SUCCESS);
+                assert(native_compiler_main(10, args) == 0);
+                assert(reads == 1 && writes == 1 && releases == 1 && !event_count);
+                struct {
+                    uint64_t before;
+                    struct native_cli_options options;
+                    uint64_t after;
+                } parsed = {.before = UINT64_C(0x12345678abcdef01),
+                            .after = UINT64_C(0xabcdef0123456789)};
+                reset(SUCCESS);
+                assert(native_parse_cli_options(10, (const char *const *)args,
+                                                &parsed.options));
+                assert(!reads && !prepares && !compiles && !writes && !releases);
+                assert(parsed.before == UINT64_C(0x12345678abcdef01));
+                assert(parsed.after == UINT64_C(0xabcdef0123456789));
+                assert(parsed.options.optimization == level);
+                assert(parsed.options.target == target && parsed.options.profile == profile);
+                assert(!strcmp((const char *)parsed.options.source, "source.lisp"));
+                assert(!strcmp((const char *)parsed.options.output, "result.o"));
+            }
+        }
+    }
+    expected_optimization = 1;
+    expected_target = NATIVE_TARGET_X86_64_LINUX;
+    expected_profile = 0;
+    char *last_wins[] = {"pslcc-native", "-O0", "--profile=hosted", "-c",
+        "-o", "unused.o", "source.lisp", "-O1", "--profile", "freestanding",
+        "-o", "result.o", NULL};
+    reset(SUCCESS);
+    assert(native_compiler_main(12, last_wins) == 0);
+    assert(reads == 1 && writes == 1 && releases == 1 && !event_count);
+
+    char *bad[][8] = {
+        {"pslcc-native", "-c", "source.lisp", NULL},
+        {"pslcc-native", "-c", "source.lisp", "-o", NULL},
+        {"pslcc-native", "-c", "-o", "result.o", NULL},
+        {"pslcc-native", "source.lisp", "-o", "result.o", NULL},
+        {"pslcc-native", "-c", "source.lisp", "result.o", NULL},
+        {"pslcc-native", "-c", "source.lisp", "-o", "result.o", "extra", NULL},
+        {"pslcc-native", "--target", "riscv64-none-elf", "source.lisp", "result.o", NULL},
+        {"pslcc-native", "--profile", "unknown", "source.lisp", "result.o", NULL},
+        {"pslcc-native", "--emit=exe", "source.lisp", "result.o", NULL}
+    };
+    for (size_t index = 0; index < sizeof bad / sizeof *bad; index++) {
+        int argc = 0;
+        while (bad[index][argc]) argc++;
+        reset(SUCCESS);
+        assert(native_compiler_main(argc, bad[index]) == 2);
+        assert(event_count == 1 && events[0].kind == NATIVE_HOST_USAGE);
+        assert(!reads && !prepares && !compiles && !writes && !releases);
+    }
+}
+
 int main(void) {
     check_run(SUCCESS, 0);
     assert(!event_count);
@@ -256,6 +324,7 @@ int main(void) {
     check_compilation_errors();
     check_arguments();
     check_target_arguments();
+    check_object_arguments();
 #ifdef PSL_TEST_ALLOCATOR_FAULTS
     reset(SUCCESS);
     fail_state = 1;

@@ -70,7 +70,8 @@ bootstrap/
   *_types.lisp         shared record layouts, without compiler algorithms
   host/
     macro_storage.lisp  explicit hosted ownership of macro definition/binding arenas
-    compiler.lisp      CLI argument validation and compilation flow
+    compiler.lisp      CLI execution, compilation flow and owned cleanup
+    compiler_cli_options.lisp  caller-owned object CLI parsing without I/O
     compiler_diagnostics.lisp  failure phase and source-location selection
     compiler_types.lisp, compiler_imports.lisp  state and typed module/host ABI
     compiler.h        compiler diagnostic ABI constants

@@ -1,5 +1,5 @@
-;; Bounded, NUL-aware option matching. Source/output remain two positional
-;; paths; the complete Stage 0 CLI is a separate remaining driver port.
+;; Bounded, NUL-aware inline target matching. CLI argument ownership and
+;; path/option ordering are handled by compiler_cli_options.lisp.
 (defun compiler_text_matches (text bits remaining)
   (declare (type (ptr u8) text) (type u64 bits) (type usize remaining) (returns c-int))
   (if (= remaining 0) 1

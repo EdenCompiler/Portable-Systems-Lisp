@@ -73,7 +73,9 @@
        (diagnostic_write_line
         stream
         (ffi:c-string
-         "usage: pslcc-native-slice [-O0|-O1] [--target=x86_64-linux-gnu|--target=aarch64-linux-gnu|--target=riscv64-linux-gnu|--target=x86_64-windows-gnu] [--profile=freestanding|hosted] SOURCE.lisp OUTPUT.o")))
+         "usage: pslcc-native-slice -c SOURCE.lisp -o OUTPUT.o [-O0|-O1] [--target=TARGET] [--profile=freestanding|hosted]"))
+       (diagnostic_write_line stream
+         (ffi:c-string "legacy object syntax: pslcc-native-slice [OPTIONS] SOURCE.lisp OUTPUT.o")))
       ((= kind 6)
        (diagnostic_write_position stream
                                   (ffi:c-string "cannot register layout at byte ")

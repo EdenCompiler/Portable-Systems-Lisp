@@ -1,4 +1,4 @@
-;; At most one optimization, target, and profile option, in any order.
+;; Shared matching for inline optimization, target, and profile options.
 (defun compiler_parse_profile (text)
   (declare (type (ptr u8) text) (returns c-int))
   (if (= (compiler_text_matches text #x6c69666f72702d2d 8) 0) -1
@@ -25,24 +25,3 @@
    (cond ((= kind 1) (compiler_parse_optimization text))
          ((= kind 2) (compiler_parse_target text))
          (t (compiler_parse_profile text)))))
-
-(defun compiler_parse_options_from (argv index end optimization target profile seen)
-  (declare (type (ptr (ptr u8)) argv) (type usize index end)
-           (type u32 optimization target profile seen) (returns c-int))
-  (if (= index end)
-      (native_run_compiler_profile
-       (deref (pointer+ argv (wrap-cast isize end)))
-       (deref (pointer+ argv (wrap-cast isize (wrap+ end 1)))) optimization target profile)
-      (let ((text (deref (pointer+ argv (wrap-cast isize index)))))
-        (let ((kind (compiler_option_kind text)))
-          (if (if (= kind 0) t (< 0 (bits-and seen kind)))
-              (compiler_path_error 5 (ptr-from-address (ptr u8) 0))
-              (let ((value (compiler_option_value text kind)))
-                (compiler_parse_options_from argv (wrap+ index 1) end
-                 (if (= kind 1) value optimization)
-                 (if (= kind 2) value target)
-                 (if (= kind 4) value profile) (wrap+ seen kind))))))))
-
-(defun compiler_main_parsed (argc argv)
-  (declare (type c-int argc) (type (ptr (ptr u8)) argv) (returns c-int))
-  (compiler_parse_options_from argv 1 (wrap-cast usize (wrap- argc 2)) 1 0 0 0))

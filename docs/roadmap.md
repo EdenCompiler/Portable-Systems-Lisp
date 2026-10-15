@@ -1512,3 +1512,22 @@ passed. All four full native regressions passed on matching isolated inputs;
 all four production focused gates and production smoke passed before publication.
 Floating/mixed records, closures, managed compiler collections,
 remaining source/driver ports and the complete M8 Stage 1–3 gates remain open.
+
+### M8 native object command-line spelling
+
+The native compiler accepts Stage 0's object syntax `-c SOURCE -o OUTPUT`,
+options before or after the source, separate target/profile values, and repeated
+options with the last value taking effect. Legacy two-path invocation remains
+available. Parsing lives behind the exported caller-owned
+`native_parse_cli_options` API; execution and cleanup remain in the PSL
+controller. Invalid invocation does not load source or publish output.
+
+`tests/bootstrap_native_cli.sh` compares modern and legacy object bytes, runs
+independent C callers for native/Stage0 objects, and executes controller modules
+compiled by native and Stage0 compilers at O0/O1 against C O0/O2 harnesses.
+The harness checks parser record canaries, profiles, option ordering, missing
+values and cleanup. A malformed invocation preserves an existing output file.
+All four target gates and smoke passed on a fresh isolated compiler and the
+production tree. Native
+executable/library linking, freestanding target/CLI expansion, IR and diagnostic
+parity and the complete M8 Stage 1–3 gate remain open.

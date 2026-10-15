@@ -14,7 +14,7 @@ From a fresh checkout on x86-64 Linux:
 
 ```sh
 make
-build/pslcc-native examples/basic/standalone.lisp build/standalone.o
+build/pslcc-native -c examples/basic/standalone.lisp -o build/standalone.o
 ./pslcc -c bootstrap/native-core.lisp -o /tmp/psl-native-core.o
 sh tests/bootstrap_modules.sh
 sh tests/bootstrap_binary.sh
@@ -26,6 +26,14 @@ sh tests/bootstrap_elf64.sh
 sh tests/bootstrap_native_compiler.sh
 sh tests/bootstrap_self_core.sh
 ```
+
+The object CLI accepts `-c SOURCE -o OUTPUT` and the legacy `SOURCE OUTPUT`
+syntax. `-O0`/`-O1`, `--target=TARGET`, and `--profile=PROFILE` may appear anywhere;
+`--target TARGET` and `--profile PROFILE` are also accepted. Repeated options
+use their last value, matching Stage 0. The modern syntax requires `-c` because
+native executable and library linking remain open. `native_parse_cli_options`
+provides a caller-owned record API without I/O; a failed parse may leave partial
+options. Invalid arguments are rejected before source loading or output writes.
 
 The native modules currently implement:
 

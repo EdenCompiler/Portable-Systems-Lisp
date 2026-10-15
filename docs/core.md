@@ -492,12 +492,18 @@ imports `calloc` and `free`; the native core remains free of unresolved symbols.
 `bootstrap/host/compiler.lisp` exposes `native_run_compiler(source, output)`
 and `native_compiler_main(argc, argv)`. It owns source loading, preparation,
 unit compilation, output selection, and cleanup, and maps failing phases to
-diagnostic locations. The native subset CLI takes `[-O0|-O1] [--target=TARGET] SOURCE.lisp OUTPUT.o`;
-it does not yet accept Stage 0's other options. Supported native targets are
+diagnostic locations. The native object CLI accepts `-c SOURCE.lisp -o OUTPUT.o`
+and legacy `SOURCE.lisp OUTPUT.o`, with `-O0`/`-O1`, target and profile options
+in any order. Both `--target=TARGET`/`--target TARGET` and
+`--profile=PROFILE`/`--profile PROFILE` work; repeated options use their last
+value. The modern spelling requires `-c`; executable/library linking and IR
+dump options remain open. `native_parse_cli_options` takes caller-owned storage
+and performs no I/O. Supported native targets are
 `x86_64-linux-gnu`, `x86_64-windows-gnu`, `aarch64-linux-gnu`, and
 `riscv64-linux-gnu`. Status is 0 on
 success, 1 for rejected language input, and 2 for usage, I/O, or allocation
-failure. Arguments are inspected only for the expected count. Repeated run
+failure. Arguments are checked for missing values, extra paths, malformed
+options and unsupported output modes before source loading. Repeated run
 calls allocate independent state and release it on every return. The temporary
 C adapters write objects, render messages selected by the PSL driver, and
 invoke the selected conventional C compiler for explicit `ffi:source` units.
