@@ -1578,3 +1578,21 @@ failures. All four isolated and production target gates and smoke passed.
 A separate production API caller captured the complete native core twice at
 O1: both 34,211,401-byte texts matched, both emitted objects matched, and those
 objects also matched compilation with capture disabled.
+
+### M8 native build-host lexical LET
+
+The native macro evaluator supports parallel lexical LET with ordered outer
+initializers, nested shadowing, bare/default NIL bindings and body sequencing.
+Malformed, duplicate and constant variable bindings reject expansion with
+rollback. Common Lisp constants are checked by symbol owner and stored name,
+including macro lambda-list variables; unrelated same-spelling symbols remain
+bindable. Checking does not mutate the environment or need spare name capacity.
+
+`tests/bootstrap_macros.sh` verifies native and Stage 0 source behavior,
+independent C API observations, exact symbol identities, full name arenas,
+capacity/evaluation rollback, constant macro parameters and host-Lisp-free native
+expansion at O0/O1. The companion oracle independently enumerates SBCL's
+external COMMON-LISP symbols satisfying CONSTANTP and matches all 62 names in
+the rejection fixture. All four production target gates and smoke passed.
+General build-host calls, destructuring/environment parameters, EVAL-WHEN,
+managed compiler collections and the complete M8 Stage 1–3 gates remain open.

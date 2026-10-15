@@ -7,8 +7,9 @@ target=${2:-x86_64-linux-gnu}
 bootstrap_test_runner_init "$target"
 work_dir=$(mktemp -d)
 trap 'rm -rf "$work_dir"' EXIT HUP INT TERM
+sh "$project_root/tests/bootstrap_macro_constant_oracle.sh"
 for level in 0 1; do
-  for fixture in macros macro_rest macro_optional macro_aux macro_whole macro_control macro_sequence macro_lists macro_declarations macro_keys; do
+  for fixture in macros macro_rest macro_optional macro_aux macro_whole macro_control macro_sequence macro_lists macro_declarations macro_keys macro_let; do
   source=$project_root/tests/bootstrap_$fixture.lisp
   run_compiler_host "$compiler" "-O$level" --target="$target" "$source" "$work_dir/native.o"
   run_compiler_host "$compiler" "-O$level" --target="$target" "$source" "$work_dir/repeat.o"
@@ -29,7 +30,7 @@ for level in 0 1; do
   run_compiler_host "$compiler" "-O$level" --target="$target" "$source" "$work_dir/api-native.o"
   "$project_root/pslcc" "-O$level" --target="$target" -c "$source" -o "$work_dir/api-stage0.o"
   for version in native stage0; do
-    for fixture in macro_api macro_optional_api macro_aux_api macro_whole_api macro_control_api macro_sequence_api macro_lists_api macro_declarations_api macro_keys_api; do
+    for fixture in macro_api macro_optional_api macro_aux_api macro_whole_api macro_control_api macro_sequence_api macro_lists_api macro_declarations_api macro_keys_api macro_let_api; do
       "$target_cc" -O2 -std=c11 -Wall -Wextra -Werror \
         "$project_root/tests/harness_bootstrap_$fixture.c" "$work_dir/api-$version.o" \
         -o "$work_dir/api-check$target_suffix"
@@ -56,7 +57,7 @@ for level in 0 1; do
 done
 # Prove Linux native expansion needs no host Lisp executable or tool subprocess.
 if test "$compiler_host_target" = x86_64-linux-gnu; then
-  for fixture in macros macro_rest macro_optional macro_aux macro_whole macro_control macro_sequence macro_lists macro_declarations macro_keys; do
+  for fixture in macros macro_rest macro_optional macro_aux macro_whole macro_control macro_sequence macro_lists macro_declarations macro_keys macro_let; do
     PATH=/nonexistent "$compiler" --target="$target" "$project_root/tests/bootstrap_$fixture.lisp" "$work_dir/without-host-lisp.o"
   done
 fi

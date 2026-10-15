@@ -1,0 +1,116 @@
+(defun native_macro_let_name_p (call reference)
+  (declare (type (ptr native_macro_call) call) (type usize reference) (returns c-int))
+  (native_macro_parameter_p (deref (field-pointer call 'registry)) reference))
+
+(defun native_macro_let_spec_name (call specification)
+  (declare (type (ptr native_macro_call) call) (type usize specification) (returns usize))
+  (let ((parser (native_macro_call_parser call)) (registry (deref (field-pointer call 'registry))))
+    (if (= specification 0) (native_macro_call_fail call 10)
+        (let ((node (parser_node parser specification)))
+          (if (= (deref (field-pointer node 'kind)) 1)
+          (let ((name (deref (field-pointer node 'first))))
+            (let ((init (native_macro_next registry name)))
+              (if (if (= name 0) nil (if (= init 0) t (= (native_macro_next registry init) 0)))
+                  (if (= (native_macro_let_name_p call name) 1) name (native_macro_call_fail call 10))
+                  (native_macro_call_fail call 10))))
+          (if (= (native_macro_let_name_p call specification) 1) specification
+              (native_macro_call_fail call 10)))))))
+
+(defun native_macro_let_spec_initializer (call specification)
+  (declare (type (ptr native_macro_call) call) (type usize specification) (returns usize))
+  (let ((registry (deref (field-pointer call 'registry))) (parser (native_macro_call_parser call)))
+    (if (= specification 0) 0
+        (let ((node (parser_node parser specification)))
+          (if (= (deref (field-pointer node 'kind)) 1)
+              (native_macro_next registry (deref (field-pointer node 'first))) 0)))))
+
+(defun native_macro_let_duplicate_before_p (call specifications target symbol)
+  (declare (type (ptr native_macro_call) call) (type usize specifications target symbol) (returns c-int))
+  (if (= specifications target) 0
+      (if (= specifications 0) 0
+          (let ((registry (deref (field-pointer call 'registry))) (parser (native_macro_call_parser call)))
+            (if (= (ast_symbol_identity parser (native_macro_let_spec_name call specifications)) symbol) 1
+                (native_macro_let_duplicate_before_p call (native_macro_next registry specifications) target symbol))))))
+
+(defun native_macro_let_validate (call specifications)
+  (declare (type (ptr native_macro_call) call) (type usize specifications) (returns usize))
+  (let ((parser (native_macro_call_parser call)) (registry (deref (field-pointer call 'registry)))
+        (tree (native_macro_tree call)))
+    (if (= specifications 0) (native_macro_call_fail call 10)
+        (let ((nil-symbol (deref (field-pointer (deref (field-pointer (deref (field-pointer parser 'environment)) 'environment)) 'nil_symbol))))
+      (if (= (ast_symbol_identity parser specifications) nil-symbol) 0
+          (if (= (deref (field-pointer (parser_node parser specifications) 'kind)) 1)
+              (progn
+                (store (field-pointer tree 'cursor) (deref (field-pointer (parser_node parser specifications) 'first)))
+                (store (field-pointer tree 'last) 0)
+                (while (< 0 (deref (field-pointer tree 'cursor)))
+                  (let ((specification (deref (field-pointer tree 'cursor))))
+                    (let ((name (native_macro_let_spec_name call specification)))
+                      (if (= (deref (field-pointer call 'error)) 0)
+                          (if (= (native_macro_let_duplicate_before_p call
+                                   (deref (field-pointer (parser_node parser specifications) 'first))
+                                   specification (ast_symbol_identity parser name)) 1)
+                              (native_macro_call_fail call 10) (wrap-cast usize 0)) (wrap-cast usize 0)))
+                    (store (field-pointer tree 'last) (wrap+ (deref (field-pointer tree 'last)) 1))
+                    (store (field-pointer tree 'cursor)
+                           (if (= (deref (field-pointer call 'error)) 0)
+                               (native_macro_next registry specification) 0))))
+                (deref (field-pointer tree 'last)))
+              (native_macro_call_fail call 10)))))))
+
+(defun native_macro_let_stage_initializers (call specifications base offset)
+  (declare (type (ptr native_macro_call) call) (type usize specifications base offset) (returns c-int))
+  (if (= specifications 0) 1
+      (let ((registry (deref (field-pointer call 'registry))) (parser (native_macro_call_parser call)))
+        (let ((slot (native_macro_binding_at call (wrap+ base offset)))
+              (initializer (native_macro_let_spec_initializer call specifications)))
+          (store (field-pointer slot 'symbol) 0)
+          (store (field-pointer slot 'form) initializer)
+          (native_macro_let_stage_initializers call (native_macro_next registry specifications) base (wrap+ offset 1))))))
+
+(defun native_macro_let_evaluate_initializers (call specifications base offset)
+  (declare (type (ptr native_macro_call) call) (type usize specifications base offset) (returns c-int))
+  (if (= specifications 0) 1
+      (let ((registry (deref (field-pointer call 'registry))) (parser (native_macro_call_parser call)))
+        (let ((slot (native_macro_binding_at call (wrap+ base offset)))
+              (initializer (deref (field-pointer (native_macro_binding_at call (wrap+ base offset)) 'form))))
+          (store (field-pointer slot 'form)
+                 (if (= initializer 0) (native_macro_boolean_form call specifications 0)
+                     (native_macro_eval call initializer)))
+          (if (= (deref (field-pointer call 'error)) 0)
+              (native_macro_let_evaluate_initializers call (native_macro_next registry specifications) base (wrap+ offset 1)) 0)))))
+
+(defun native_macro_let_install_names (call specifications base offset)
+  (declare (type (ptr native_macro_call) call) (type usize specifications base offset) (returns c-int))
+  (if (= specifications 0) 1
+      (let ((registry (deref (field-pointer call 'registry))) (parser (native_macro_call_parser call)))
+        (let ((slot (native_macro_binding_at call (wrap+ base offset))))
+          (store (field-pointer slot 'symbol)
+                 (ast_symbol_identity parser (native_macro_let_spec_name call specifications)))
+          (native_macro_let_install_names call (native_macro_next registry specifications) base (wrap+ offset 1))))))
+
+(defun native_macro_eval_let (call head)
+  (declare (type (ptr native_macro_call) call) (type usize head) (returns usize))
+  (let ((registry (deref (field-pointer call 'registry))) (parser (native_macro_call_parser call)))
+    (let ((arguments (native_macro_next registry head)))
+      (if (= arguments 0) (native_macro_call_fail call 2)
+          (let ((body (native_macro_next registry arguments)))
+            (let ((base (deref (field-pointer call 'count)))
+                  (bindings (native_macro_let_validate call arguments)))
+                  (if (< 0 (deref (field-pointer call 'error))) 0
+                      (if (< (deref (field-pointer call 'capacity)) base)
+                          (native_macro_call_fail call 1)
+                          (if (< (wrap- (deref (field-pointer call 'capacity)) base) bindings)
+                              (native_macro_call_fail call 1)
+                              (let ((specifications (deref (field-pointer (parser_node parser arguments) 'first))))
+                                (if (= (native_macro_let_stage_initializers call specifications base 1) 0)
+                                    (native_macro_call_fail call 10)
+                                    (progn
+                                      (store (field-pointer call 'count) (wrap+ base bindings))
+                                      (if (= (native_macro_let_evaluate_initializers call specifications base 1) 0)
+                                          (progn (store (field-pointer call 'count) base) 0)
+                                          (progn
+                                            (native_macro_let_install_names call specifications base 1)
+                                            (let ((result (native_macro_eval_sequence call body)))
+                                              (store (field-pointer call 'count) base)
+                                              result)))))))))))))))

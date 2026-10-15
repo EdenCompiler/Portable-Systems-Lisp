@@ -38,7 +38,7 @@
 
 (defun native_macro_bound_form (call symbol)
   (declare (type (ptr native_macro_call) call) (type usize symbol) (returns usize))
-  (native_macro_bound_form_from call symbol 1))
+  (if (= symbol 0) 0 (native_macro_bound_form_from call symbol 1)))
 
 (defun native_macro_tree (call)
   (declare (type (ptr native_macro_call) call) (returns (ptr native_tree_context)))

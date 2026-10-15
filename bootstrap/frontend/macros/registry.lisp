@@ -3,6 +3,7 @@
 (include "../environment/operations.lisp")
 (include "../symbols.lisp")
 (include "../identity_syntax.lisp")
+(include "constant_names.lisp")
 
 (defun native_macro_fail (registry error)
   (declare (type (ptr native_macro_registry) registry) (type u32 error) (returns usize))
@@ -52,6 +53,7 @@
           (cond
             ((= symbol (deref (field-pointer env 'nil_symbol))) 0)
             ((= symbol (deref (field-pointer env 'true_symbol))) 0)
+            ((= (native_macro_cl_constant_name_p (native_macro_parser registry) reference) 1) 0)
             ((= (deref (field-pointer (native_ct_symbol_at env symbol) 'package))
                 (deref (field-pointer env 'keyword_package))) 0)
             ((= (deref (field-pointer (native_ct_symbol_at env symbol) 'length)) 0) 1)

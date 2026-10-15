@@ -832,6 +832,18 @@ substituted elements retain caller origins. A failed element evaluation or
 partial construction restores both syntax and identity arenas. These bounded
 compile-time syntax lists do not provide target managed-cons support.
 
+The native build-host evaluator supports parallel `let` bindings. Initializers
+evaluate left to right in the outer environment, then their bindings become
+visible together in the body. Bare names and omitted initializers bind NIL;
+empty bindings and empty bodies are accepted. The last body value is returned.
+Nested lexical bindings preserve symbol identity and restore outer bindings.
+Malformed or duplicate bindings, lambda-list markers, keywords and standard
+Common Lisp constant names cannot be bound. Constant recognition reads the
+actual Common Lisp symbol owner and stored name, without interning names or
+requiring spare name capacity; another package's same-spelling symbol remains
+an ordinary variable. The same constant-name restriction applies to native
+macro lambda-list variables. Failed evaluation restores syntax and bindings.
+
 Native macro body prefixes accept Common Lisp `declare` forms containing
 `ignore` and `ignorable` specifications. These declarations do not evaluate
 variable names or consume invocation arguments. An optional documentation

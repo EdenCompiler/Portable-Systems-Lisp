@@ -55,7 +55,7 @@ linker/
 bootstrap/
   frontend/environment/  caller-owned build-host package/symbol tables and token decoding
   frontend/package_form*.lisp  name decoding, option validation and ordered package actions
-  frontend/macros/       build-host macro registry, argument binding, AST rewrites and verification
+  frontend/macros/       build-host macro registry, lexical evaluation, AST rewrites and verification
   native-core.lisp      source unit including the ported compiler components
   driver_effects.lisp  unit fixed-point inference and allocation certification
   driver_inline.lisp   verified pure SSA template collection for a source unit
