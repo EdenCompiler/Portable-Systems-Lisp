@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Audit every example against Stage 0 and compare native compiler generations.
 
-This is an x86-64 Linux development gate. Passing it does not certify M8: the
-complete compiler manifest, IR/CLI/profile parity and cross-host gates are separate.
+This is an x86-64 Linux hosted-profile development gate. Passing it does not
+certify M8: the complete compiler manifest, other profile parity, and cross-host
+gates are separate.
 """
 
 import argparse
@@ -19,10 +20,13 @@ import tempfile
 
 
 ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_COMMAND_TIMEOUT = 300
+COMMAND_TIMEOUT = DEFAULT_COMMAND_TIMEOUT
 
 
 def run(command):
-    return subprocess.run(command, cwd=ROOT, capture_output=True, timeout=120)
+    return subprocess.run(command, cwd=ROOT, capture_output=True,
+                          timeout=COMMAND_TIMEOUT)
 
 
 def require_success(result, description):
@@ -55,14 +59,18 @@ def load_manifest():
     return rows
 
 
-def compile_source(compiler, source, output, level, stage0=False):
-    command = [str(compiler), f"-O{level}"]
+def compile_command(compiler, source, output, level, stage0=False):
+    command = [str(compiler), f"-O{level}", "--target=x86_64-linux-gnu",
+               "--profile=hosted"]
     if stage0:
-        command += ["--target=x86_64-linux-gnu", "--profile=hosted", "-c", str(source),
-                    "-o", str(output)]
+        command += ["-c", str(source), "-o", str(output)]
     else:
-        command += ["--target=x86_64-linux-gnu", str(source), str(output)]
-    result = run(command)
+        command += [str(source), str(output)]
+    return command
+
+
+def compile_source(compiler, source, output, level, stage0=False):
+    result = run(compile_command(compiler, source, output, level, stage0))
     if output.exists() != (result.returncode == 0):
         raise RuntimeError(f"invalid artifact outcome for {source}: status {result.returncode}")
     return result
@@ -153,10 +161,16 @@ def main():
     parser.add_argument("--native", action="append", type=Path,
                         help="native compiler path; repeat to compare generations in order")
     parser.add_argument("--stage0", type=Path, default=ROOT / "pslcc")
+    parser.add_argument("--command-timeout", type=int, default=DEFAULT_COMMAND_TIMEOUT,
+                        help="timeout in seconds for each compiler, linker, and inspection command")
     parser.add_argument("--report", type=Path, help="write seed, binary hashes and per-example JSON evidence")
     parser.add_argument("--require-parity", action="store_true",
                         help="fail when any Stage 0 example is still a native gap; this is not the full M8 gate")
     args = parser.parse_args()
+    if args.command_timeout <= 0:
+        parser.error("--command-timeout must be positive")
+    global COMMAND_TIMEOUT
+    COMMAND_TIMEOUT = args.command_timeout
     compilers = [path.resolve() for path in (args.native or [Path(os.environ.get(
         "PSL_NATIVE_COMPILER", ROOT / "build/pslcc-native"))])]
     stage0 = args.stage0.resolve()
@@ -167,8 +181,11 @@ def main():
                                            shlex.split(os.environ.get("CC", "cc")))
         gaps = sum(row["status"] == "gap" for row in evidence)
         sbcl = Path(shutil.which("sbcl") or "sbcl")
-        report = {"scope": "all repository examples, x86-64 Linux hosted object compilation, O0/O1",
-                  "m8_complete": False, "seed_version": run([str(sbcl), "--version"]).stdout.decode().strip(),
+        report = {"scope": "repository example inventory; x86-64 Linux; hosted profile; object compilation; O0/O1",
+                  "m8_complete": False,
+                  "full_source_object_interop_corpus_and_stage1_3": "open",
+                  "command_timeout_seconds": COMMAND_TIMEOUT,
+                  "seed_version": run([str(sbcl), "--version"]).stdout.decode().strip(),
                   "seed_sha256": digest(sbcl), "stage0_launcher_sha256": digest(stage0),
                   "example_manifest_sha256": digest(ROOT / "tests/bootstrap_example_corpus.tsv"),
                   "stage0_source_sha256": {str(path.relative_to(ROOT)): digest(path)
@@ -178,7 +195,7 @@ def main():
         if args.report:
             args.report.write_text(json.dumps(report, indent=2) + "\n")
         print(f"PSL example corpus: {len(evidence) - gaps}/{len(evidence)} native accepted; {gaps} gaps")
-        print("This development gate does not certify the complete M8 corpus or Stage 1–3.")
+        print("This example-only x86-64 hosted gate leaves the full source/object/interop corpus and Stage 1–3 open.")
         return 1 if args.require_parity and gaps else 0
     except (OSError, RuntimeError, subprocess.TimeoutExpired) as error:
         print(f"PSL example corpus failure: {error}", file=sys.stderr)

@@ -7,6 +7,10 @@ matching `harness_*.c` files. The `ffi:source` examples keep their C source
 in the same directory because PSL resolves that path relative to the Lisp
 file.
 
+`make test-bootstrap-corpus` compares these examples with Stage 0 on x86-64
+Linux using the hosted profile at O0/O1. Its report lists remaining native gaps;
+this example inventory does not establish complete M8 bootstrap coverage.
+
 ## Native Lisp programs
 
 - [arithmetic.lisp](native/arithmetic.lisp): functions, calls, and wrapping
@@ -90,6 +94,7 @@ qemu-system-riscv64 -machine virt -m 128M -nographic -bios none \
 
 ## C ABI
 
+- [one_word_record.lisp](abi/one_word_record.lisp): an eight-byte C record roundtrip.
 - [aggregate.lisp](abi/aggregate.lisp): C structs passed by value.
 - [float.lisp](abi/float.lisp): floating point arguments.
 - [stack.lisp](abi/stack.lisp): stack arguments.
