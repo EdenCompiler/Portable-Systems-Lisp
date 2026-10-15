@@ -4,6 +4,8 @@ set -eu
 project_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 work_dir=$(mktemp -d)
 trap 'rm -rf "$work_dir"' EXIT HUP INT TERM
+PSL_BOOTSTRAP_FIXTURE_CACHE=$work_dir/api-fixtures
+export PSL_BOOTSTRAP_FIXTURE_CACHE
 host_target=${1:-x86_64-linux-gnu}
 host_suffix=
 

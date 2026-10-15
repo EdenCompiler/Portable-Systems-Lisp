@@ -21,10 +21,14 @@ for level in 0 1; do
    run_target "$work_dir/check$target_suffix"
   done
  done
- run_compiler_host "$compiler" "-O$level" --target="$target" "$project_root/bootstrap/native-core.lisp" "$work_dir/native-core.o"
- run_compiler_host "$compiler" "-O$level" --target="$target" "$project_root/bootstrap/host/driver.lisp" "$work_dir/native-host.o"
- "$project_root/pslcc" "-O$level" --target="$target" -c "$project_root/bootstrap/native-core.lisp" -o "$work_dir/seed-core.o"
- "$project_root/pslcc" "-O$level" --target="$target" -c "$project_root/bootstrap/host/driver.lisp" -o "$work_dir/seed-host.o"
+ bootstrap_fixture_compile native "$compiler" "$level" "$target" freestanding \
+  "$project_root/bootstrap/native-core.lisp" "$work_dir/native-core.o"
+ bootstrap_fixture_compile native "$compiler" "$level" "$target" freestanding \
+  "$project_root/bootstrap/host/driver.lisp" "$work_dir/native-host.o"
+ bootstrap_fixture_compile seed "$project_root/pslcc" "$level" "$target" freestanding \
+  "$project_root/bootstrap/native-core.lisp" "$work_dir/seed-core.o"
+ bootstrap_fixture_compile seed "$project_root/pslcc" "$level" "$target" freestanding \
+  "$project_root/bootstrap/host/driver.lisp" "$work_dir/seed-host.o"
  for version in native seed; do
   "$target_cc" -O2 -std=c11 -Wall -Wextra -Werror "$project_root/tests/harness_bootstrap_integer_aggregates_api.c" "$work_dir/$version-core.o" "$work_dir/$version-host.o" -o "$work_dir/api$target_suffix"
   run_target "$work_dir/api$target_suffix"

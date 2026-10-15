@@ -27,8 +27,8 @@ for level in 0 1; do
   done
   done
   source=$project_root/bootstrap/native-core.lisp
-  run_compiler_host "$compiler" "-O$level" --target="$target" "$source" "$work_dir/api-native.o"
-  "$project_root/pslcc" "-O$level" --target="$target" -c "$source" -o "$work_dir/api-stage0.o"
+  bootstrap_fixture_compile native "$compiler" "$level" "$target" freestanding "$source" "$work_dir/api-native.o"
+  bootstrap_fixture_compile seed "$project_root/pslcc" "$level" "$target" freestanding "$source" "$work_dir/api-stage0.o"
   for version in native stage0; do
     for fixture in macro_api macro_optional_api macro_aux_api macro_whole_api macro_control_api macro_sequence_api macro_lists_api macro_declarations_api macro_keys_api macro_let_api; do
       "$target_cc" -O2 -std=c11 -Wall -Wextra -Werror \

@@ -16,11 +16,24 @@ esac
 "$target_cc" -O0 -Wall -Wextra -Werror -c \
  "$project_root/runtime/platform_$platform.c" -o "$work_dir/platform.o"
 source=$project_root/tests/bootstrap_managed_values.lisp
+case $target in
+ x86_64-linux-gnu) earlier_target=x86_64-windows-gnu ;;
+ *) earlier_target=x86_64-linux-gnu ;;
+esac
 for level in 0 1; do
  run_compiler_host "$compiler" "-O$level" --target="$target" --profile=hosted "$source" "$work_dir/native.o"
  run_compiler_host "$compiler" --profile=hosted --target="$target" "-O$level" "$source" "$work_dir/repeat.o"
  cmp "$work_dir/native.o" "$work_dir/repeat.o"
  "$project_root/pslcc" "-O$level" --target="$target" --profile=hosted -c "$source" -o "$work_dir/seed.o"
+ # Repeated options select their last values, matching the object CLI contract.
+ run_compiler_host "$compiler" -O1 "-O$level" \
+  --target="$earlier_target" --target="$target" \
+  --profile=freestanding --profile=hosted "$source" "$work_dir/repeated-native.o"
+ cmp "$work_dir/native.o" "$work_dir/repeated-native.o"
+ "$project_root/pslcc" -O1 "-O$level" \
+  --target="$earlier_target" --target="$target" \
+  --profile=freestanding --profile=hosted -c "$source" -o "$work_dir/repeated-seed.o"
+ cmp "$work_dir/seed.o" "$work_dir/repeated-seed.o"
  for version in native seed; do
   "$target_cc" -O2 -std=c11 -Wall -Wextra -Werror \
    "$project_root/tests/harness_bootstrap_managed_values.c" "$work_dir/$version.o" \
@@ -30,14 +43,14 @@ for level in 0 1; do
   run_target "$work_dir/check$target_suffix"
  done
  # Run the receiver and compilation API through both source implementations.
- run_compiler_host "$compiler" "-O$level" --target="$target" \
+ bootstrap_fixture_compile native "$compiler" "$level" "$target" freestanding \
   "$project_root/bootstrap/native-core.lisp" "$work_dir/native-core.o"
- run_compiler_host "$compiler" "-O$level" --target="$target" \
+ bootstrap_fixture_compile native "$compiler" "$level" "$target" freestanding \
   "$project_root/bootstrap/host/driver.lisp" "$work_dir/native-host.o"
- "$project_root/pslcc" "-O$level" --target="$target" -c \
-  "$project_root/bootstrap/native-core.lisp" -o "$work_dir/seed-core.o"
- "$project_root/pslcc" "-O$level" --target="$target" -c \
-  "$project_root/bootstrap/host/driver.lisp" -o "$work_dir/seed-host.o"
+ bootstrap_fixture_compile seed "$project_root/pslcc" "$level" "$target" freestanding \
+  "$project_root/bootstrap/native-core.lisp" "$work_dir/seed-core.o"
+ bootstrap_fixture_compile seed "$project_root/pslcc" "$level" "$target" freestanding \
+  "$project_root/bootstrap/host/driver.lisp" "$work_dir/seed-host.o"
  for version in native seed; do
   "$target_cc" -O2 -std=c11 -Wall -Wextra -Werror \
    "$project_root/tests/harness_bootstrap_managed_api.c" "$work_dir/$version-core.o" \
@@ -76,10 +89,15 @@ for option in '--profile=unknown' '--profile=hosted-extra' '--profile='; do
  fi
  test ! -e "$work_dir/rejected.o"
 done
-for repeated in '-O0' '--profile=hosted' '--target=x86_64-linux-gnu'; do
- if run_compiler_host "$compiler" "$repeated" "$repeated" "$source" "$work_dir/rejected.o" > "$work_dir/error" 2>&1; then
-  echo 'Duplicate native option accepted' >&2; exit 1
- fi
- test ! -e "$work_dir/rejected.o"
-done
+# Reversing profile order must reject managed input before publishing an object.
+if run_compiler_host "$compiler" --target="$target" \
+ --profile=hosted --profile=freestanding "$source" "$work_dir/rejected.o" > "$work_dir/error" 2>&1; then
+ echo 'Native compiler ignored the last repeated profile' >&2; exit 1
+fi
+test ! -e "$work_dir/rejected.o"
+if "$project_root/pslcc" --target="$target" --profile=hosted --profile=freestanding \
+ -c "$source" -o "$work_dir/rejected.o" > "$work_dir/error" 2>&1; then
+ echo 'Stage 0 ignored the last repeated profile' >&2; exit 1
+fi
+test ! -e "$work_dir/rejected.o"
 printf 'Native managed values and safety checks passed (%s)\n' "$target"

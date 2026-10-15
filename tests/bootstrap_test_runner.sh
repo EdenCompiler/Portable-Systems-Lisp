@@ -2,6 +2,12 @@
 # Shared execution helpers for native bootstrap tests. The compiler executable
 # runs on PSL_NATIVE_COMPILER_HOST_TARGET; generated fixtures use output_target.
 
+# API receiver tests reuse immutable compiler fixtures only inside a full gate.
+# MODE COMPILER LEVEL TARGET PROFILE SOURCE OUTPUT; standalone gates compile fresh.
+bootstrap_fixture_compile() {
+  python3 "$project_root/tests/bootstrap_fixture_cache.py" "$project_root" "$@"
+}
+
 bootstrap_test_runner_init() {
   output_target=$1
   native_compiler=${PSL_NATIVE_COMPILER:-$project_root/build/pslcc-native}

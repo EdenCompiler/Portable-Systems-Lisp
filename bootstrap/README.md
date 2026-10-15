@@ -35,6 +35,13 @@ native executable and library linking remain open. `native_parse_cli_options`
 provides a caller-owned record API without I/O; a failed parse may leave partial
 options. Invalid arguments are rejected before source loading or output writes.
 
+The full native regression uses Python 3.11 or newer to reuse API-harness
+core and driver objects within its temporary directory. Entries identify the
+compiler binary, compiler source inputs, target, profile and optimization level,
+and verify object hashes before reuse. Standalone focused tests compile fresh.
+Compiler-generation and fixed-point builds always compile their modules fresh;
+this fixture reuse does not replace a Stage 1, 2 or 3 build.
+
 The native modules currently implement:
 
 - Little-endian byte emission and 32-bit patching into caller-owned storage.
