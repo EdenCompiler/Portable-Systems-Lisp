@@ -62,6 +62,8 @@ static void check_receivers(unsigned target,unsigned level) {
 }
 int main(void) {
  static const char *accepted[]={
+ "(defcstruct r (a u8) (b u8) (c u8)) (defun f (x) (declare (type r x) (returns r)) x)",
+ "(defcstruct r (x u64) (y u64)) (defun f (x) (declare (type r x) (returns r)) x)",
  "(defcstruct r (x u8)) (defun f (x) (declare (type r x) (returns r)) x)",
  "(defcstruct r (a s8) (b u8)) (defun f (x) (declare (type r x) (returns r)) x)",
  "(defcstruct inner (x u16)) (defcstruct r (a inner) (b u16)) (defun f (x) (declare (type r x) (returns r)) (let ((a x)) a))",
@@ -72,8 +74,7 @@ int main(void) {
  "(defcstruct r (x u32)) (ffi:import-function \"safe\" ((x r)) -> r :no-allocation) (defun f (x) (declare (type r x) (returns r)) (without-allocation (ffi:call safe x)))"
  };
  static const char *rejected[]={
- "(defcstruct r (a u8) (b u8) (c u8)) (defun f (x) (declare (type r x) (returns r)) x)",
- "(defcstruct r (x u64) (y u64)) (defun f (x) (declare (type r x) (returns r)) x)",
+ "(defcstruct r (x u64) (y u64) (z u64)) (defun f (x) (declare (type r x) (returns r)) x)",
  "(defcstruct r (x f64)) (defun f (x) (declare (type r x) (returns r)) x)",
  "(defstruct/packed r (x u32)) (defun f (x) (declare (type r x) (returns r)) x)",
  "(defstruct/packed inner (x u8)) (defcstruct r (x inner)) (defun f (x) (declare (type r x) (returns r)) x)",

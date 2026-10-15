@@ -1,5 +1,5 @@
 ;; By-value aggregate metadata retains the real source type reference.
-;; The first native slice fits natural integer/pointer C records in one word.
+;; Natural integer/pointer C records fit in at most two machine words.
 ;; ABI selection remains in the backend; no CPU register rules appear here.
 
 (defun source_type_metadata (signatures type)
@@ -10,7 +10,7 @@
 
 (defun source_aggregate_size_p (size)
   (declare (type usize size) (returns c-int))
-  (if (if (= size 1) t (if (= size 2) t (if (= size 4) t (= size 8)))) 1 0))
+  (if (= size 0) 0 (if (< size 17) 1 0)))
 
 (defun source_aggregate_field_type_p (context type depth)
   (declare (type (ptr native_compile_context) context)

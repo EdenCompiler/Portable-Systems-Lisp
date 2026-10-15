@@ -1,6 +1,7 @@
 (include "riscv64_frame.lisp")
 (include "riscv64_branches.lisp")
 (include "riscv64_memory.lisp")
+(include "rv_aggregate.lisp")
 
 (defun rv_lir_load (context register reference)
   (declare (type (ptr native_compile_context) context) (type u64 register)
@@ -79,15 +80,14 @@
       (if (< gp 8) (native_abi_location 1 gp) (native_abi_location 3 stack))))
 
 (defun rv_lir_param_location (context signature index cursor gp fp stack)
-  (declare (type (ptr native_compile_context) context) (type (ptr native_signature) signature)
-           (type usize index cursor gp fp stack) (returns usize))
-  (let ((scalar_code (scalar_signature_parameter_code context signature cursor)))
-    (let ((location (rv_lir_argument_location scalar_code gp fp stack)))
-      (if (= cursor index) location
-          (rv_lir_param_location context signature index (wrap+ cursor 1)
-            (if (= (native_abi_location_class location) 1) (wrap+ gp 1) gp)
-            (if (= (native_abi_location_class location) 2) (wrap+ fp 1) fp)
-            (if (= (native_abi_location_class location) 3) (wrap+ stack 1) stack))))))
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_signature) signature) (type usize index cursor gp fp stack) (returns usize))
+  (let ((location (rv_aggregate_location context signature cursor gp fp stack))
+        (words (native_aggregate_parameter_words context signature cursor)))
+    (if (= cursor index) location
+        (rv_lir_param_location context signature index (wrap+ cursor 1)
+         (rv_aggregate_next_gp location words gp) (rv_lir_next_fp location fp)
+         (rv_aggregate_next_stack location words stack)))))
 
 (defun rv_lir_load_abi_parameter (context location)
   (declare (type (ptr native_compile_context) context) (type usize location) (returns c-int))
@@ -136,18 +136,21 @@
         (let ((link (ir_type_at types chain)))
           (let ((reference (deref (field-pointer link 'left)))
                 (location (rv_lir_param_location context signature (wrap- index 1) 0 0 0 0)))
-            (if (= (rv_lir_send_argument context location reference
-                     (deref (field-pointer (ir_type_at types reference) 'scalar_code))) 0) 0
+            (if (= (rv_aggregate_send context location reference
+                     (native_aggregate_parameter_words context signature (wrap- index 1))
+                     (deref (field-pointer (ir_type_at types reference) 'scalar_code)) 0) 0) 0
                 (rv_lir_arguments context signature (deref (field-pointer link 'right))
                                    (wrap- index 1))))))))
 
 (defun rv_lir_stack_count (context signature cursor arity gp fp stack)
-  (declare (type (ptr native_compile_context) context) (type (ptr native_signature) signature)
-           (type usize cursor arity gp fp stack) (returns usize))
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_signature) signature) (type usize cursor arity gp fp stack) (returns usize))
   (if (= cursor arity) stack
-      (let ((location (rv_lir_argument_location (scalar_signature_parameter_code context signature cursor) gp fp stack)))
+      (let ((location (rv_aggregate_location context signature cursor gp fp stack))
+            (words (native_aggregate_parameter_words context signature cursor)))
         (rv_lir_stack_count context signature (wrap+ cursor 1) arity
-          (rv_lir_next_gp location gp) (rv_lir_next_fp location fp) (rv_lir_next_stack location stack)))))
+         (rv_aggregate_next_gp location words gp) (rv_lir_next_fp location fp)
+         (rv_aggregate_next_stack location words stack)))))
 
 (defun rv_lir_call_reserved (context op target arity bytes)
   (declare (type (ptr native_compile_context) context) (type (ptr native_lir_instruction) op)
@@ -159,11 +162,13 @@
             (if (= (rv_deferred_call code (deref (field-pointer context 'fixups)) target) 0) 0
                 (if (= (rv_adjust_stack code bytes 0) 0) 0
                     (if (= (deref (field-pointer op 'scalar_code)) 12) 1
+                        (if (= (deref (field-pointer op 'scalar_code)) 16)
+                            (rv_aggregate_call_result context op)
                         (if (= (native_abi_float_p (deref (field-pointer op 'scalar_code))) 1)
                             (if (= (rv_float_to_general code 5 10 (deref (field-pointer op 'scalar_code))) 0) 0
                                 (rv_normalize code 5 (deref (field-pointer op 'scalar_code))))
                             (if (= (rv_move code 5 10) 0) 0
-                                (rv_normalize code 5 (deref (field-pointer op 'scalar_code))))))))))))
+                                (rv_normalize code 5 (deref (field-pointer op 'scalar_code)))))))))))))
 
 (defun rv_lir_call (context op)
   (declare (type (ptr native_compile_context) context) (type (ptr native_lir_instruction) op)
@@ -207,8 +212,11 @@
       ((= kind 2)
        (let ((location (rv_lir_param_location context (deref (field-pointer context 'current_signature))
                          (wrap-cast usize (wrap- (deref (field-pointer op 'value)) 1)) 0 0 0 0)))
-         (if (= (rv_lir_load_abi_parameter context location) 0) 0
-             (rv_normalize code 5 (deref (field-pointer op 'scalar_code))))))
+         (if (= (deref (field-pointer op 'scalar_code)) 16)
+             (rv_aggregate_incoming context (deref (field-pointer op 'destination)) location 0
+          (native_aggregate_words context 16 (deref (field-pointer op 'pointee))))
+             (if (= (rv_lir_load_abi_parameter context location) 0) 0
+                 (rv_normalize code 5 (deref (field-pointer op 'scalar_code)))))))
       ((= kind 7) (rv_lir_call context op))
       ((if (= kind 34) t (= kind 35)) (rv_lir_data_address context op))
       ((= kind 29) 1)
@@ -228,11 +236,14 @@
   (let ((code (deref (field-pointer context 'code)))
         (scalar_code (deref (field-pointer op 'scalar_code))))
     (if (= scalar_code 12) (rv_return code)
-        (if (= (rv_lir_load context 10 (deref (field-pointer op 'left))) 0) 0
-            (if (= (if (= (native_abi_float_p scalar_code) 1)
-                       (rv_general_to_float code 10 10 scalar_code)
-                       (rv_abi_normalize code 10 scalar_code)) 0) 0
-                (rv_return code))))))
+        (if (= scalar_code 16)
+            (rv_aggregate_return context (deref (field-pointer op 'left))
+             (native_aggregate_words context 16 (deref (field-pointer op 'pointee))))
+            (if (= (rv_lir_load context 10 (deref (field-pointer op 'left))) 0) 0
+                (if (= (if (= (native_abi_float_p scalar_code) 1)
+                           (rv_general_to_float code 10 10 scalar_code)
+                           (rv_abi_normalize code 10 scalar_code)) 0) 0
+                    (rv_return code)))))))
 
 (include "rv_roots.lisp")
 
@@ -297,7 +308,7 @@
   (declare (type (ptr native_compile_context) context) (returns c-int))
   (let ((code (deref (field-pointer context 'code))))
     (if (= (rv_function_prologue code
-            (native_root_frame_slots context)) 0) 0
+            (native_aggregate_frame_slots context)) 0) 0
         (if (= (native_abi_float_parameters_p context 0) 1)
             (rv_save_float_parameters code 0) 1))))
 

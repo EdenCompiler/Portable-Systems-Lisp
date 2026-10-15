@@ -1,5 +1,7 @@
 (include "x86_roots.lisp")
 (include "x86_stack.lisp")
+(include "aggregate_storage.lisp")
+(include "x86_aggregate.lisp")
 
 ;; x86-64 consumes flat LIR and virtual-register types only. Every virtual
 ;; register has a frame slot; this baseline keeps calls and joins simple.
@@ -35,14 +37,13 @@
   (declare (type (ptr native_compile_context) context)
            (type (ptr native_signature) signature)
            (type usize index cursor gp fp stack) (returns usize))
-  (let ((code (scalar_signature_parameter_code
-               context signature cursor)))
-    (if (= cursor index) (x86_lir_argument_location code gp fp stack)
-        (let ((location (x86_lir_argument_location code gp fp stack)))
-          (x86_lir_param_location context signature index (wrap+ cursor 1)
-            (if (= (native_abi_location_class location) 1) (wrap+ gp 1) gp)
-            (if (= (native_abi_location_class location) 2) (wrap+ fp 1) fp)
-            (if (= (native_abi_location_class location) 3) (wrap+ stack 1) stack))))))
+  (let ((location (x86_aggregate_location context signature cursor gp fp stack))
+        (words (x86_aggregate_parameter_words context signature cursor)))
+    (if (= cursor index) location
+        (x86_lir_param_location context signature index (wrap+ cursor 1)
+         (if (= (native_abi_location_class location) 1) (wrap+ gp words) gp)
+         (if (= (native_abi_location_class location) 2) (wrap+ fp 1) fp)
+         (if (= (native_abi_location_class location) 3) (wrap+ stack words) stack)))))
 
 (defun x86_lir_load_abi_parameter (context location)
   (declare (type (ptr native_compile_context) context)
@@ -65,7 +66,10 @@
   (let ((location (x86_lir_param_location context
                     (deref (field-pointer context 'current_signature))
                     (wrap-cast usize (wrap- (deref (field-pointer op 'value)) 1)) 0 0 0 0)))
-    (x86_lir_load_abi_parameter context location)))
+    (if (= (deref (field-pointer op 'scalar_code)) 16)
+        (x86_aggregate_incoming_parts context (deref (field-pointer op 'destination)) location 0
+          (native_aggregate_words context 16 (deref (field-pointer op 'pointee))))
+        (x86_lir_load_abi_parameter context location))))
 
 (defun x86_lir_normalize (context op)
   (declare (type (ptr native_compile_context) context)
@@ -137,8 +141,9 @@
             (x86_lir_call_stack_slots context signature
               (deref (field-pointer link 'right)) (wrap- remaining 1)
               (if (= (native_abi_location_class location) 3)
-                  (if (< largest (wrap+ (native_abi_location_index location) 1))
-                      (wrap+ (native_abi_location_index location) 1) largest)
+                  (let ((end (wrap+ (native_abi_location_index location)
+                              (x86_aggregate_parameter_words context signature (wrap- remaining 1)))))
+                    (if (< largest end) end largest))
                   largest)))))))
 
 (defun x86_lir_move_argument_gp (code index)
@@ -167,26 +172,11 @@
   (if (= chain 0) 1
       (let ((types (deref (field-pointer (deref (field-pointer context 'lir)) 'types))))
         (let ((link (ir_type_at types chain)))
-          (let ((argument (deref (field-pointer link 'left))))
-            (let ((location (x86_lir_param_location context signature
-                             (wrap- remaining 1) 0 0 0 0))
-                    (code (deref (field-pointer context 'code))))
-                (let ((class (native_abi_location_class location))
-                      (index (native_abi_location_index location)))
-                  (if (= class 1)
-                      (if (= (x86_lir_load context argument) 0) 0
-                          (if (= (x86_lir_move_argument_gp code index) 0) 0
-                              (x86_lir_call_arguments context signature
-                                (deref (field-pointer link 'right)) (wrap- remaining 1))))
-                      (if (= class 2)
-                          (if (= (x86_lir_load_xmm_slot context index argument) 0) 0
-                              (x86_lir_call_arguments context signature
-                                (deref (field-pointer link 'right)) (wrap- remaining 1)))
-                          (if (= (x86_lir_load context argument) 0) 0
-                              (if (= (x86_lir_store_stack_argument code index) 0) 0
-                                  (x86_lir_call_arguments context signature
-                                    (deref (field-pointer link 'right))
-                                    (wrap- remaining 1)))))))))))))
+          (let ((location (x86_lir_param_location context signature (wrap- remaining 1) 0 0 0 0))
+                (words (x86_aggregate_parameter_words context signature (wrap- remaining 1))))
+            (if (= (x86_aggregate_send_part context location (deref (field-pointer link 'left)) words 0) 0) 0
+                (x86_lir_call_arguments context signature (deref (field-pointer link 'right))
+                                        (wrap- remaining 1))))))))
 
 (defun x86_lir_float_result_to_rax (code)
   (declare (type (ptr byte_buffer) code) (returns c-int))
@@ -223,7 +213,9 @@
                     (if (= (native_abi_float_p (deref (field-pointer op 'scalar_code))) 1)
                         (if (= (x86_lir_float_result_to_rax code) 0) 0
                             (x86_lir_normalize context op))
-                        (x86_lir_normalize context op))))))))
+                        (if (= (deref (field-pointer op 'scalar_code)) 16)
+                            (x86_aggregate_call_result context op)
+                            (x86_lir_normalize context op)))))))))
 
 (defun x86_lir_call (context op)
   (declare (type (ptr native_compile_context) context)
@@ -307,9 +299,12 @@
       ((= kind 103)
        (if (= (deref (field-pointer op 'scalar_code)) 12) (x86_return code)
            (if (= (x86_lir_load context (deref (field-pointer op 'left))) 0) 0
-               (if (= (native_abi_float_p (deref (field-pointer op 'scalar_code))) 1)
-                   (if (= (x86_lir_float_return_from_rax code) 0) 0 (x86_return code))
-                   (x86_return code)))))
+               (if (= (deref (field-pointer op 'scalar_code)) 16)
+                   (x86_aggregate_return context (deref (field-pointer op 'left))
+             (native_aggregate_words context 16 (deref (field-pointer op 'pointee))))
+                   (if (= (native_abi_float_p (deref (field-pointer op 'scalar_code))) 1)
+                       (if (= (x86_lir_float_return_from_rax code) 0) 0 (x86_return code))
+                       (x86_return code))))))
       (t 0))))
 
 (defun x86_lir_emit_instructions (context index)
@@ -351,11 +346,13 @@
 
 (defun x86_lir_prologue (context)
   (declare (type (ptr native_compile_context) context) (returns c-int))
-  (let ((code (deref (field-pointer context 'code))))
-    (if (= (x86_function_prologue code
-            (native_root_frame_slots context)) 0) 0
-        (if (= (native_abi_float_parameters_p context 0) 1)
-            (x86_save_float_parameters code 0) 1))))
+  (let ((code (deref (field-pointer context 'code)))
+        (slots (native_aggregate_frame_slots context)))
+    (if (if (= slots 0)
+            (< 0 (deref (field-pointer (deref (field-pointer context 'lir)) 'value_count))) nil) 0
+        (if (= (x86_function_prologue code slots) 0) 0
+            (if (= (native_abi_float_parameters_p context 0) 1)
+                (x86_save_float_parameters code 0) 1)))))
 
 (defun emit_lir_x86_function (context)
   (declare (type (ptr native_compile_context) context) (returns c-int))

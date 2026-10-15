@@ -99,26 +99,55 @@
   (emit-bytes buffer #x48 #x89 #x84 #x24)
   (emit-integer buffer (+ 32 (* index 8)) 4))
 
-(defun win-emit-prepare-argument (buffer slot location)
+(defun win-pointer-location-p (location)
+  (member (first location) '(:gp-pointer :stack-pointer)))
+
+(defun win-emit-lea-temporary (buffer register offset)
+  (emit-bytes buffer (if (>= register 8) #x4c #x48)
+              #x8d (+ #x84 (ash (mod register 8) 3)) #x24)
+  (emit-integer buffer offset 4))
+
+(defun win-copy-byte-to-temporary (buffer source-slot destination offset)
+  (emit-bytes buffer #x44 #x0f #xb6 #x95)
+  (emit-integer buffer (+ (slot-displacement source-slot) offset) 4)
+  (emit-bytes buffer #x44 #x88 #x94 #x24)
+  (emit-integer buffer (+ destination offset) 4))
+
+(defun win-prepare-argument-copies (emitter instruction signature locations)
+  (let ((buffer (emitter-bytes emitter))
+        (base (win-call-stack-frame-size emitter instruction)))
+    (loop for slot in (lir-instruction-args instruction)
+          for type in (signature-arguments signature)
+          for location in locations
+          for index from 0
+          collect (when (win-pointer-location-p location)
+                    (let ((offset (+ base (* index 16))))
+                      (dotimes (byte (win-aggregate-size type (emitter-abi-layouts emitter)))
+                        (win-copy-byte-to-temporary buffer slot offset byte))
+                      offset)))))
+
+(defun win-emit-prepare-argument (buffer slot location temporary)
   (ecase (first location)
     ((:gp :stack) (emit-load-slot buffer 0 slot))
-    ((:gp-pointer :stack-pointer) (win-emit-lea-slot buffer 0 slot))
+    ((:gp-pointer :stack-pointer) (win-emit-lea-temporary buffer 0 temporary))
     (:sse nil)))
 
-(defun win-emit-stack-arguments (buffer slots locations)
+(defun win-emit-stack-arguments (buffer slots locations temporaries)
   (loop for slot in slots
         for location in locations
+        for temporary in temporaries
         when (member (first location) '(:stack :stack-pointer))
-          do (win-emit-prepare-argument buffer slot location)
+          do (win-emit-prepare-argument buffer slot location temporary)
              (win-emit-store-stack-slot buffer (second location))))
 
-(defun win-emit-register-arguments (buffer slots locations)
+(defun win-emit-register-arguments (buffer slots locations temporaries)
   (loop for slot in slots
         for location in locations
+        for temporary in temporaries
         do (ecase (first location)
              ((:gp :gp-pointer)
               (if (eq (first location) :gp-pointer)
-                  (win-emit-lea-slot buffer (second location) slot)
+                  (win-emit-lea-temporary buffer (second location) temporary)
                   (emit-load-slot buffer (second location) slot)))
              (:sse (emit-load-xmm-slot buffer (second location) slot))
              ((:stack :stack-pointer) nil))))
@@ -132,11 +161,12 @@
                   (emitter-abi-layouts emitter)))
          (locations (win-argument-locations
                      (signature-arguments signature) (emitter-contract emitter)
-                     (emitter-abi-layouts emitter) hidden)))
+                     (emitter-abi-layouts emitter) hidden))
+         (temporaries (win-prepare-argument-copies emitter instruction signature locations)))
     (win-emit-stack-arguments buffer (lir-instruction-args instruction)
-                              locations)
+                              locations temporaries)
     (win-emit-register-arguments buffer (lir-instruction-args instruction)
-                                 locations)
+                                 locations temporaries)
     (when hidden
       (win-emit-lea-slot buffer 1 (lir-instruction-dst instruction)))
     (emit-byte buffer #xe8)
@@ -190,7 +220,7 @@
       ((float-type-p type) (emit-load-xmm-slot buffer 0 slot))
       (t (emit-load-slot buffer 0 slot)))))
 
-(defun win-call-frame-size (emitter instruction)
+(defun win-call-stack-frame-size (emitter instruction)
   (let* ((signature (gethash (car (lir-instruction-value instruction))
                              (emitter-signatures emitter)))
          (hidden (win-indirect-return-p (signature-result signature)
@@ -198,6 +228,19 @@
                                         (emitter-abi-layouts emitter)))
          (positions (+ (length (signature-arguments signature)) (if hidden 1 0))))
     (* 16 (ceiling (+ 32 (* 8 (max 0 (- positions 4)))) 16))))
+
+(defun win-call-frame-size (emitter instruction)
+  (let* ((signature (gethash (car (lir-instruction-value instruction))
+                             (emitter-signatures emitter)))
+         (hidden (win-indirect-return-p (signature-result signature)
+                                        (emitter-contract emitter)
+                                        (emitter-abi-layouts emitter)))
+         (locations (win-argument-locations (signature-arguments signature)
+                                            (emitter-contract emitter)
+                                            (emitter-abi-layouts emitter) hidden))
+         (base (win-call-stack-frame-size emitter instruction)))
+    (if (some #'win-pointer-location-p locations)
+        (+ base (* 16 (length locations))) base)))
 
 (defun win-outgoing-frame-size (emitter function)
   (let ((size (if (lir-function-root-registers function) 32 0)))

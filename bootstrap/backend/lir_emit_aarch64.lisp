@@ -1,5 +1,6 @@
 (include "aarch64_frame.lisp")
 (include "aarch64_branches.lisp")
+(include "a64_aggregate.lisp")
 
 (defun a64_lir_load (context register reference)
   (declare (type (ptr native_compile_context) context) (type u64 register)
@@ -48,15 +49,13 @@
 
 (defun a64_lir_param_location (context signature index cursor gp fp stack)
   (declare (type (ptr native_compile_context) context)
-           (type (ptr native_signature) signature)
-           (type usize index cursor gp fp stack) (returns usize))
-  (let ((code (scalar_signature_parameter_code context signature cursor)))
-    (if (= cursor index) (a64_lir_argument_location code gp fp stack)
-        (let ((location (a64_lir_argument_location code gp fp stack)))
-          (a64_lir_param_location context signature index (wrap+ cursor 1)
-            (if (= (native_abi_location_class location) 1) (wrap+ gp 1) gp)
-            (if (= (native_abi_location_class location) 2) (wrap+ fp 1) fp)
-            (if (= (native_abi_location_class location) 3) (wrap+ stack 1) stack))))))
+           (type (ptr native_signature) signature) (type usize index cursor gp fp stack) (returns usize))
+  (let ((location (a64_aggregate_location context signature cursor gp fp stack))
+        (words (native_aggregate_parameter_words context signature cursor)))
+    (if (= cursor index) location
+        (a64_lir_param_location context signature index (wrap+ cursor 1)
+         (a64_aggregate_next_gp location words gp) (a64_lir_argument_next_fp location fp)
+         (a64_aggregate_next_stack location words stack)))))
 
 (defun a64_lir_load_abi_parameter (context location)
   (declare (type (ptr native_compile_context) context)
@@ -117,44 +116,26 @@
 
 (defun a64_lir_arguments (context signature chain index)
   (declare (type (ptr native_compile_context) context)
-           (type (ptr native_signature) signature) (type usize chain index)
-           (returns c-int))
+           (type (ptr native_signature) signature) (type usize chain index) (returns c-int))
   (if (= index 0) 1
       (let ((types (deref (field-pointer (deref (field-pointer context 'lir)) 'types))))
         (let ((link (ir_type_at types chain)))
-          (let ((argument (deref (field-pointer link 'left))))
-            (let ((type (ir_type_at types argument)))
-              (let ((location (a64_lir_param_location context signature
-                               (wrap- index 1) 0 0 0 0))
-                    (code (deref (field-pointer context 'code))))
-                (if (= (native_abi_location_class location) 1)
-                    (if (= (a64_lir_load context (wrap-cast u64 (native_abi_location_index location)) argument) 0) 0
-                        (a64_lir_arguments context signature (deref (field-pointer link 'right))
-                          (wrap- index 1)))
-                    (if (= (native_abi_location_class location) 2)
-                        (if (= (a64_lir_load context 9 argument) 0) 0
-                            (if (= (a64_general_to_float code
-                                      (native_abi_location_index location) 9
-                                      (deref (field-pointer type 'scalar_code))) 0) 0
-                                (a64_lir_arguments context signature (deref (field-pointer link 'right))
-                                  (wrap- index 1))))
-                        (if (= (a64_lir_load context 9 argument) 0) 0
-                            (if (= (a64_store_stack_argument code 9
-                                      (wrap+ 9 (native_abi_location_index location))) 0) 0
-                                (a64_lir_arguments context signature (deref (field-pointer link 'right))
-                                  (wrap- index 1)))))))))))))
+          (let ((argument (deref (field-pointer link 'left)))
+                (location (a64_lir_param_location context signature (wrap- index 1) 0 0 0 0))
+                (words (native_aggregate_parameter_words context signature (wrap- index 1))))
+            (if (= (a64_aggregate_send context argument
+                     (deref (field-pointer (ir_type_at types argument) 'scalar_code)) location words 0) 0) 0
+                (a64_lir_arguments context signature (deref (field-pointer link 'right)) (wrap- index 1))))))))
 
 (defun a64_lir_call_stack_count (context signature cursor arity gp fp stack)
   (declare (type (ptr native_compile_context) context)
-           (type (ptr native_signature) signature)
-           (type usize cursor arity gp fp stack) (returns usize))
+           (type (ptr native_signature) signature) (type usize cursor arity gp fp stack) (returns usize))
   (if (= cursor arity) stack
-      (let ((code (scalar_signature_parameter_code context signature cursor)))
-        (let ((location (a64_lir_argument_location code gp fp stack)))
-          (a64_lir_call_stack_count context signature (wrap+ cursor 1) arity
-            (a64_lir_argument_next_gp location gp)
-            (a64_lir_argument_next_fp location fp)
-            (a64_lir_argument_next_stack location stack))))))
+      (let ((location (a64_aggregate_location context signature cursor gp fp stack))
+            (words (native_aggregate_parameter_words context signature cursor)))
+        (a64_lir_call_stack_count context signature (wrap+ cursor 1) arity
+         (a64_aggregate_next_gp location words gp) (a64_lir_argument_next_fp location fp)
+         (a64_aggregate_next_stack location words stack)))))
 
 (defun a64_lir_call_reserved (context op target arity bytes)
   (declare (type (ptr native_compile_context) context) (type (ptr native_lir_instruction) op)
@@ -168,12 +149,14 @@
             (if (= (a64_deferred_call code (deref (field-pointer context 'fixups)) target) 0) (wrap-cast c-int 0)
                 (if (= (a64_adjust_stack code bytes 0) 0) (wrap-cast c-int 0)
                     (if (= (deref (field-pointer op 'scalar_code)) 12) (wrap-cast c-int 1)
+                        (if (= (deref (field-pointer op 'scalar_code)) 16)
+                            (a64_aggregate_call_result context op)
                         (if (= (native_abi_float_p (deref (field-pointer op 'scalar_code))) 1)
                             (a64_float_to_general code 9 0
                               (deref (field-pointer op 'scalar_code)))
                             (if (= (a64_register_op code #xaa000000 9 31 0) 0) (wrap-cast c-int 0)
                                   (a64_normalize code 9
-                                  (deref (field-pointer op 'scalar_code))))))))))))
+                                  (deref (field-pointer op 'scalar_code)))))))))))))
 
 (defun a64_lir_call (context op)
   (declare (type (ptr native_compile_context) context) (type (ptr native_lir_instruction) op)
@@ -218,8 +201,11 @@
        (let ((location (a64_lir_param_location context
                          (deref (field-pointer context 'current_signature))
                          (wrap-cast usize (wrap- (deref (field-pointer op 'value)) 1)) 0 0 0 0)))
-         (if (= (a64_lir_load_abi_parameter context location) 0) 0
-             (a64_normalize code 9 (deref (field-pointer op 'scalar_code))))))
+         (if (= (deref (field-pointer op 'scalar_code)) 16)
+             (a64_aggregate_incoming context (deref (field-pointer op 'destination)) location 0
+          (native_aggregate_words context 16 (deref (field-pointer op 'pointee))))
+             (if (= (a64_lir_load_abi_parameter context location) 0) 0
+                 (a64_normalize code 9 (deref (field-pointer op 'scalar_code)))))))
       ((= kind 7) (a64_lir_call context op))
       ((if (= kind 34) t (= kind 35)) (a64_lir_data_address context op))
       ((= kind 29) 1)
@@ -235,6 +221,20 @@
           (a64_word code base)))))
 
 (include "a64_roots.lisp")
+
+(defun a64_lir_return_value (context op)
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_lir_instruction) op) (returns c-int))
+  (let ((code (deref (field-pointer context 'code))))
+    (if (= (deref (field-pointer op 'scalar_code)) 12) (a64_return code)
+        (if (= (deref (field-pointer op 'scalar_code)) 16)
+            (a64_aggregate_return context (deref (field-pointer op 'left))
+             (native_aggregate_words context 16 (deref (field-pointer op 'pointee))))
+            (if (= (a64_lir_load context 9 (deref (field-pointer op 'left))) 0) 0
+                (if (= (if (= (native_abi_float_p (deref (field-pointer op 'scalar_code))) 1)
+                            (a64_general_to_float code 0 9 (deref (field-pointer op 'scalar_code)))
+                            (a64_register_op code #xaa000000 0 31 9)) 0) 0
+                    (a64_return code)))))))
 
 (defun a64_lir_control (context op)
   (declare (type (ptr native_compile_context) context) (type (ptr native_lir_instruction) op)
@@ -252,14 +252,7 @@
        (if (= (a64_lir_load context 9 (deref (field-pointer op 'left))) 0) 0
            (if (= (a64_lir_jump context (deref (field-pointer op 'right)) #xb4000009) 0) 0
                (a64_lir_jump context (deref (field-pointer op 'target)) #x14000000))))
-      ((= kind 103)
-       (if (= (deref (field-pointer op 'scalar_code)) 12) (a64_return code)
-           (if (= (native_abi_float_p (deref (field-pointer op 'scalar_code))) 1)
-               (if (= (a64_lir_load context 9 (deref (field-pointer op 'left))) 0) 0
-                   (if (= (a64_general_to_float code 0 9
-                         (deref (field-pointer op 'scalar_code))) 0) 0 (a64_return code)))
-               (if (= (a64_lir_load context 0 (deref (field-pointer op 'left))) 0) 0
-                   (a64_return code)))))
+      ((= kind 103) (a64_lir_return_value context op))
       (t 0))))
 
 (defun a64_lir_store_result_local (context op)
@@ -305,7 +298,7 @@
   (declare (type (ptr native_compile_context) context) (returns c-int))
   (let ((code (deref (field-pointer context 'code))))
     (if (= (a64_function_prologue code
-            (native_root_frame_slots context)) 0) 0
+            (native_aggregate_frame_slots context)) 0) 0
         (if (= (native_abi_float_parameters_p context 0) 1)
             (a64_save_float_parameters code 0) 1))))
 

@@ -169,16 +169,27 @@ padding. Nested structures are supported when declared first. `sizeof`, `alignof
 `offset-of` use the selected target's layout. The C layout tests compare
 integer, floating, pointer, and nested fields with a C compiler.
 
-The native compiler also transports natural integer/pointer C records of
-exactly 1, 2, 4 or 8 bytes by value on all four hosted targets, in both typed
+The native compiler also transports natural integer/pointer C records
+through 16 bytes by value on all four hosted targets, in both typed
 freestanding and hosted profiles. Parameters, locals, conditional joins,
 direct/foreign calls and returns retain nominal record types through verified
 HIR, SSA and LIR. Equal layouts with different declared names remain distinct.
 Records are true in Lisp conditions even when every payload bit is zero.
 The native receiver checks every field offset, size, alignment and final extent,
 including nested records and target-dependent C integer widths. Whole-record
-raw loads/stores, packed records by value, floating fields and larger records
+raw loads/stores, packed records by value, floating fields and records over 16 bytes
 remain unsupported; scalar field access through pointers remains available.
+Backend-owned private copies preserve record values through joins and calls;
+their addresses remain compiler storage rather than source pointer values.
+System V uses one/two INTEGER pieces or a whole stack record when registers
+cannot hold all pieces. AAPCS64 uses one/two general registers or the whole
+stack record; LP64D also supports the final-register/stack split. Microsoft x64
+passes 1, 2, 4 or 8-byte records directly and other extents through fresh aligned
+caller copies, with a hidden result pointer. Exact byte copies preserve odd
+extents and isolate live source values from C by-value mutation. Stage 0 now
+also makes those fresh Windows caller copies. Managed argument roots preserve
+their source positions through hidden returns and register/stack assignment;
+raw record payloads are excluded from the root vector.
 
 ## Hosted managed values
 
@@ -322,8 +333,9 @@ startup symbol. Managed hosted objects reference only selected runtime modules.
 C link inputs that import `psl_rt_cons_precise` or `psl_rt_collect_precise` also select the
 corresponding runtime modules. They retain only registered roots and
 permanent roots; the constructor registers its arguments internally. Stage 0
-managed source continues to use conservative collection. Native compiler root
-frames and managed-source integration remain required M8 work.
+managed source continues to use conservative collection. Native hosted managed
+source uses registered precise root frames and the explicit precise constructors.
+Managed compiler collections remain required M8 work.
 
 The native bootstrap exposes data-only writers as `write_elf64_data` and
 `write_coff64_data`. A `native_data_symbol` supplies an ASCII linker name,
@@ -590,8 +602,9 @@ saved FP/LR, direct internal calls, and `R_AARCH64_CALL26` imports. The native
 writer emits machine 183 and a local `$x` mapping symbol. Its existing ELF call
 API defaults to x86-64; `write_elf64_calls_target` selects explicitly. Backend
 and ELF validation reject unaligned AArch64 call/function spans and malformed
-import placeholders. Aggregate values and general
-dynamic-language support remain pending.
+import placeholders. Natural integer/pointer records through 16 bytes use the
+verified native aggregate path described above. Broader hosted language support
+remains pending.
 
 Native RISC-V64 emits RV64IM instructions for integer-only functions and
 F/D payload moves for floating signatures, with LP64D ELF machine 243 and flag 4.

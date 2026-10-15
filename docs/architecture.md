@@ -150,6 +150,9 @@ bootstrap/
     lir_emit_win64.lisp  native Microsoft x64 frame and LIR encoding
     dispatch.lisp       explicit target/ABI selection for LIR and call patching
     scalar_abi.lisp     scalar GP/FP/stack location classes and signature queries
+    aggregate_storage.lisp  checked private record storage and signature/value queries
+    x86_aggregate.lisp, a64_aggregate.lisp, rv_aggregate.lisp,
+    win64_aggregate.lisp  ABI pieces, copied arguments/results and private frame access
   object/
     elf64.lisp         first native cross-target ELF64 writer slice
     elf64_multi.lisp   native ELF64 symbol table for multiple functions
@@ -276,8 +279,9 @@ host float parser. The hosted driver reserves reusable scratch in its data
 arena; literal conversion does not advance its persistent data count.
 Scalar ABI classification selects GP, FP, or stack locations per target.
 Incoming FP payloads are saved only for functions with floating parameters,
-and the LIR body keeps their raw bits in ordinary word slots. Structure values
-remain outside the native function subset.
+and the LIR body keeps their raw bits in ordinary word slots. Native natural
+integer/pointer records through 16 bytes use private immutable frame storage;
+the four aggregate backend modules own their ABI arguments and results.
 Native source inclusion uses `frontend/source.lisp` for `include` and
 `ffi:source` recognition and Lisp string decoding. `host/source_unit.lisp` owns
 traversal, active-cycle checks, and ordered assembly. Its path, buffer, and

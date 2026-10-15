@@ -1483,3 +1483,32 @@ smoke passed before publication.
 Larger/floating records, packed records by value, closures, managed compiler
 collections, remaining source/driver ports and the complete M8 Stage 1–3 gates
 remain open.
+
+### M8 native natural integer/pointer records through 16 bytes
+
+The native typed and hosted profiles now transport every supported natural
+integer/pointer record extent through 16 bytes on all four targets. Verified
+nominal types still cross HIR, SSA and LIR. Backend-owned immutable copies keep
+record values stable across assignments, joins, calls and returns. System V
+uses whole-record stack fallback when its GP bank cannot hold both pieces;
+AAPCS64 saturates the GP bank on that fallback; LP64D implements the final-GP
+and stack split. Windows uses hidden returns and fresh 16-aligned by-value
+argument copies for indirect records, copying exactly their declared extents.
+Frame sizing includes those copies and private values in probes and unwind data.
+
+This port exposed a Stage 0 Windows bug: an indirect C parameter borrowed the
+live source record's storage, so C by-value mutation changed later source reads.
+Stage 0 now reserves fresh caller copies outside its shadow/stack arguments,
+with exact byte extent and matching outgoing frame size.
+
+Evidence is `tests/bootstrap_integer_aggregates.sh`: native and Stage 0 at O0/O1,
+C harnesses at O0/O2, repeated objects, 12/16-byte and odd byte extents, nested
+values, register exhaustion and split arguments, mixed scalars, repeated aliased
+arguments, original managed roots, raw heap-bit exclusion and large frames.
+Windows tests execute actual `RtlVirtualUnwind` against the emitted large frame.
+Receiving APIs cover both profiles, nominal package identities, forged layouts
+and output-buffer exhaustion. The isolated Stage 0 Windows and smoke regressions
+passed. All four full native regressions passed on matching isolated inputs;
+all four production focused gates and production smoke passed before publication.
+Floating/mixed records, closures, managed compiler collections,
+remaining source/driver ports and the complete M8 Stage 1–3 gates remain open.

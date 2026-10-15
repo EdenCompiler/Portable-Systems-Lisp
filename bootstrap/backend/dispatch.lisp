@@ -8,7 +8,8 @@
 (defun native_emit_lir_function (context)
   (declare (type (ptr native_compile_context) context) (returns c-int))
   (let ((target (deref (field-pointer context 'target))))
-    (if (= (native_target_valid_p target) 0) 0
+    (if (if (= (native_target_valid_p target) 0) t
+            (= (native_aggregate_target_function_p context) 0)) 0
         (cond
           ((= (native_target_abi target) 1) (emit_lir_x86_function context))
           ((= (native_target_abi target) 2) (emit_lir_aarch64_function context))

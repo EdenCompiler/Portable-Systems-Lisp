@@ -1,5 +1,6 @@
 (include "win64_probe.lisp")
 (include "win64_arguments.lisp")
+(include "win64_aggregate.lisp")
 
 ;; Windows consumes the same verified LIR as SysV. RSP is fixed throughout
 ;; the body, so a frame scratch word replaces operand pushes.
@@ -37,12 +38,8 @@
       (native_abi_location 3 position)))
 
 (defun win64_lir_parameter_location (context index)
-  (declare (type (ptr native_compile_context) context)
-           (type usize index) (returns usize))
-  (let ((code (scalar_signature_parameter_code
-               context (deref (field-pointer context 'current_signature))
-               (wrap- index 1))))
-    (win64_lir_argument_location code (wrap- index 1))))
+  (declare (type (ptr native_compile_context) context) (type usize index) (returns usize))
+  (win64_aggregate_location context (deref (field-pointer context 'current_signature)) (wrap- index 1)))
 
 (defun win64_lir_load_abi_parameter (context location)
   (declare (type (ptr native_compile_context) context)
@@ -111,46 +108,31 @@
                (x86_load_unsigned code (wrap-cast usize (deref (field-pointer op 'value))))))
           (t 1)))))
 
-(defun win64_lir_arguments (context chain index)
+(defun win64_lir_arguments (context signature chain index)
   (declare (type (ptr native_compile_context) context)
-           (type usize chain index) (returns c-int))
+           (type (ptr native_signature) signature) (type usize chain index) (returns c-int))
   (if (= index 0) 1
       (let ((types (deref (field-pointer (deref (field-pointer context 'lir)) 'types))))
         (let ((link (ir_type_at types chain)))
-          (let ((argument (deref (field-pointer link 'left))))
-            (let ((type (ir_type_at types argument)))
-              (let ((location (win64_lir_argument_location
-                               (deref (field-pointer type 'scalar_code)) (wrap- index 1)))
-                    (code (deref (field-pointer context 'code))))
-                (if (= (native_abi_location_class location) 1)
-                    (if (= (win64_lir_load context argument) 0) 0
-                        (if (= (win64_register_argument code index) 0) 0
-                            (win64_lir_arguments context (deref (field-pointer link 'right))
-                              (wrap- index 1))))
-                    (if (= (native_abi_location_class location) 2)
-                        (if (= (win64_lir_load_xmm_slot context (wrap- index 1) argument) 0) 0
-                            (win64_lir_arguments context (deref (field-pointer link 'right))
-                              (wrap- index 1)))
-                        (if (= (win64_lir_load context argument) 0) 0
-                            (if (= (win64_stack_argument code index
-                                      (deref (field-pointer context 'backend_outgoing_size))) 0) 0
-                                (win64_lir_arguments context (deref (field-pointer link 'right))
-                                  (wrap- index 1)))))))))))))
+          (if (= (win64_aggregate_send context signature (deref (field-pointer link 'left)) (wrap- index 1)) 0) 0
+              (win64_lir_arguments context signature (deref (field-pointer link 'right)) (wrap- index 1)))))))
 
 (defun win64_lir_call (context op)
   (declare (type (ptr native_compile_context) context)
            (type (ptr native_lir_instruction) op) (returns c-int))
   (let ((target (deref (field-pointer op 'target))))
-    (let ((function (native_function_at (deref (field-pointer context 'functions)) (wrap- target 1))))
+    (let ((function (native_function_at (deref (field-pointer context 'functions)) (wrap- target 1)))
+          (signature (native_signature_at (deref (field-pointer context 'signatures)) (wrap- target 1)))
+          (code (deref (field-pointer context 'code))))
       (store (field-pointer function 'referenced) 1)
-      (if (= (win64_lir_arguments context (deref (field-pointer op 'left))
-                                  (deref (field-pointer function 'arity))) 0) 0
-          (if (= (emit_deferred_call (deref (field-pointer context 'code))
-                                      (deref (field-pointer context 'fixups)) target 0) 0) 0
-              (if (= (native_abi_float_p (deref (field-pointer op 'scalar_code))) 1)
-                  (if (= (x86_lir_float_result_to_rax (deref (field-pointer context 'code))) 0) 0
-                      (x86_lir_normalize context op))
-                  (x86_lir_normalize context op)))))))
+      (if (= (win64_lir_arguments context signature (deref (field-pointer op 'left))
+                                (deref (field-pointer signature 'arity))) 0) 0
+          (if (= (win64_aggregate_hidden_argument context signature (deref (field-pointer op 'destination))) 0) 0
+              (if (= (emit_deferred_call code (deref (field-pointer context 'fixups)) target 0) 0) 0
+                  (if (= (deref (field-pointer op 'scalar_code)) 16) (win64_aggregate_call_result context op)
+                      (if (= (native_abi_float_p (deref (field-pointer op 'scalar_code))) 1)
+                          (if (= (x86_lir_float_result_to_rax code) 0) 0 (x86_lir_normalize context op))
+                          (x86_lir_normalize context op)))))))))
 
 (defun win64_lir_value (context op)
   (declare (type (ptr native_compile_context) context)
@@ -161,10 +143,11 @@
       ((= kind 1) (x86_load_immediate code (deref (field-pointer op 'value))))
       ((= kind 19) (x86_load_immediate code (deref (field-pointer op 'value))))
       ((= kind 2)
-       (if (= (win64_lir_load_abi_parameter context
-                 (win64_lir_parameter_location context
-                   (wrap-cast usize (deref (field-pointer op 'value))))) 0) 0
-           (x86_lir_normalize context op)))
+       (if (= (deref (field-pointer op 'scalar_code)) 16) (win64_aggregate_parameter context op)
+           (if (= (win64_lir_load_abi_parameter context
+                     (win64_lir_parameter_location context
+                       (wrap-cast usize (deref (field-pointer op 'value))))) 0) 0
+               (x86_lir_normalize context op))))
       ((= kind 7) (win64_lir_call context op))
       ((if (= kind 34) t (= kind 35)) (x86_lir_data_address context op))
       ((= kind 29) 1)
@@ -200,11 +183,12 @@
       ((= kind 103)
        (if (= (deref (field-pointer op 'scalar_code)) 12)
            (win64_return code (deref (field-pointer context 'backend_frame_size)))
-           (if (= (win64_lir_load context (deref (field-pointer op 'left))) 0) 0
-               (if (= (native_abi_float_p (deref (field-pointer op 'scalar_code))) 1)
-                   (if (= (x86_lir_float_return_from_rax code) 0) 0
-                       (win64_return code (deref (field-pointer context 'backend_frame_size))))
-                   (win64_return code (deref (field-pointer context 'backend_frame_size)))))))
+           (if (= (deref (field-pointer op 'scalar_code)) 16) (win64_aggregate_return context op)
+               (if (= (win64_lir_load context (deref (field-pointer op 'left))) 0) 0
+                   (if (= (native_abi_float_p (deref (field-pointer op 'scalar_code))) 1)
+                       (if (= (x86_lir_float_return_from_rax code) 0) 0
+                           (win64_return code (deref (field-pointer context 'backend_frame_size))))
+                       (win64_return code (deref (field-pointer context 'backend_frame_size))))))))
       (t 0))))
 
 (defun win64_lir_emit_instructions (context index)
@@ -239,9 +223,9 @@
     (if (< (deref (field-pointer lir 'count)) index) largest
         (let ((op (lir_instruction_at lir index)))
           (if (= (deref (field-pointer op 'kind)) 7)
-              (let ((function (native_function_at (deref (field-pointer context 'functions))
-                                                 (wrap- (deref (field-pointer op 'target)) 1))))
-                (let ((bytes (win64_outgoing_bytes (deref (field-pointer function 'arity)))))
+              (let ((signature (native_signature_at (deref (field-pointer context 'signatures))
+                                                  (wrap- (deref (field-pointer op 'target)) 1))))
+                (let ((bytes (win64_aggregate_outgoing context signature)))
                   (win64_lir_max_outgoing context (wrap+ index 1)
                     (if (< largest bytes) bytes largest))))
               (win64_lir_max_outgoing context (wrap+ index 1) largest))))))
@@ -261,9 +245,7 @@
         (outgoing (win64_lir_max_outgoing context 1 32)))
     (store (field-pointer jumps 'count) 0)
     (store (field-pointer jumps 'error) 0)
-    (let ((frame (win64_frame_bytes
-                   (win64_root_frame_slots context)
-                   outgoing)))
+    (let ((frame (win64_aggregate_frame context outgoing)))
       (if (= frame 0) 0
           (progn
             (store (field-pointer context 'backend_frame_size) frame)
