@@ -1,7 +1,7 @@
 # source	minimum native status	remaining capability	execution
 # This inventories examples, not the complete M8 source/object/interop corpus.
 # A gap may start accepting as a port progresses; an accepted row may not regress.
-# Accepted minima include published natural integer/pointer/floating C records through 16 bytes.
+# Accepted minima include natural C records through 16 bytes and lexical closures.
 examples/abi/aarch64_hfa.lisp	accepted	-	harness
 examples/abi/aggregate.lisp	accepted	-	harness
 examples/abi/float.lisp	accepted	-	harness
@@ -11,7 +11,7 @@ examples/abi/stack.lisp	accepted	-	harness
 examples/abi/void.lisp	accepted	-	harness
 examples/abi/windows_odd_aggregate.lisp	accepted	-	harness
 examples/abi/one_word_record.lisp	accepted	-	harness
-examples/basic/add.lisp	accepted	fixed-argument build-host macros	harness
+examples/basic/add.lisp	accepted	-	harness
 examples/basic/program.lisp	accepted	-	main
 examples/basic/standalone.lisp	accepted	-	harness
 examples/ffi/data_import.lisp	accepted	-	harness
@@ -19,8 +19,8 @@ examples/ffi/data_only.lisp	accepted	-	harness
 examples/ffi/shared_data.lisp	accepted	-	harness
 examples/ffi/source_import.lisp	accepted	-	harness
 examples/freestanding/virt_uart.lisp	accepted	-	object
-examples/hosted/closure.lisp	gap	managed values and lexical closures	main
-examples/hosted/closure_module.lisp	gap	managed values and lexical closures	closure-harness
+examples/hosted/closure.lisp	accepted	-	main
+examples/hosted/closure_module.lisp	accepted	-	closure-harness
 examples/hosted/gc_list.lisp	accepted	-	main
 examples/hosted/immediate.lisp	accepted	-	main
 examples/hosted/list.lisp	accepted	-	main
@@ -29,7 +29,7 @@ examples/hosted/string_package.lisp	accepted	-	main
 examples/memory/memory.lisp	accepted	-	harness
 examples/native/arithmetic.lisp	accepted	-	main
 examples/native/layout.lisp	accepted	-	main
-examples/native/macros.lisp	accepted	fixed-argument build-host macros	main
+examples/native/macros.lisp	accepted	-	main
 examples/native/no_allocation.lisp	accepted	-	main
 examples/native/recursion.lisp	accepted	-	main
 examples/optimization/optimizer.lisp	accepted	-	harness

@@ -1617,3 +1617,13 @@ forged header rejection. Production smoke passed, with the compiler, runtime
 and test input hashes unchanged through validation. General
 lambda lists, managed compiler collections, remaining source/driver ports and
 the complete M8 Stage 1–3 gate remain open.
+
+
+### M8 complete repository example inventory
+
+A fresh production x86-64 hosted O0/O1 audit accepts all 31 repository examples.
+Native repeated objects and diagnostics match, and independent linked execution
+matches Stage 0, including both lexical-closure examples. The accepted minima
+now require every inventoried example. This example gate does not replace the
+complete source/object/interop corpus or the Stage 1–3 fixed-point gate; those
+remain open.
