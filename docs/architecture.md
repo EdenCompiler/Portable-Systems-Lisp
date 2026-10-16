@@ -591,3 +591,12 @@ publishes a staged destination only after success. Its module catalogue
 includes precise closures and VALUE vectors. Executable/library linking is
 implemented on POSIX compiler hosts; the Windows host adapter retains object
 output and fails link requests without replacing the destination.
+
+
+`bootstrap/host/compiler_ir.lisp` owns CLI IR capture allocation, capacity growth,
+request setup and release. It releases only per-attempt driver arenas before
+repreparing the same assembled source buffer and restoring target, profile and
+optimization. `compiler.lisp` publishes the compiled artifact before asking the
+C stdout adapter to flush the captured bytes. Native IR formatting and receiving
+verifiers remain in the core; the reusable library acquires no allocator or
+stdio imports.

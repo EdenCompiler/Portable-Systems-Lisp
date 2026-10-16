@@ -741,4 +741,15 @@ provide a separate caller-owned byte buffer. Formatting verifies selected IR,
 measures capacity before appending, retains exact value bits and has no hosted
 formatting dependency. `make test-native-ir` checks native- and Stage0-built
 receivers, object identity, roots, source order, text determinism, capacity and
-invalid IR on the selected target. Native CLI dump flags remain open M8 work.
+invalid IR on the selected target.
+
+The native CLI also accepts `--dump-ir=hir|ssa|lir|all`. Verified text is buffered
+separately from object output. The hosted PSL controller grows the capture
+buffer and recompiles the same assembled source snapshot when text exceeds
+its initial capacity; the library API retains caller-owned fixed buffers.
+Compilation failures emit no partial IR and preserve an existing artifact.
+After a successful artifact publication, a stdout write failure reports an
+error while leaving that artifact available. `make test-native-cli-ir` checks
+selectors at O0/O1, repeated text, identical object bytes with dumping enabled,
+generated closure bodies, buffer growth, rooted C behavior and a full native-core
+dump. The C controller harness also checks allocation, retry and output faults.

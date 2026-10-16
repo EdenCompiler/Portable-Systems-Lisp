@@ -19,7 +19,8 @@
   (link_input_capacity usize)
   (help_requested u32)
   (parse_error u32)
-  (parse_error_text (ptr u8)))
+  (parse_error_text (ptr u8))
+  (dump_stages u32))
 
 (defcstruct native_compiler_state
   (driver native_driver)
@@ -29,4 +30,6 @@
   (target u32)
   (profile u32)
   (link_input_storage (ptr (ptr u8)))
-  (options native_cli_options))
+  (options native_cli_options)
+  (ir_dump native_ir_dump)
+  (ir_output byte_buffer))

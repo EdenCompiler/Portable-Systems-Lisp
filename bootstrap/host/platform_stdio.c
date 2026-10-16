@@ -26,3 +26,7 @@ void native_host_write_bytes(void *stream, const uint8_t *bytes,
 void native_host_write_byte(void *stream, uint8_t byte) {
     fputc(byte, stream);
 }
+
+int native_host_write_ir(const uint8_t *bytes, uintptr_t length) {
+    return fwrite(bytes, 1, length, stdout) == length && fflush(stdout) == 0;
+}

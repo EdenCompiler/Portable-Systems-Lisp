@@ -886,3 +886,14 @@ a private directory beside the requested output. Publication uses a rename on
 the destination filesystem, so workspace outputs work when `/tmp` resides on
 a different filesystem. Failed C compilation preserves an existing object and
 reclaims intermediates. This remains an explicit C interop boundary.
+
+
+Native CLI IR selection uses `--dump-ir=hir|ssa|lir|all`. Selected HIR, optimized
+SSA and LIR pass their receiving verifiers before formatting. Text preserves
+source function names and generated closure identities. The hosted controller
+owns a separate growable capture buffer and retries from the same assembled
+source bytes; enabling a dump does not change object bytes. Compilation or
+capture failure publishes neither partial text nor a new artifact. A stdout
+write error after successful artifact publication returns failure and retains
+the published artifact. The exported IR library keeps its explicit caller-owned
+buffer and capacity contract.

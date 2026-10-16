@@ -548,6 +548,7 @@ struct native_cli_options {
     uintptr_t link_input_count, link_input_capacity;
     uint32_t help_requested, parse_error;
     const uint8_t *parse_error_text;
+    uint32_t dump_stages;
 };
 extern int native_parse_cli_options(int argc, const char *const *argv,
                                     struct native_cli_options *options);
@@ -564,6 +565,7 @@ extern int native_host_link_artifact(
 extern uint64_t native_host_runtime_roots(
     uint32_t target, const struct native_c_source_path *sources,
     const uint8_t *const *inputs, uintptr_t input_count);
+extern int native_host_write_ir(const uint8_t *, uintptr_t);
 extern int native_run_compiler_profile(const char *, const char *, uint32_t, uint32_t, uint32_t);
 extern int native_register_runtime_signatures(struct native_compile_context *);
 extern int native_runtime_signature_p(struct native_compile_context *, struct native_signature *);

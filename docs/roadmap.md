@@ -1689,3 +1689,20 @@ closure/IR/vector and CLI gates passed on all four targets and smoke. All four
 production CLI/parser/link/diagnostic gates and production smoke also passed
 with unchanged compiler, runtime and test hashes. Freestanding target/driver
 options, complete IR/diagnostic parity and the full M8 Stage 1–3 gate remain open.
+
+
+### M8 native CLI IR capture
+
+The native CLI selects verified HIR, SSA, LIR or all stages, including generated
+closure bodies. The PSL host controller grows capture storage and retries from
+the same source snapshot. Dumping preserves emitted object bytes, compilation
+failures preserve existing output and publish no partial text, and stdout errors
+are reported after artifact publication. The reusable library retains its
+caller-owned buffer contract. Focused Linux O0/O1 selectors, generated bodies,
+actual growth with rooted C behavior, and native/Stage0 C controller fault tests
+passed. All four final target matrices passed, including actual full-core dumps,
+C O0/O2 controller receivers and allocation-fault coverage; smoke also passed.
+All four production selector/controller/diagnostic gates and smoke passed
+with unchanged source, runtime and test hashes. The production compiler and
+objects match the frozen full-core-dump candidate byte for byte. The full M8
+source/driver/manifest/corpus and Stage 1–3 gates remain open.

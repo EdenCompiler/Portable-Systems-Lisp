@@ -25,6 +25,8 @@
 (ffi:import-function "native_host_runtime_roots"
   ((target u32) (sources (ptr native_c_source_path))
    (inputs (ptr (ptr u8))) (input_count usize)) -> u64)
+(ffi:import-function "native_host_write_ir"
+  ((bytes (ptr u8)) (length usize)) -> c-int)
 (ffi:import-function "native_host_report_error"
   ((kind u32) (text (ptr u8)) (length usize) (position usize)) -> void)
 (ffi:import-function "calloc" ((count usize) (size usize)) -> (ptr void))

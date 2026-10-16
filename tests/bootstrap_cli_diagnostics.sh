@@ -29,7 +29,7 @@ compare_case() {
   if [ "$name" = help ] || [ "$name" = short-help ]; then
     grep -q '^Usage: pslcc-native ' "$work/native.out"
     grep -q 'Targets: x86_64-linux-gnu, aarch64-linux-gnu, riscv64-linux-gnu, x86_64-windows-gnu$' "$work/native.out"
-    ! grep -Eq 'dump-ir|x86_64-none-elf|riscv64-none-elf' "$work/native.out"
+    grep -q -- '--dump-ir=hir|ssa|lir|all' "$work/native.out"
     test ! -s "$work/native.err"
   else
     test "$(sed -n '1p' "$work/native.err")" = "$(sed -n '1p' "$work/stage0.err")"

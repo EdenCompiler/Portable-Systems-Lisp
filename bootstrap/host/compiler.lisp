@@ -13,6 +13,8 @@
       (ffi:call free (ptr-cast (ptr void) entry))))
   1)
 
+(include "compiler_ir.lisp")
+
 (defun compiler_link_output (state output_path kind link_inputs link_count)
   (declare (type (ptr native_compiler_state) state) (type (ptr u8) output_path)
            (type u32 kind) (type (ptr (ptr u8)) link_inputs)
@@ -61,17 +63,21 @@
            (returns c-int))
       (let ((driver (field-pointer state 'driver))
             (result (field-pointer state 'result)))
-    (if (= (ffi:call native_compile_unit (field-pointer driver 'context)
-                     (field-pointer driver 'object) result) 0)
-        (progn
-          (compiler_report_unit_error driver result)
-          (ffi:call native_host_report_error 3 source_path 0 0)
-          1)
-        (if (= (compiler_publish_compiled_output state output_path
-                                                link_requested kind
-                                                link_inputs link_count) 0)
-            (compiler_path_error 4 output_path)
-            0))))
+        (let ((status (compiler_compile_with_ir_growth state)))
+      (if (< status 0) 2
+          (if (= status 0)
+              (progn
+                (if (< 0 (deref (field-pointer (field-pointer state 'ir_dump) 'error)))
+                    (ffi:call native_host_report_error 23
+                      (ptr-from-address (ptr u8) 0) 0 0)
+                    (progn
+                      (compiler_report_unit_error driver result)
+                      (ffi:call native_host_report_error 3 source_path 0 0)))
+                1)
+              (if (= (compiler_publish_compiled_output state output_path
+                          link_requested kind link_inputs link_count) 0)
+                  (compiler_path_error 4 output_path)
+                  (if (= (compiler_flush_ir_dump state) 1) 0 1)))))))
 
 (defun compiler_load_and_prepare (state source_path output_path link_requested
                                  kind link_inputs link_count)
@@ -88,14 +94,10 @@
         (if (= (ffi:call native_prepare_driver driver) 0)
             (compiler_path_error 2 (ptr-from-address (ptr u8) 0))
             (progn
-              (store (field-pointer (field-pointer driver 'context) 'optimization)
-                     (deref (field-pointer state 'optimization)))
-              (store (field-pointer (field-pointer driver 'context) 'target)
-                     (deref (field-pointer state 'target)))
-              (store (field-pointer (field-pointer driver 'context) 'profile)
-                     (deref (field-pointer state 'profile)))
-              (compiler_emit_object state source_path output_path link_requested
-                                    kind link_inputs link_count))))))
+              (if (= (compiler_configure_driver state) 0)
+                  (compiler_path_error 22 (ptr-from-address (ptr u8) 0))
+                  (compiler_emit_object state source_path output_path link_requested
+                                        kind link_inputs link_count)))))))
 
 (defun compiler_run_profile (source_path output_path optimization target profile)
   (declare (type (ptr u8) source_path output_path) (type u32 optimization target profile) (returns c-int))
@@ -171,6 +173,7 @@
                     (deref (field-pointer options 'link_inputs))
                     (deref (field-pointer options 'link_input_count)))))
       (ffi:call native_release_driver (field-pointer state 'driver))
+      (compiler_release_ir_dump state)
       (compiler_release_c_sources state)
       (ffi:call free (ptr-cast (ptr void)
                                (deref (field-pointer state 'link_input_storage))))

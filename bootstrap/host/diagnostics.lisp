@@ -36,7 +36,7 @@
 
 (defun diagnostic_cli_usage (stream)
   (declare (type (ptr void) stream) (returns void))
-  (diagnostic_write_line stream (ffi:c-string "Usage: pslcc-native [-c|--emit=exe|static|shared] SOURCE.lisp -o OUTPUT [--link-input=FILE]... [--target=TARGET] [--profile=hosted|freestanding] [-O0|-O1]"))
+  (diagnostic_write_line stream (ffi:c-string "Usage: pslcc-native [-c|--emit=exe|static|shared] SOURCE.lisp -o OUTPUT [--link-input=FILE]... [--target=TARGET] [--profile=hosted|freestanding] [-O0|-O1] [--dump-ir=hir|ssa|lir|all]"))
   (diagnostic_write_line stream (ffi:c-string "Targets: x86_64-linux-gnu, aarch64-linux-gnu, riscv64-linux-gnu, x86_64-windows-gnu"))
   (diagnostic_write_line stream (ffi:c-string "Profiles: hosted, freestanding")))
 
@@ -52,6 +52,9 @@
       ((= kind 4) (diagnostic_write_line stream (ffi:c-string "SOURCE and -o OUTPUT are required")))
       ((= kind 5) (diagnostic_write_line stream (ffi:c-string "-c cannot be combined with --emit")))
       ((= kind 6) (diagnostic_write_line stream (ffi:c-string "-c does not accept link inputs")))
+      ((= kind 7)
+       (diagnostic_write_c_string stream (ffi:c-string "unknown IR dump mode "))
+       (diagnostic_write_line stream text))
       (t (diagnostic_noop stream)))
     (diagnostic_cli_usage stream)))
 
@@ -125,6 +128,12 @@
        (diagnostic_write_line stream (ffi:c-string "cannot register hosted runtime: reserved symbol or insufficient storage")))
       ((= kind 19) (diagnostic_cli_usage (ffi:call native_host_stdout)))
       ((= kind 20) (diagnostic_cli_error (wrap-cast u32 length) text))
+      ((= kind 21)
+       (diagnostic_write_line stream (ffi:c-string "cannot write native IR dump")))
+      ((= kind 22)
+       (diagnostic_write_line stream (ffi:c-string "cannot allocate native IR dump buffer")))
+      ((= kind 23)
+       (diagnostic_write_line stream (ffi:c-string "cannot represent verified native IR text")))
       (t (diagnostic_noop stream)))))
 
 (defun source_error_kind_p (kind)

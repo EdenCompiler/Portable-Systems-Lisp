@@ -240,3 +240,7 @@ The Windows suite needs MinGW-w64, Wine, and binutils alongside SBCL.
 The AArch64 suite needs the AArch64 GNU cross toolchain and `qemu-aarch64`.
 The RISC-V64 suite needs the RISC-V GNU cross toolchain, RISC-V bare-metal
 binutils, and QEMU user and system emulators.
+
+The native compiler accepts `--dump-ir=hir|ssa|lir|all` and writes verified IR
+text to stdout after artifact publication. `make test-native-cli-ir` checks
+stage selection, deterministic text, object identity and capture-buffer growth.

@@ -44,6 +44,7 @@
   (store (field-pointer options 'help_requested) 0)
   (store (field-pointer options 'parse_error) 0)
   (store (field-pointer options 'parse_error_text) (ptr-from-address (ptr u8) 0))
+  (store (field-pointer options 'dump_stages) 0)
   1)
 
 (defun compiler_cli_set_error (options kind text)
@@ -146,6 +147,20 @@
           (store (field-pointer options 'emit_specified) 1)
           1))))
 
+(defun compiler_cli_add_dump (options text)
+  (declare (type (ptr native_cli_options) options) (type (ptr u8) text)
+           (returns c-int))
+  (let ((stages
+          (cond
+            ((= (compiler_cli_text_equal text (ffi:c-string "hir")) 1) 1)
+            ((= (compiler_cli_text_equal text (ffi:c-string "ssa")) 1) 2)
+            ((= (compiler_cli_text_equal text (ffi:c-string "lir")) 1) 4)
+            ((= (compiler_cli_text_equal text (ffi:c-string "all")) 1) 7)
+            (t 0))))
+    (if (= stages 0) 0
+        (progn (store (field-pointer options 'dump_stages)
+                      (wrap-cast u32 stages)) 1))))
+
 (defun compiler_cli_input_arena_valid_p (inputs capacity)
   (declare (type (ptr (ptr u8)) inputs) (type usize capacity)
            (returns c-int))
@@ -161,6 +176,11 @@
         (if (if (= (compiler_cli_text_equal text (ffi:c-string "--help")) 1)
                 t (= (compiler_cli_text_equal text (ffi:c-string "-h")) 1))
             (progn (store (field-pointer options 'help_requested) 1) argc)
+        (if (= (compiler_cli_prefix_equal text (ffi:c-string "--dump-ir=") 10) 1)
+            (if (= (compiler_cli_add_dump options (pointer+ text 10)) 1)
+                (wrap+ index 1)
+                (wrap-cast usize (compiler_cli_set_error options 7
+                                    (pointer+ text 10))))
         (if (= (compiler_cli_text_equal text (ffi:c-string "-c")) 1)
             (progn (store (field-pointer options 'compile_only) 1) (wrap+ index 1))
             (if (= (compiler_cli_takes_value_p text) 1)
@@ -195,7 +215,7 @@
                                   (wrap-cast usize (compiler_cli_set_error options 1 text))
                                   (if (= (compiler_cli_path options text) 1)
                                       (wrap+ index 1)
-                                      (wrap-cast usize (compiler_cli_set_error options 3 text))))))))))))))
+                                      (wrap-cast usize (compiler_cli_set_error options 3 text)))))))))))))))
 
 (defun compiler_cli_complete_p (options)
   (declare (type (ptr native_cli_options) options) (returns c-int))

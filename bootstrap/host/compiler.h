@@ -10,7 +10,9 @@ enum native_host_error_kind {
     NATIVE_HOST_WRITE, NATIVE_HOST_USAGE, NATIVE_HOST_LAYOUT,
     NATIVE_HOST_IMPORT, NATIVE_HOST_DECLARATION, NATIVE_HOST_PREDECLARATION,
     NATIVE_HOST_BODY, NATIVE_HOST_ALLOCATION_EFFECT,
-    NATIVE_HOST_CLI_HELP = 19, NATIVE_HOST_CLI_PARSE = 20
+    NATIVE_HOST_CLI_HELP = 19, NATIVE_HOST_CLI_PARSE = 20,
+    NATIVE_HOST_IR_WRITE = 21, NATIVE_HOST_IR_ALLOCATE = 22,
+    NATIVE_HOST_IR_CAPACITY = 23
 };
 /* Implemented by the separately compiled PSL output unit. */
 int native_host_write_object(const uint8_t *path, const struct byte_buffer *object);
