@@ -25,7 +25,7 @@ NATIVE_OBJECTS := $(NATIVE_CORE) $(NATIVE_HOST) $(NATIVE_SOURCE) $(NATIVE_INPUT)
 HOST_SOURCES := bootstrap/driver.c bootstrap/host/platform_stdio.c bootstrap/host/platform_toolchain.c
 HOST_HEADERS := $(shell find bootstrap -name '*.h')
 
-.PHONY: test-native-compile-time test-native-macro-growth test-native-none-objects test-native-cl-user test-native-cli-ir test-native-cli-link test-managed-vectors test-native-vectors test-native-source-identities test-lexical-validation all compiler native stage0 compile example test test-native test-static-data test-self-core test-bootstrap-corpus test-native-environment test-native-cli test-native-ir test-native-function-addresses test-native-closures \
+.PHONY: test-native-freestanding-link test-native-large-startup test-native-compile-time test-native-macro-growth test-native-none-objects test-native-cl-user test-native-cli-ir test-native-cli-link test-managed-vectors test-native-vectors test-native-source-identities test-lexical-validation all compiler native stage0 compile example test test-native test-static-data test-self-core test-bootstrap-corpus test-native-environment test-native-cli test-native-ir test-native-function-addresses test-native-closures \
         test-windows test-native-win64-frame test-native-managed test-native-roots test-native-byte-strings test-native-string-literals test-native-runtime-symbols test-native-multiple-values test-native-word-aggregates test-native-integer-aggregates test-native-float-aggregates test-native-windows test-aarch64 test-native-aarch64 test-native-riscv64 test-riscv64 clean help
 
 all: compiler
@@ -127,6 +127,12 @@ test-native-ir: native
 test-native-cli: native
 	sh tests/bootstrap_native_cli.sh "$(NATIVE_COMPILER)" "$(TARGET)"
 	sh tests/bootstrap_cli_diagnostics.sh "$(NATIVE_COMPILER)" "$(TARGET)"
+
+test-native-freestanding-link: native
+	sh tests/bootstrap_native_cli_freestanding_link.sh "$(NATIVE_COMPILER)"
+
+test-native-large-startup: native
+	sh tests/bootstrap_native_cli_large_startup.sh "$(NATIVE_COMPILER)"
 
 test-native-none-objects: native
 	sh tests/bootstrap_native_cli_none_targets.sh "$(NATIVE_COMPILER)"

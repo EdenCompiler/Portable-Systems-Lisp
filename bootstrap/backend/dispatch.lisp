@@ -4,6 +4,7 @@
 (include "lir_emit_win64.lisp")
 (include "lir_emit_aarch64.lisp")
 (include "lir_emit_riscv64.lisp")
+(include "freestanding_startup.lisp")
 
 (defun native_emit_lir_function (context)
   (declare (type (ptr native_compile_context) context) (returns c-int))

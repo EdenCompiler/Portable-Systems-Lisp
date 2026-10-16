@@ -151,7 +151,7 @@ EOF
       test "$?" -eq 1
     fi
     cmp "$work_dir/expected" "$work_dir/preserved"
-    grep -q 'none-elf targets currently support -c object output only' \
+    grep -Eq 'cannot write or link output|unsupported target/profile/emit combination' \
       "$work_dir/stderr"
     test ! -s "$work_dir/stdout"
   done
@@ -159,6 +159,6 @@ done
 
 run_compiler_host "$compiler" --help >"$work_dir/help"
 grep -q 'x86_64-none-elf, riscv64-none-elf' "$work_dir/help"
-grep -q 'none-elf targets currently support -c object output only' \
+grep -q 'Freestanding executables: x86_64-none-elf (linux-exit) and riscv64-none-elf (qemu-virt)' \
   "$work_dir/help"
 printf 'Native none-ELF object targets match Stage 0; unsupported links preserve outputs\n'

@@ -246,6 +246,7 @@ struct native_compile_context {
     struct native_literal_scan literal_scan;
     struct native_ir_dump *ir_dump;
     uint32_t runtime_target_error;
+    uint32_t startup_kind;
 };
 
 struct native_type_shape {
@@ -553,6 +554,8 @@ struct native_cli_options {
     uint32_t help_requested, parse_error;
     const uint8_t *parse_error_text;
     uint32_t dump_stages;
+    uint32_t startup_kind;
+    const uint8_t *entry, *linker_script, *map_file;
 };
 extern int native_parse_cli_options(int argc, const char *const *argv,
                                     struct native_cli_options *options);
@@ -565,7 +568,9 @@ extern int native_host_link_artifact(
     const uint8_t *path, const struct byte_buffer *object,
     const struct native_c_source_path *sources, uint32_t target,
     uint32_t profile, uint64_t runtime_modules, uint32_t kind,
-    const uint8_t *const *inputs, uintptr_t input_count);
+    const uint8_t *const *inputs, uintptr_t input_count,
+    uint32_t startup_kind, const uint8_t *entry,
+    const uint8_t *linker_script, const uint8_t *map_file);
 extern uint64_t native_host_runtime_roots(
     uint32_t target, const struct native_c_source_path *sources,
     const uint8_t *const *inputs, uintptr_t input_count);

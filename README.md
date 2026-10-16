@@ -64,7 +64,10 @@ syntax also works; options may appear before or after the source. From a Linux
 compiler host, `SOURCE -o OUTPUT --emit=exe|static|shared` links through the
 selected target toolchain; repeated `--link-input=FILE` options add C objects
 and libraries. `make test-native-cli-link` checks these artifacts and runtime
-selection. A native Windows compiler host supports object output. It is not yet the complete
+selection. The none targets link static freestanding executables with
+`--startup=linux-exit` (x86-64) or `--startup=qemu-virt` (RISC-V), plus optional
+`--entry`, `--linker-script` and `--map`; `make test-native-freestanding-link`
+executes both startup paths. A native Windows compiler host supports object output. It is not yet the complete
 Stage 0 compiler. `make example` uses Stage 0 to build and run a pure Lisp
 program. Use `make help` for native generation checks, cross-target tests,
 cleanup, and build variables. For example, `make PSLFLAGS=-O0` selects

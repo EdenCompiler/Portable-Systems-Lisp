@@ -338,8 +338,8 @@ libraries needed by the link. Static archive inputs must be object files:
 Windows imports from another DLL use its MinGW import library as a link input;
 the MinGW linker exports public PSL symbols from a generated DLL.
 The `-c` path emits an object without invoking `cc` or `ar`, unless the source
-explicitly contains `ffi:source`. Link outputs require Linux or Windows;
-the `none` target remains object-only.
+explicitly contains `ffi:source`. Hosted linked outputs require a Linux or Windows target; the `none` targets
+use the explicit freestanding startup and linker path described below.
 
 ## Object and runtime contract
 
@@ -920,8 +920,18 @@ architecture, ABI and ELF metadata independently of OS selection. Scalar,
 pointer, internal/imported call and initialized-data behavior follows the
 corresponding hosted ABI. Hosted-profile scalar code is permitted, while VALUE
 parameters/results and managed runtime calls require a supported hosted target.
-At this slice the native none-target CLI exposes object output only; startup and
-standalone linking remain separate driver work.
+On Linux compiler hosts, the native CLI also links static none-target
+executables in the freestanding profile. `--startup=linux-exit` selects the
+x86-64 Linux syscall exit shim; `--startup=qemu-virt` selects RISC-V stack setup
+and SiFive Test exit. Both call a defined, C-exported, zero-argument `main`.
+`--entry`, `--linker-script` and `--map` select an explicit entry, memory map and
+link map; generated startup requires the `_start` entry. Code and data occupy
+separate executable/read-only and writable load segments. Explicit objects and
+archives can be linked; source-file C collection on none targets is unsupported
+by both compilers.
+The legacy `SOURCE OUTPUT.o` object form rejects link-only options.
+No libc or PSL runtime is added. The native process reports failures with status
+1; reusable library APIs retain their documented detailed statuses.
 
 The native hosted controller grows source/identity/IR arenas when generated
 macro syntax exceeds their capacity. It releases each complete attempt and

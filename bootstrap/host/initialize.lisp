@@ -223,6 +223,7 @@
     (store (field-pointer record 'target) 0)
     (store (field-pointer record 'profile) 0)
     (store (field-pointer record 'runtime_modules) 0)
+    (store (field-pointer record 'startup_kind) 0)
     (store (field-pointer record 'root_cursor) 0)
     (store (field-pointer record 'root_scan_count) 0)
     (store (field-pointer record 'root_extra) 0)

@@ -22,7 +22,8 @@
   ((path (ptr u8)) (object (ptr byte_buffer))
    (sources (ptr native_c_source_path)) (target u32) (profile u32)
    (runtime_modules u64) (kind u32) (inputs (ptr (ptr u8)))
-   (input_count usize)) -> c-int)
+   (input_count usize) (startup_kind u32) (entry (ptr u8))
+   (linker_script (ptr u8)) (map_file (ptr u8))) -> c-int)
 (ffi:import-function "native_host_link_supported" () -> c-int)
 (ffi:import-function "native_host_runtime_roots"
   ((target u32) (sources (ptr native_c_source_path))

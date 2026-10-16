@@ -36,7 +36,7 @@ if [ "$compiler_host_target" = x86_64-windows-gnu ]; then
       echo "Windows-host linker accepted unsupported artifact: $kind" >&2
       exit 1
     else
-      test "$?" -eq 2
+      test "$?" -eq 1
     fi
     cmp "$work_dir/expected" "$work_dir/preserved"
   done
@@ -145,7 +145,7 @@ if run_compiler_host "$compiler" --target="$target" "$answer_source" \
   echo 'native linker accepted an unknown runtime dependency' >&2
   exit 1
 else
-  test "$?" -eq 2
+  test "$?" -eq 1
 fi
 cmp "$work_dir/expected" "$work_dir/preserved"
 
@@ -154,7 +154,7 @@ if run_compiler_host "$compiler" --target="$target" "$answer_source" -o "$work_d
   echo 'native CLI accepted a missing link input' >&2
   exit 1
 else
-  test "$?" -eq 2
+  test "$?" -eq 1
 fi
 cmp "$work_dir/expected" "$work_dir/preserved"
 
@@ -165,7 +165,7 @@ if [ "$target" = x86_64-linux-gnu ]; then
     echo 'native static output accepted a non-object input' >&2
     exit 1
   else
-    test "$?" -eq 2
+    test "$?" -eq 1
   fi
   cmp "$work_dir/expected" "$work_dir/preserved"
 else

@@ -20,7 +20,19 @@
            (type u32 kind) (type (ptr (ptr u8)) link_inputs)
            (type usize link_count) (returns c-int))
   (if (= (ffi:call native_host_link_supported) 0) 0
-      (let ((driver (field-pointer state 'driver)))
+      (let ((driver (field-pointer state 'driver))
+            (options (field-pointer state 'options)))
+      (if (< 3 (deref (field-pointer state 'target)))
+          (ffi:call native_host_link_artifact
+            output_path (field-pointer driver 'object)
+            (deref (field-pointer state 'c_sources))
+            (deref (field-pointer state 'target))
+            (deref (field-pointer state 'profile)) 0 kind link_inputs link_count
+            (deref (field-pointer options 'startup_kind))
+            (deref (field-pointer options 'entry))
+            (deref (field-pointer options 'linker_script))
+            (deref (field-pointer options 'map_file)))
+      (progn
         (let ((scanned-roots
                 (ffi:call native_host_runtime_roots
                           (deref (field-pointer state 'target))
@@ -38,7 +50,10 @@
                   (deref (field-pointer state 'target))
                   (deref (field-pointer state 'profile))
                   (native_runtime_link_dependencies runtime-roots)
-                  kind link_inputs link_count)))))))
+                  kind link_inputs link_count 0
+                  (deref (field-pointer options 'entry))
+                  (ptr-from-address (ptr u8) 0)
+                  (ptr-from-address (ptr u8) 0))))))))))
 
 (defun compiler_publish_compiled_output (state output_path link_requested kind
                                          link_inputs link_count)

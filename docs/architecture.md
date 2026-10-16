@@ -627,3 +627,10 @@ lambda lists before the seed evaluates DEFMACRO. Initializer expressions and
 explicit keyword names are preserved; validation also traverses destructuring
 patterns. This prevents the seed from silently installing an expander whose
 invalid constant binding was replaced with a compiler error stub.
+
+`bootstrap/backend/freestanding_startup.lisp` emits target startup instructions
+and adjusts code, function records and relocations before object publication.
+The driver coordinates that step after verified function encoding. Startup
+selection is restored by `bootstrap/host/compiler_ir.lisp` on every complete
+syntax/IR retry. The C toolchain adapter owns selected linker invocation and
+staged executable/map publication; architecture emission stays in PSL.

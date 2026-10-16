@@ -1,0 +1,11 @@
+(ffi:import-data "large_bias" u64)
+(defun large_6999 ()
+  (declare (returns u64))
+  6999)
+
+(defun main ()
+  (declare (returns c-int) (c-export :c))
+  (if (= (wrap+ (large_6999)
+                (deref (ffi:address-of large_bias)))
+         7004)
+      0 1))

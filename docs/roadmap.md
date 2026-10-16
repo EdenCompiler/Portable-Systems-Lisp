@@ -1787,3 +1787,22 @@ nested-growth and smoke regressions passed in both trees. Production compiler
 and all eight objects match the frozen candidate byte for byte; source/runtime/
 test hashes stayed unchanged throughout validation. General compile-time
 evaluation and the complete M8 source/manifest/corpus/Stage 1–3 gate remain open.
+
+### M8 native freestanding executable linking
+
+The native Linux compiler host links static x86-64 and RISC-V none-target
+executables with generated startup or explicit entry, linker scripts and maps.
+PSL owns startup encoding and code/relocation adjustment; conventional linkers
+consume its objects without implicit runtime or libc. Generated startup calls
+an exported zero-argument main, survives complete syntax/IR retries and occupies
+the first load address. Separate RX/RW segments support imported writable data.
+The isolated and integrated O0/O1 startup, 7,000-function/small-stack, RISC-V
+QEMU, none-object and smoke gates passed. Hosted CLI/controller, IR, diagnostic
+and executable/static/shared/runtime-link checks passed on all four targets.
+A separate legacy-object validation rejects startup, custom-entry, script and
+map options while preserving existing outputs; the final production rebuild
+matches its candidate executable and all eight generation objects byte for
+byte, and passes the freestanding and smoke gates. Process failures use status
+1 while library APIs retain detailed statuses. Source-file C collection on none
+targets remains unsupported by both compilers. The complete manifest/corpus
+and fresh full Stage 1–3 gate remain open.

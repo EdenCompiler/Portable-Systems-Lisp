@@ -47,6 +47,10 @@
   (store (field-pointer options 'parse_error) 0)
   (store (field-pointer options 'parse_error_text) (ptr-from-address (ptr u8) 0))
   (store (field-pointer options 'dump_stages) 0)
+  (store (field-pointer options 'startup_kind) 0)
+  (store (field-pointer options 'entry) (ffi:c-string "_start"))
+  (store (field-pointer options 'linker_script) (ptr-from-address (ptr u8) 0))
+  (store (field-pointer options 'map_file) (ptr-from-address (ptr u8) 0))
   1)
 
 (defun compiler_cli_set_error (options kind text)
@@ -185,6 +189,9 @@
                                     (pointer+ text 10))))
         (if (= (compiler_cli_text_equal text (ffi:c-string "-c")) 1)
             (progn (store (field-pointer options 'compile_only) 1) (wrap+ index 1))
+            (let ((special (compiler_cli_freestanding_option options text index)))
+            (if (< 0 special) special
+            (if (< 0 (deref (field-pointer options 'parse_error))) 0
             (if (= (compiler_cli_takes_value_p text) 1)
                 (if (< (wrap+ index 1) argc)
                     (let ((value (deref (pointer+ argv
@@ -217,7 +224,7 @@
                                   (wrap-cast usize (compiler_cli_set_error options 1 text))
                                   (if (= (compiler_cli_path options text) 1)
                                       (wrap+ index 1)
-                                      (wrap-cast usize (compiler_cli_set_error options 3 text)))))))))))))))
+                                      (wrap-cast usize (compiler_cli_set_error options 3 text))))))))))))))))))
 
 (defun compiler_cli_complete_p (options)
   (declare (type (ptr native_cli_options) options) (returns c-int))
@@ -241,11 +248,20 @@
 
 (defun compiler_cli_target_link_supported_p (options)
   (declare (type (ptr native_cli_options) options) (returns c-int))
-  (if (< (deref (field-pointer options 'target)) 4) 1
-      (if (= (deref (field-pointer options 'compile_only)) 1) 1
+  (if (< (deref (field-pointer options 'target)) 4)
+      (if (= (compiler_cli_freestanding_options_p options) 1) 0 1)
+      (if (= (deref (field-pointer options 'compile_only)) 1)
+          (if (= (compiler_cli_freestanding_options_p options) 1) 0 1)
           (if (if (= (deref (field-pointer options 'output_option)) 1) t
                   (= (deref (field-pointer options 'emit_specified)) 1))
-              0 1))))
+              (if (= (deref (field-pointer options 'profile)) 0)
+                  (if (= (deref (field-pointer options 'kind)) 0)
+                      (if (= (compiler_cli_startup_matches_target_p options) 1)
+                          (if (= (deref (field-pointer options 'startup_kind)) 0) 1
+                              (if (= (compiler_cli_text_equal
+                                       (deref (field-pointer options 'entry))
+                                       (ffi:c-string "_start")) 1) 1 0)) 0) 0) 0)
+              (if (= (compiler_cli_freestanding_options_p options) 1) 0 1)))))
 
 (defun compiler_cli_failure_kind (options)
   (declare (type (ptr native_cli_options) options) (returns u32))
@@ -253,7 +269,8 @@
           t (= (ptr-address (deref (field-pointer options 'output))) 0)) 4
       (if (= (deref (field-pointer options 'compile_only)) 1)
           (if (= (deref (field-pointer options 'emit_specified)) 1) 5
-              (if (< 0 (deref (field-pointer options 'link_input_count))) 6 4))
+              (if (< 0 (deref (field-pointer options 'link_input_count))) 6
+                  (if (= (compiler_cli_freestanding_options_p options) 1) 9 4)))
           4)))
 
 (defun native_parse_cli_options_with_inputs (argc argv options inputs capacity)
@@ -293,3 +310,47 @@
            (type (ptr native_cli_options) options) (returns c-int) (c-export :c))
   (native_parse_cli_options_with_inputs argc argv options
     (ptr-from-address (ptr (ptr u8)) 0) 0))
+
+(defun compiler_cli_freestanding_option (options text index)
+  (declare (type (ptr native_cli_options) options) (type (ptr u8) text)
+           (type usize index) (returns usize))
+  (if (= (compiler_cli_prefix_equal text (ffi:c-string "--startup=") 10) 1)
+      (let ((value (pointer+ text 10)))
+        (if (= (compiler_cli_text_equal value (ffi:c-string "linux-exit")) 1)
+            (progn (store (field-pointer options 'startup_kind) 1) (wrap+ index 1))
+            (if (= (compiler_cli_text_equal value (ffi:c-string "qemu-virt")) 1)
+                (progn (store (field-pointer options 'startup_kind) 2) (wrap+ index 1))
+                (progn (compiler_cli_set_error options 1 text) 0))))
+      (if (= (compiler_cli_prefix_equal text (ffi:c-string "--entry=") 8) 1)
+          (if (= (deref (pointer+ text 8)) 0)
+              (progn (compiler_cli_set_error options 1 text) 0)
+              (progn (store (field-pointer options 'entry) (pointer+ text 8))
+                     (wrap+ index 1)))
+          (if (= (compiler_cli_prefix_equal text (ffi:c-string "--linker-script=") 16) 1)
+              (if (= (deref (pointer+ text 16)) 0)
+                  (progn (compiler_cli_set_error options 1 text) 0)
+                  (progn (store (field-pointer options 'linker_script) (pointer+ text 16))
+                         (wrap+ index 1)))
+              (if (= (compiler_cli_prefix_equal text (ffi:c-string "--map=") 6) 1)
+                  (if (= (deref (pointer+ text 6)) 0)
+                      (progn (compiler_cli_set_error options 1 text) 0)
+                      (progn (store (field-pointer options 'map_file) (pointer+ text 6))
+                             (wrap+ index 1)))
+                  0)))))
+
+(defun compiler_cli_freestanding_options_p (options)
+  (declare (type (ptr native_cli_options) options) (returns c-int))
+  (if (< 0 (deref (field-pointer options 'startup_kind))) 1
+      (if (< 0 (ptr-address (deref (field-pointer options 'linker_script)))) 1
+          (if (< 0 (ptr-address (deref (field-pointer options 'map_file)))) 1
+              (if (= (compiler_cli_text_equal
+                       (deref (field-pointer options 'entry))
+                       (ffi:c-string "_start")) 1) 0 1)))))
+
+(defun compiler_cli_startup_matches_target_p (options)
+  (declare (type (ptr native_cli_options) options) (returns c-int))
+  (if (= (deref (field-pointer options 'startup_kind)) 0) 1
+      (if (= (deref (field-pointer options 'startup_kind)) 1)
+          (if (= (deref (field-pointer options 'target)) 4) 1 0)
+          (if (= (deref (field-pointer options 'startup_kind)) 2)
+              (if (= (deref (field-pointer options 'target)) 5) 1 0) 0))))

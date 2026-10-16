@@ -207,12 +207,19 @@ int native_host_link_artifact(const uint8_t *path,
                               uint32_t target, uint32_t profile,
                               uint64_t runtime_modules, uint32_t kind,
                               const uint8_t *const *inputs,
-                              uintptr_t input_count) {
+                              uintptr_t input_count, uint32_t startup_kind,
+                              const uint8_t *entry,
+                              const uint8_t *linker_script,
+                              const uint8_t *map_file) {
     (void)profile;
     (void)runtime_modules;
     (void)kind;
     (void)inputs;
     (void)input_count;
+    (void)startup_kind;
+    (void)entry;
+    (void)linker_script;
+    (void)map_file;
     return sources ? native_host_merge_c_sources(path, object, sources, target)
                    : native_host_write_object(path, object);
 }

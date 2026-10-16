@@ -38,7 +38,8 @@
   (declare (type (ptr void) stream) (returns void))
   (diagnostic_write_line stream (ffi:c-string "Usage: pslcc-native [-c|--emit=exe|static|shared] SOURCE.lisp -o OUTPUT [--link-input=FILE]... [--target=TARGET] [--profile=hosted|freestanding] [-O0|-O1] [--dump-ir=hir|ssa|lir|all]"))
   (diagnostic_write_line stream (ffi:c-string "Targets: x86_64-linux-gnu, aarch64-linux-gnu, riscv64-linux-gnu, x86_64-windows-gnu, x86_64-none-elf, riscv64-none-elf"))
-  (diagnostic_write_line stream (ffi:c-string "The none-elf targets currently support -c object output only"))
+  (diagnostic_write_line stream (ffi:c-string "Freestanding executables: x86_64-none-elf (linux-exit) and riscv64-none-elf (qemu-virt), on Linux compiler hosts"))
+  (diagnostic_write_line stream (ffi:c-string "Freestanding link options: --startup=linux-exit|qemu-virt [--entry=SYMBOL] [--linker-script=FILE] [--map=FILE]"))
   (diagnostic_write_line stream (ffi:c-string "Profiles: hosted, freestanding")))
 
 (defun diagnostic_cli_error (kind text)
@@ -58,7 +59,10 @@
        (diagnostic_write_line stream text))
       ((= kind 8)
        (diagnostic_write_line stream
-         (ffi:c-string "none-elf targets currently support -c object output only")))
+         (ffi:c-string "unsupported target/profile/emit combination for native linking")))
+      ((= kind 9)
+       (diagnostic_write_line stream
+         (ffi:c-string "freestanding startup and linker options require executable output")))
       (t (diagnostic_noop stream)))
     (diagnostic_cli_usage stream)))
 

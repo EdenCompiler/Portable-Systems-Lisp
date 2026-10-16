@@ -761,8 +761,8 @@ selection, symbol identity, PSL qualification, deterministic objects and C calls
 
 `make test-native-none-objects` checks both none-ELF object targets, architecture
 and ABI metadata, internal/imported calls and initialized data against C, plus
-hosted-runtime rejection and output preservation. Native standalone startup and
-linker options are separate work from this object gate.
+hosted-runtime rejection and output preservation. Startup and linker behavior
+are checked separately by `make test-native-freestanding-link`.
 
 `make test-native-macro-growth` checks nested doubling macros at O0/O1 on the
 selected hosted target, using independent C O0/O2 callers and repeated native
@@ -778,3 +778,10 @@ order, multiple definitions, empty bodies and redefinitions. The focused gate
 executes native/Stage 0 O0/O1 objects with C O0/O2 callers, repeats artifacts and
 rejection diagnostics, preserves prior outputs and checks native expansion
 without a host Lisp executable. General EVAL-WHEN execution remains unsupported.
+
+`make test-native-freestanding-link` runs x86-64 none/Linux-exit and RISC-V
+none/QEMU-virt executables at O0/O1, checking custom scripts, maps, output
+preservation and combined syntax/IR retries. `make test-native-large-startup`
+checks 7,000 functions, internal calls and imported writable C data in images
+larger than 64 KiB under a 128 KiB stack. These executable gates require a Linux
+compiler host and explicit external linkers/runners.

@@ -75,4 +75,5 @@
   (root_flags u32)
   (literal_scan native_literal_scan)
   (ir_dump (ptr native_ir_dump))
-  (runtime_target_error u32))
+  (runtime_target_error u32)
+  (startup_kind u32))

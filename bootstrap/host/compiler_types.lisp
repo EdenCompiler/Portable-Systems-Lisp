@@ -20,7 +20,11 @@
   (help_requested u32)
   (parse_error u32)
   (parse_error_text (ptr u8))
-  (dump_stages u32))
+  (dump_stages u32)
+  (startup_kind u32)
+  (entry (ptr u8))
+  (linker_script (ptr u8))
+  (map_file (ptr u8)))
 
 (defcstruct native_compiler_state
   (driver native_driver)

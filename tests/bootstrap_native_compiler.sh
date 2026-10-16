@@ -195,19 +195,19 @@ check_cli_failure() {
     test "$status" -eq "$expected"
   fi
 }
-check_cli_failure 2
-check_cli_failure 2 unused
-check_cli_failure 2 one two three
-grep -q 'usage: pslcc-native-slice' "$work_dir/cli.err"
-check_cli_failure 2 "$work_dir/missing.lisp" "$work_dir/cli-rejected.o"
+check_cli_failure 1
+check_cli_failure 1 unused
+check_cli_failure 1 one two three
+grep -q '^Usage: pslcc-native ' "$work_dir/cli.err"
+check_cli_failure 1 "$work_dir/missing.lisp" "$work_dir/cli-rejected.o"
 grep -q 'cannot read source' "$work_dir/cli.err"
 test ! -e "$work_dir/cli-rejected.o"
 check_cli_failure 1 "$project_root/tests/bootstrap_wrong_arity.lisp" "$work_dir/cli-rejected.o"
 grep -q 'unsupported or malformed source' "$work_dir/cli.err"
 test ! -e "$work_dir/cli-rejected.o"
 mkdir "$work_dir/output-directory"
-check_cli_failure 2 "$project_root/tests/bootstrap_answer.lisp" "$work_dir/output-directory"
-grep -q 'cannot write object' "$work_dir/cli.err"
+check_cli_failure 1 "$project_root/tests/bootstrap_answer.lisp" "$work_dir/output-directory"
+grep -q 'cannot write or link output' "$work_dir/cli.err"
 if test "$host_target" = x86_64-linux-gnu; then
   sh "$project_root/tests/bootstrap_c_output.sh" "$work_dir/pslcc-native-slice$host_suffix"
   for level in 0 1; do
@@ -229,17 +229,17 @@ if test "$host_target" = x86_64-linux-gnu; then
   cc -Wall -Wextra -Werror "$project_root/tests/include/harness.c" \
     "$work_dir/include-c-source.o" -o "$work_dir/include-c-source"
   "$work_dir/include-c-source"
-  check_cli_failure 2 "$project_root/tests/include/missing_c_source.lisp" \
+  check_cli_failure 1 "$project_root/tests/include/missing_c_source.lisp" \
     "$work_dir/missing-c-source.o"
   grep -q 'cannot read source' "$work_dir/cli.err"
   test ! -e "$work_dir/missing-c-source.o"
-  check_cli_failure 2 "$project_root/tests/include/duplicate_c_source.lisp" \
+  check_cli_failure 1 "$project_root/tests/include/duplicate_c_source.lisp" \
     "$work_dir/duplicate-c-source.o"
   grep -q 'duplicate C source' "$work_dir/cli.err"
   test ! -e "$work_dir/duplicate-c-source.o"
-  check_cli_failure 2 "$project_root/tests/include/invalid_c_source.lisp" \
+  check_cli_failure 1 "$project_root/tests/include/invalid_c_source.lisp" \
     "$work_dir/invalid-c-source.o"
-  grep -q 'cannot write object' "$work_dir/cli.err"
+  grep -q 'cannot write or link output' "$work_dir/cli.err"
   test ! -e "$work_dir/invalid-c-source.o"
 fi
 for level in 0 1; do
@@ -353,8 +353,8 @@ for level in 0 1; do
     "$work_dir/$fixture-native-level-$level"
   done
 done
-check_cli_failure 2 -O2 "$project_root/tests/bootstrap_answer.lisp" "$work_dir/cli-rejected.o"
-grep -q 'usage: pslcc-native-slice' "$work_dir/cli.err"
+check_cli_failure 1 -O2 "$project_root/tests/bootstrap_answer.lisp" "$work_dir/cli-rejected.o"
+grep -q '^Usage: pslcc-native ' "$work_dir/cli.err"
 run_host "$work_dir/pslcc-native-slice$host_suffix" \
   "$project_root/bootstrap/host/driver.lisp" "$work_dir/native-host-native.o"
 run_host "$work_dir/pslcc-native-slice$host_suffix" \
@@ -1431,6 +1431,13 @@ PSL_NATIVE_COMPILER_HOST_TARGET=$host_target \
     "$work_dir/pslcc-native-slice$host_suffix" "$host_target"
 
 sh "$project_root/tests/bootstrap_managed_vectors.sh" "$host_target"
+
+if test "$host_target" = x86_64-linux-gnu; then
+  sh "$project_root/tests/bootstrap_native_cli_freestanding_link.sh" \
+    "$work_dir/pslcc-native-slice$host_suffix"
+  sh "$project_root/tests/bootstrap_native_cli_large_startup.sh" \
+    "$work_dir/pslcc-native-slice$host_suffix"
+fi
 
 sh "$project_root/tests/runtime_precise_closure_link.sh" "$host_target"
 

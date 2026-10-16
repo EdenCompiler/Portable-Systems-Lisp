@@ -55,6 +55,8 @@
     (store (field-pointer context 'optimization) (deref (field-pointer state 'optimization)))
     (store (field-pointer context 'target) (deref (field-pointer state 'target)))
     (store (field-pointer context 'profile) (deref (field-pointer state 'profile)))
+    (store (field-pointer context 'startup_kind)
+           (deref (field-pointer (field-pointer state 'options) 'startup_kind)))
     (compiler_setup_ir_dump state)))
 
 (defun compiler_grow_ir_dump (state)

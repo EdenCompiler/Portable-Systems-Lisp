@@ -22,6 +22,14 @@ static const char *target_compiler(uint32_t target) {
     }
 }
 
+static const char *target_linker(uint32_t target) {
+    switch (target) {
+    case NATIVE_TARGET_X86_64_NONE: return "ld";
+    case NATIVE_TARGET_RISCV64_NONE: return "riscv64-unknown-elf-ld";
+    default: return NULL;
+    }
+}
+
 int native_host_link_supported(void) {
     return 1;
 }
@@ -329,6 +337,96 @@ static int valid_link_input(const char *path, uint32_t kind, uint32_t target) {
                     strcasecmp(dot, ".obj") == 0));
 }
 
+static const char *default_freestanding_script(uint32_t target) {
+    const char *directory = getenv("PSL_LINKER_DIR");
+    static char path[4096];
+    const char *name = target == NATIVE_TARGET_X86_64_NONE ?
+        "x86_64-linux-user.ld" : "riscv64-virt.ld";
+    int length;
+    if (!directory || !*directory) directory = "linker";
+    length = snprintf(path, sizeof path, "%s/%s", directory, name);
+    return length >= 0 && (size_t)length < sizeof path ? path : NULL;
+}
+
+static int link_freestanding(const uint8_t *path,
+                             const struct byte_buffer *object,
+                             const struct native_c_source_path *sources,
+                             uint32_t target, uint32_t profile,
+                             uint64_t runtime_modules, uint32_t kind,
+                             const uint8_t *const *inputs, uintptr_t input_count,
+                             const uint8_t *entry, const uint8_t *linker_script,
+                             const uint8_t *map_file) {
+    const char *linker = target_linker(target);
+    const char *script = linker_script ? (const char *)linker_script :
+        default_freestanding_script(target);
+    const char *entry_name = entry ? (const char *)entry : "_start";
+    char *directory = NULL, *map_directory = NULL;
+    char *stage_output = NULL, *stage_map = NULL;
+    char **arguments = NULL;
+    size_t capacity, map_capacity = 0, count = 0, index;
+    char *object_path = NULL;
+    int ok = 0;
+    if (!path || !object || !linker || !script || kind != 0 || profile != 0 ||
+        runtime_modules != 0 || source_count(sources) != 0 ||
+        (input_count && !inputs) ||
+        (map_file && strcmp((const char *)path, (const char *)map_file) == 0) ||
+        access(script, R_OK) != 0)
+        return 0;
+    for (index = 0; index < input_count; ++index)
+        if (!valid_link_input((const char *)inputs[index], kind, target)) return 0;
+    directory = output_temporary_directory((const char *)path);
+    if (!directory) goto cleanup;
+    capacity = strlen(directory) + sizeof "/artifact";
+    if (map_file) {
+        map_directory = output_temporary_directory((const char *)map_file);
+        if (!map_directory) goto cleanup;
+        map_capacity = strlen(map_directory) + sizeof "/link.map";
+    }
+    stage_output = calloc(capacity, 1);
+    object_path = calloc(capacity, 1);
+    if (map_file) stage_map = calloc(map_capacity, 1);
+    arguments = calloc(input_count + 16, sizeof *arguments);
+    if (!stage_output || !object_path || (map_file && !stage_map) || !arguments)
+        goto cleanup;
+    if (!format_path(stage_output, capacity, directory, "artifact") ||
+        !format_path(object_path, capacity, directory, "psl.o") ||
+        !write_object(object_path, object)) goto cleanup;
+    if (map_file && !format_path(stage_map, map_capacity, map_directory, "link.map"))
+        goto cleanup;
+    arguments[count++] = (char *)linker;
+    arguments[count++] = "-nostdlib";
+    arguments[count++] = "-static";
+    arguments[count++] = "--build-id=none";
+    arguments[count++] = "--fatal-warnings";
+    arguments[count++] = "-e";
+    arguments[count++] = (char *)entry_name;
+    arguments[count++] = "-T";
+    arguments[count++] = (char *)script;
+    if (map_file) {
+        arguments[count++] = "-Map";
+        arguments[count++] = stage_map;
+    }
+    arguments[count++] = "-o";
+    arguments[count++] = stage_output;
+    arguments[count++] = object_path;
+    for (index = 0; index < input_count; ++index)
+        arguments[count++] = (char *)inputs[index];
+    arguments[count] = NULL;
+    if (!run_tool(arguments)) goto cleanup;
+    if (map_file && rename(stage_map, (const char *)map_file) != 0) goto cleanup;
+    if (rename(stage_output, (const char *)path) != 0) goto cleanup;
+    ok = 1;
+cleanup:
+    if (stage_output) unlink(stage_output);
+    if (stage_map) unlink(stage_map);
+    if (object_path) unlink(object_path);
+    if (directory) rmdir(directory);
+    if (map_directory) rmdir(map_directory);
+    free(arguments); free(stage_output); free(stage_map); free(object_path);
+    free(directory); free(map_directory);
+    return ok;
+}
+
 static int compile_link_object(const char *compiler, const char *source,
                                const char *object, int pic) {
     char *arguments[9];
@@ -377,7 +475,10 @@ int native_host_link_artifact(const uint8_t *path,
                               uint32_t target, uint32_t profile,
                               uint64_t runtime_modules, uint32_t kind,
                               const uint8_t *const *inputs,
-                              uintptr_t input_count) {
+                              uintptr_t input_count, uint32_t startup_kind,
+                              const uint8_t *entry,
+                              const uint8_t *linker_script,
+                              const uint8_t *map_file) {
     const char *compiler = target_compiler(target);
     const char *archiver = target_archiver(target);
     const char *requested_name = output_file_name((const char *)path);
@@ -389,6 +490,12 @@ int native_host_link_artifact(const uint8_t *path,
     char **runtime_objects = NULL, **arguments = NULL;
     int ok = 0, use_runtime;
     (void)profile;
+    if (target == NATIVE_TARGET_X86_64_NONE || target == NATIVE_TARGET_RISCV64_NONE) {
+        (void)startup_kind;
+        return link_freestanding(path, object, sources, target, profile,
+                                 runtime_modules, kind, inputs, input_count,
+                                 entry, linker_script, map_file);
+    }
     if (!path || !object || !compiler || !requested_name || kind > 2 ||
         (input_count && !inputs) || (kind == 1 && !archiver) ||
         (runtime_modules & ~((UINT64_C(1) << NATIVE_RUNTIME_MODULE_COUNT) - 1))) return 0;
@@ -560,7 +667,10 @@ int native_host_link_artifact(const uint8_t *path,
                               uint32_t target, uint32_t profile,
                               uint64_t runtime_modules, uint32_t kind,
                               const uint8_t *const *inputs,
-                              uintptr_t input_count) {
+                              uintptr_t input_count, uint32_t startup_kind,
+                              const uint8_t *entry,
+                              const uint8_t *linker_script,
+                              const uint8_t *map_file) {
     (void)path;
     (void)object;
     (void)sources;
@@ -570,6 +680,10 @@ int native_host_link_artifact(const uint8_t *path,
     (void)kind;
     (void)inputs;
     (void)input_count;
+    (void)startup_kind;
+    (void)entry;
+    (void)linker_script;
+    (void)map_file;
     return 0;
 }
 
