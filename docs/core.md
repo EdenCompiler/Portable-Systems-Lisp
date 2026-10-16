@@ -955,3 +955,9 @@ Stage 0 validates macro binding variables before installing a host expander.
 Common Lisp constants cannot be binding variables, including unused macro
 definitions. Explicit keyword names and empty destructuring patterns retain
 their ordinary Common Lisp roles.
+
+Stage 0 merges explicit C-source objects in a temporary directory beside the
+requested object output before publishing by rename. Outputs therefore work
+when the build directory and TMPDIR are on different filesystems. Failed C
+compilation and missing output parents preserve existing files and release the
+staging directory, with the same publication contract as the native driver.

@@ -167,6 +167,13 @@
 (defun temporary-path (directory name)
   (merge-pathnames name (pathname (concatenate 'string directory "/"))))
 
+(defun output-temporary-directory (output)
+  (let* ((destination (merge-pathnames (pathname output) (truename ".")))
+         (directory (make-pathname :name nil :type nil :defaults destination)))
+    (sb-posix:mkdtemp
+     (format nil "~A/.psl-ffi-XXXXXX"
+             (string-right-trim "/" (namestring directory))))))
+
 (defun remove-temporary-directory (directory names)
   (dolist (name names)
     (let ((path (temporary-path directory name)))
@@ -221,7 +228,7 @@
   (let* ((resolved (mapcar (lambda (declaration)
                              (resolve-c-source declaration source))
                            c-sources))
-         (directory (temporary-directory))
+         (directory (output-temporary-directory output))
          (names (append '("psl.o" "merged.o")
                         (loop for item in resolved for index from 0
                               collect (format nil "c~D.o" index)))))

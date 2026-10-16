@@ -1818,3 +1818,14 @@ on the same O0 core reduced setup from 226 seconds to about one second; this
 is local test timing, not a compiler performance guarantee. Compiler behavior
 is unchanged. The full source/corpus and fresh Stage 1–3 release gate remain
 open.
+
+### M8 seed C-output publication
+
+Stage 0 stages explicit C-source object merges on the destination filesystem,
+so publication no longer fails with EXDEV when TMPDIR is on a separate device.
+The shared publication gate now runs native and Stage 0 O0/O1 with C O0/O2
+callers, spaced output paths, invalid C, missing parents, preserved previous
+outputs and temporary-file cleanup. It passed all four hosted targets, followed
+by smoke, with frozen source/artifact hashes unchanged. The host proof used
+different devices for the build directory and /tmp. The complete M8 release
+manifest/corpus and fresh Stage 1–3 gate remain open.
