@@ -37,7 +37,7 @@
     (let ((node (parser_node parser reference)))
       (let ((copy (parser_new_node parser (deref (field-pointer node 'kind))
                    (deref (field-pointer node 'start)) (deref (field-pointer node 'length)))))
-        (if (= copy 0) (native_tree_fail context 1)
+        (if (= copy 0) (native_tree_fail context 3)
             (progn
               (native_tree_copy_identity context reference copy)
               (store (field-pointer context 'depth) (wrap+ (deref (field-pointer context 'depth)) 1))
@@ -57,7 +57,7 @@
       ((if (< (deref (field-pointer context 'depth)) (deref (field-pointer context 'limit))) nil t)
        (native_tree_fail context 5))
       ((if (< (deref (field-pointer parser 'count)) (deref (field-pointer reader 'capacity))) nil t)
-       (native_tree_fail context 1))
+       (native_tree_fail context 3))
       (t (native_tree_allocate_copy context reference)))))
 
 (defun native_tree_copy (context reference)
@@ -88,4 +88,3 @@
                   (if (= origin reference) reference
                       (if (< origin reference)
                           (native_macro_origin_reference tree origin (wrap- budget 1)) 0))))))))
-

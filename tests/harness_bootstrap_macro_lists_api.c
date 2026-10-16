@@ -69,7 +69,7 @@ int main(void) {
     uintptr_t saved_capacity=parser.capacity;
     parser.capacity=saved_count+2;
     assert(!native_macroexpand_1(&call,call.origin,&result));
-    assert(call.error==NATIVE_MACRO_CAPACITY && !call.count);
+    assert(call.error==NATIVE_MACRO_SYNTAX_CAPACITY && !call.count);
     assert(parser.count==saved_count && reader.count==saved_count && !parser.error);
     parser.capacity=saved_capacity; call.error=0; tree.error=0;
 

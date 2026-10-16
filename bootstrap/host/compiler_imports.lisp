@@ -5,6 +5,8 @@
   ((path (ptr u8)) (length (ptr usize))
    (c-sources (ptr (ptr native_c_source_path)))) -> (ptr u8))
 (ffi:import-function "native_prepare_driver" ((driver (ptr native_driver))) -> c-int)
+(ffi:import-function "native_prepare_driver_capacity"
+  ((driver (ptr native_driver)) (capacity usize)) -> c-int)
 (ffi:import-function "native_release_driver" ((driver (ptr native_driver))) -> c-int)
 (ffi:import-function "native_compile_unit"
   ((context (ptr native_compile_context)) (object (ptr byte_buffer))

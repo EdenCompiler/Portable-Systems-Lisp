@@ -151,7 +151,7 @@ int main(void) {
     call.capacity=6;
     uintptr_t capacity=parser.capacity;
     parser.capacity=parser.count+3;
-    rejected(&call,form,&result,NATIVE_MACRO_CAPACITY);
+    rejected(&call,form,&result,NATIVE_MACRO_SYNTAX_CAPACITY);
     parser.capacity=capacity;
     for(unsigned invalid=0;invalid<3;++invalid)
         rejected(&call,next_form(&parser,&compiler,&reader),&result,NATIVE_MACRO_ARITY);

@@ -79,9 +79,26 @@
       (ffi:call native_release_driver driver)
       (store (field-pointer driver 'source) source)
       (store (field-pointer driver 'length) length)
-      (ffi:call native_prepare_driver driver))))
+      (ffi:call native_prepare_driver_capacity driver
+                (deref (field-pointer state 'driver_capacity))))))
 
-(defun compiler_compile_with_ir_growth (state)
+(defun compiler_grow_driver_capacity (state)
+  (declare (type (ptr native_compiler_state) state) (returns c-int))
+  (let ((capacity (deref (field-pointer state 'driver_capacity)))
+        (maximum (wrap-cast usize -1)))
+    (if (< (wrap- maximum capacity) capacity) 0
+        (let ((grown (wrap+ capacity capacity)))
+          (if (< grown capacity) 0
+              (if (= grown capacity) 0
+                  (progn (store (field-pointer state 'driver_capacity) grown) 1)))))))
+
+(defun compiler_retry_driver_capacity (state)
+  (declare (type (ptr native_compiler_state) state) (returns c-int))
+  (if (= (compiler_grow_driver_capacity state) 0) 0
+      (if (= (compiler_reprepare_driver state) 0) 0
+          (if (= (compiler_configure_driver state) 0) 0 1))))
+
+(defun compiler_compile_with_growth (state)
   (declare (type (ptr native_compiler_state) state) (returns c-int))
   (let ((driver (field-pointer state 'driver)) (result (field-pointer state 'result)))
     (store (field-pointer result 'phase) 0)
@@ -96,8 +113,14 @@
                     (progn (compiler_path_error 2 (ptr-from-address (ptr u8) 0)) -1)
                     (if (= (compiler_configure_driver state) 0)
                         (progn (compiler_path_error 22 (ptr-from-address (ptr u8) 0)) -1)
-                        (compiler_compile_with_ir_growth state))))
-            0))))
+                        (compiler_compile_with_growth state))))
+            (if (= (deref (field-pointer
+                           (field-pointer (field-pointer driver 'context) 'macro_call)
+                           'error)) 3)
+                (if (= (compiler_retry_driver_capacity state) 0)
+                    (progn (compiler_path_error 2 (ptr-from-address (ptr u8) 0)) -1)
+                    (compiler_compile_with_growth state))
+                0)))))
 
 (defun compiler_release_ir_dump (state)
   (declare (type (ptr native_compiler_state) state) (returns c-int))

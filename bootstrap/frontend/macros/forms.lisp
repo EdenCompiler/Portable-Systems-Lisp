@@ -8,7 +8,7 @@
       (if (< (deref (field-pointer parser 'count)) (deref (field-pointer reader 'capacity)))
           (let ((node (parser_node parser reference)))
             (let ((copy (parser_new_node parser 8 (deref (field-pointer node 'start)) 0)))
-              (if (= copy 0) (native_macro_call_fail call 1)
+              (if (= copy 0) (native_macro_call_fail call 3)
                   (progn
                     (store (field-pointer reader 'count) copy)
                     (let ((identity (pointer+ (deref (field-pointer reader 'identities))
@@ -18,7 +18,7 @@
                              (if (= truth 0) (deref (field-pointer (deref (field-pointer reader 'environment)) 'nil_symbol))
                                  (deref (field-pointer (deref (field-pointer reader 'environment)) 'true_symbol)))))
                     copy))))
-          (native_macro_call_fail call 1)))))
+          (native_macro_call_fail call 3)))))
 
 
 (defun native_macro_list_form (call parameters)
@@ -29,7 +29,7 @@
       (if (< (deref (field-pointer parser 'count)) (deref (field-pointer reader 'capacity)))
           (let ((node (parser_node parser parameters)))
             (let ((rest (parser_new_node parser 1 (deref (field-pointer node 'start)) 0)))
-              (if (= rest 0) (native_macro_call_fail call 1)
+              (if (= rest 0) (native_macro_call_fail call 3)
                   (progn
                     (store (field-pointer reader 'count) rest)
                     (let ((identity (pointer+ (deref (field-pointer reader 'identities))
@@ -37,5 +37,4 @@
                       (store (field-pointer identity 'symbol) 0)
                       (store (field-pointer identity 'origin) (deref (field-pointer call 'origin))))
                     rest))))
-          (native_macro_call_fail call 1)))))
-
+          (native_macro_call_fail call 3)))))

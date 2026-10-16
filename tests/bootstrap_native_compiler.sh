@@ -1405,6 +1405,12 @@ PSL_NATIVE_COMPILER_HOST_TARGET=$host_target \
     "$work_dir/pslcc-native-slice$host_suffix" "$host_target"
 
 PSL_NATIVE_COMPILER_HOST_TARGET=$host_target \
+PSL_NATIVE_CORE_OBJECT=$work_dir/native-core.o \
+PSL_NATIVE_HOST_OBJECT=$work_dir/native-host.o \
+  sh "$project_root/tests/bootstrap_cli_macro_growth.sh" \
+    "$work_dir/pslcc-native-slice$host_suffix" "$project_root/pslcc" "$host_target"
+
+PSL_NATIVE_COMPILER_HOST_TARGET=$host_target \
   sh "$project_root/tests/bootstrap_cl_user.sh" \
     "$work_dir/pslcc-native-slice$host_suffix" "$host_target"
 

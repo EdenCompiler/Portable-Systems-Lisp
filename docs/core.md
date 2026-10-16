@@ -922,3 +922,13 @@ corresponding hosted ABI. Hosted-profile scalar code is permitted, while VALUE
 parameters/results and managed runtime calls require a supported hosted target.
 At this slice the native none-target CLI exposes object output only; startup and
 standalone linking remain separate driver work.
+
+The native hosted controller grows source/identity/IR arenas when generated
+macro syntax exceeds their capacity. It releases each complete attempt and
+reparses the same assembled source snapshot, retaining the enlarged capacity
+when IR capture independently grows. Checked capacity overflow or allocation
+failure stops the retry; semantic and fixed binding-capacity errors do not
+retry. Caller-owned library arenas retain their explicit capacity contract.
+`native_prepare_driver_capacity` accepts a chosen capacity of at least source
+length plus one, with the same partial-failure and release rules as
+`native_prepare_driver`.

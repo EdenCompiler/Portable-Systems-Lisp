@@ -406,6 +406,7 @@ struct native_driver {
    allocates/initializes its arenas; release handles partial failure and repeated
    release. Release before preparing again; contexts are invalid after release. */
 extern int native_prepare_driver(struct native_driver *);
+extern int native_prepare_driver_capacity(struct native_driver *, uintptr_t);
 extern int native_release_driver(struct native_driver *);
 
 /* Zero means success. Form is a one-based AST reference; index is a

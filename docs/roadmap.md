@@ -1753,3 +1753,20 @@ and smoke passed on frozen inputs. All four production hosted CLI/IR/controller
 and diagnostic gates, the production none-target object/API gate, and production
 smoke passed. Compiler, runtime and test hashes stayed unchanged during validation. Startup/linker
 options and the complete M8 manifest/corpus/Stage 1–3 gates remain open.
+
+### M8 hosted macro syntax arena growth
+
+The native controller now distinguishes generated-syntax capacity exhaustion
+from semantic and fixed macro binding limits. It grows checked source/identity
+and IR arenas, releases the complete prior attempt and reparses one preserved
+source snapshot. Independent IR-buffer growth retains the selected arena
+capacity. There is no arbitrary retry-count ceiling; checked overflow and
+allocation failure bound growth. The reusable caller-owned API retains explicit
+capacity failures. Isolated nested macros at depths 3–10, native/Stage 0 O0/O1,
+C behavior, controller fault tests and smoke passed. All four production
+execution/controller/IR/diagnostic matrices and smoke passed. A receiving-API
+audit corrected three stale capacity-code expectations, then passed every macro
+API against native and Stage 0 O0/O1 cores with C O0/O2 callers on all four
+targets. Compiler/runtime inputs stayed unchanged; corrected fixture inputs
+were frozen for the API audit. The complete M8 source/manifest/corpus and
+Stage 1–3 gates remain open.

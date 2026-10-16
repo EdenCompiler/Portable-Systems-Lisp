@@ -9,7 +9,8 @@ struct native_compile_context;
    Failed expansion rolls arena counts back and leaves original nodes intact. */
 enum native_macro_error {
     NATIVE_MACRO_CAPACITY=1, NATIVE_MACRO_ARITY=2, NATIVE_MACRO_REFERENCE=4,
-    NATIVE_MACRO_DEPTH=5, NATIVE_MACRO_UNSUPPORTED=10
+    NATIVE_MACRO_SYNTAX_CAPACITY=3, NATIVE_MACRO_DEPTH=5,
+    NATIVE_MACRO_UNSUPPORTED=10
 };
 struct native_tree_context {
     struct psl_parser *parser;

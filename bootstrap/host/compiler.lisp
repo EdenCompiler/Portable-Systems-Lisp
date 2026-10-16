@@ -73,7 +73,7 @@
            (type (ptr u8) source_path output_path)
            (type u32 link_requested kind) (type (ptr (ptr u8)) link_inputs)
            (type usize link_count) (returns c-int))
-  (let ((status (compiler_compile_with_ir_growth state)))
+  (let ((status (compiler_compile_with_growth state)))
     (if (< status 0) 2
         (if (= status 0)
             (compiler_report_compile_failure state source_path)
@@ -94,13 +94,17 @@
                 (field-pointer state 'c_sources)))
     (if (= (ptr-address (deref (field-pointer driver 'source))) 0)
         (compiler_path_error 1 source_path)
-        (if (= (ffi:call native_prepare_driver driver) 0)
+        (progn
+          (store (field-pointer state 'driver_capacity)
+                 (wrap+ (deref (field-pointer driver 'length)) 1))
+          (if (= (ffi:call native_prepare_driver_capacity driver
+                           (deref (field-pointer state 'driver_capacity))) 0)
             (compiler_path_error 2 (ptr-from-address (ptr u8) 0))
             (progn
               (if (= (compiler_configure_driver state) 0)
                   (compiler_path_error 22 (ptr-from-address (ptr u8) 0))
                   (compiler_emit_object state source_path output_path link_requested
-                                        kind link_inputs link_count)))))))
+                                        kind link_inputs link_count))))))))
 
 (defun compiler_run_profile (source_path output_path optimization target profile)
   (declare (type (ptr u8) source_path output_path) (type u32 optimization target profile) (returns c-int))

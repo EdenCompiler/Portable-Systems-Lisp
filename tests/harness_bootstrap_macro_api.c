@@ -43,7 +43,7 @@ int main(void) {
     reader.capacity = count + 2;
     struct native_macro_expansion result = {0};
     int status = native_macroexpand_1(&call, root, &result);
-    assert(!status && call.error == 1);
+    assert(!status && call.error == NATIVE_MACRO_SYNTAX_CAPACITY);
     assert(parser.count == count && reader.count == count && !parser.error);
     assert(result.form == root && !result.expanded);
     assert(!memcmp(original, nodes, count * sizeof *nodes));

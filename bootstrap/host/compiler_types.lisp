@@ -29,6 +29,7 @@
   (optimization u32)
   (target u32)
   (profile u32)
+  (driver_capacity usize)
   (link_input_storage (ptr (ptr u8)))
   (options native_cli_options)
   (ir_dump native_ir_dump)

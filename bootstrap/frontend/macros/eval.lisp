@@ -39,9 +39,9 @@
           (let ((node (parser_node parser reference)))
             (let ((copy (parser_new_node parser (deref (field-pointer node 'kind))
                          (deref (field-pointer node 'start)) (deref (field-pointer node 'length)))))
-              (if (= copy 0) (native_macro_call_fail call 1)
+              (if (= copy 0) (native_macro_call_fail call 3)
                   (progn (native_tree_copy_identity tree reference copy) copy))))
-          (native_macro_call_fail call 1)))))
+          (native_macro_call_fail call 3)))))
 
 (defun native_macro_splice_children (call parent reference)
   (declare (type (ptr native_macro_call) call) (type usize parent reference) (returns c-int))

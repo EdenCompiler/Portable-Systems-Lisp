@@ -763,3 +763,11 @@ selection, symbol identity, PSL qualification, deterministic objects and C calls
 and ABI metadata, internal/imported calls and initialized data against C, plus
 hosted-runtime rejection and output preservation. Native standalone startup and
 linker options are separate work from this object gate.
+
+`make test-native-macro-growth` checks nested doubling macros at O0/O1 on the
+selected hosted target, using independent C O0/O2 callers and repeated native
+objects. The controller grows/rebuilds syntax arenas from one source snapshot,
+including combined IR-buffer growth. Its C controller tests cover source-read
+count, selected capacities, failed reprepare cleanup and fixed-capacity errors.
+The caller-owned library API remains fixed unless explicitly prepared at a
+larger capacity.

@@ -7,11 +7,13 @@
 #include <string.h>
 
 
-enum scenario { SUCCESS, READ_FAILURE, PREPARE_FAILURE, COMPILE_FAILURE, WRITE_FAILURE, IR_WRITE_FAILURE, IR_CAPACITY_FAILURE, IR_REPREPARE_FAILURE };
+enum scenario { SUCCESS, READ_FAILURE, PREPARE_FAILURE, COMPILE_FAILURE, WRITE_FAILURE, IR_WRITE_FAILURE, IR_CAPACITY_FAILURE, IR_REPREPARE_FAILURE, MACRO_CAPACITY_FAILURE, MACRO_CAPACITY_REPREPARE_FAILURE, IR_THEN_MACRO_CAPACITY_FAILURE, FIXED_MACRO_CAPACITY_FAILURE };
 struct event { uint32_t kind; uintptr_t position, length; char text[64]; };
 static enum scenario scenario;
 static struct event events[2];
 static size_t event_count, reads, prepares, compiles, writes, releases;
+static uintptr_t selected_capacities[8];
+static size_t selected_capacity_count;
 static uintptr_t phase;
 static uint32_t expected_dump_stages;
 static size_t ir_writes;
@@ -63,12 +65,15 @@ uint8_t *native_read_source_unit(const char *path, size_t *length,
     return source;
 }
 
-int native_prepare_driver(struct native_driver *driver) {
+static int prepare_driver(struct native_driver *driver, uintptr_t capacity) {
     ++prepares;
     assert(driver->source && driver->length == 3);
     assert(!driver->context.source && !driver->parser.nodes);
     if (scenario == PREPARE_FAILURE ||
-        (scenario == IR_REPREPARE_FAILURE && prepares > 1)) return 0;
+        (scenario == IR_REPREPARE_FAILURE && prepares > 1) ||
+        (scenario == MACRO_CAPACITY_REPREPARE_FAILURE && prepares > 1)) return 0;
+    assert(selected_capacity_count < sizeof selected_capacities / sizeof *selected_capacities);
+    selected_capacities[selected_capacity_count++] = capacity;
     nodes[1].start = 33;
     nodes[0].start = 0;
     nodes[0].length = 3;
@@ -77,13 +82,23 @@ int native_prepare_driver(struct native_driver *driver) {
     functions[1].name = (const uint8_t *)"broken";
     functions[1].name_length = 6;
     driver->parser.nodes = nodes;
+    driver->parser.capacity = capacity;
     driver->storage.signatures = signatures;
     driver->storage.functions = functions;
     driver->context.source = driver->source;
     driver->context.parser = &driver->parser;
     driver->object.data = object_bytes;
     driver->object.length = sizeof object_bytes;
+    driver->context.macro_call.error = 0;
     return 1;
+}
+
+int native_prepare_driver(struct native_driver *driver) {
+    return prepare_driver(driver, driver->length + 1);
+}
+
+int native_prepare_driver_capacity(struct native_driver *driver, uintptr_t capacity) {
+    return prepare_driver(driver, capacity);
 }
 
 int native_compile_unit(struct native_compile_context *context, struct byte_buffer *object,
@@ -100,6 +115,12 @@ int native_compile_unit(struct native_compile_context *context, struct byte_buff
         assert(dump && dump->stages == expected_dump_stages && !dump->error);
         assert(dump->output && dump->output->data && !dump->output->length);
         assert(dump->output->capacity == (compiles == 1 ? 64 * 3 + 4096 : 2 * (64 * 3 + 4096)));
+        if (scenario == IR_THEN_MACRO_CAPACITY_FAILURE && compiles == 1) {
+            context->macro_call.error = NATIVE_MACRO_SYNTAX_CAPACITY;
+            dump->error = 2;
+            dump->required = dump->output->capacity + 1;
+            return 0;
+        }
         if ((scenario == IR_CAPACITY_FAILURE || scenario == IR_REPREPARE_FAILURE) && compiles == 1) {
             dump->error = 2;
             dump->required = dump->output->capacity + 1;
@@ -109,6 +130,18 @@ int native_compile_unit(struct native_compile_context *context, struct byte_buff
         dump->output->length = 4;
     } else {
         assert(!context->ir_dump);
+    }
+    if ((scenario == MACRO_CAPACITY_FAILURE && compiles == 1) ||
+        (scenario == MACRO_CAPACITY_REPREPARE_FAILURE && compiles == 1) ||
+        (scenario == IR_THEN_MACRO_CAPACITY_FAILURE && compiles == 2)) {
+        context->macro_call.error = NATIVE_MACRO_SYNTAX_CAPACITY;
+        result->phase = NATIVE_UNIT_COLLECTION;
+        return 0;
+    }
+    if (scenario == FIXED_MACRO_CAPACITY_FAILURE && compiles == 1) {
+        context->macro_call.error = NATIVE_MACRO_CAPACITY;
+        result->phase = NATIVE_UNIT_COLLECTION;
+        return 0;
     }
     if (scenario != COMPILE_FAILURE) return 1;
     result->phase = phase;
@@ -209,6 +242,8 @@ static void reset(enum scenario next) {
     expected_dump_stages = 0;
     ir_writes = 0;
     event_count = reads = prepares = compiles = writes = releases = 0;
+    selected_capacity_count = 0;
+    memset(selected_capacities, 0, sizeof selected_capacities);
     memset(events, 0, sizeof events);
 }
 
@@ -510,6 +545,43 @@ static void check_ir_arguments(void) {
 #endif
 }
 
+static void check_macro_capacity_retry(void) {
+    char *args[] = {"pslcc-native", "source.lisp", "result.o", NULL};
+    expected_target = NATIVE_TARGET_X86_64_LINUX;
+    expected_optimization = 1;
+    expected_profile = 0;
+    reset(MACRO_CAPACITY_FAILURE);
+    assert(native_compiler_main(3, args) == 0);
+    assert(reads == 1 && prepares == 2 && compiles == 2 && writes == 1);
+    assert(releases == 2 && !event_count);
+    assert(selected_capacity_count == 2);
+    assert(selected_capacities[0] == 4 && selected_capacities[1] == 8);
+
+    reset(MACRO_CAPACITY_REPREPARE_FAILURE);
+    assert(native_compiler_main(3, args) == 2);
+    assert(reads == 1 && prepares == 2 && compiles == 1 && !writes);
+    assert(releases == 2 && event_count == 1);
+    assert(events[0].kind == NATIVE_HOST_ALLOCATE);
+    assert(selected_capacity_count == 1 && selected_capacities[0] == 4);
+
+    char *dump_args[] = {"pslcc-native", "source.lisp", "result.o",
+                         "--dump-ir=all", NULL};
+    reset(IR_THEN_MACRO_CAPACITY_FAILURE);
+    expected_dump_stages = 7;
+    assert(native_compiler_main(4, dump_args) == 0);
+    assert(reads == 1 && prepares == 3 && compiles == 3 && writes == 1);
+    assert(releases == 3 && ir_writes == 1 && !event_count);
+    assert(selected_capacity_count == 3);
+    assert(selected_capacities[0] == 4 && selected_capacities[1] == 4 &&
+           selected_capacities[2] == 8);
+
+    reset(FIXED_MACRO_CAPACITY_FAILURE);
+    assert(native_compiler_main(3, args) == 1);
+    assert(reads == 1 && prepares == 1 && compiles == 1 && !writes);
+    assert(releases == 1 && selected_capacity_count == 1);
+    assert(selected_capacities[0] == 4 && event_count == 1);
+}
+
 int main(void) {
     check_run(SUCCESS, 0);
     assert(!event_count);
@@ -527,6 +599,7 @@ int main(void) {
     check_link_cli_parse();
     check_cli_diagnostics();
     check_ir_arguments();
+    check_macro_capacity_retry();
 #ifdef PSL_TEST_ALLOCATOR_FAULTS
     char *args[] = {"pslcc-native", "source.lisp", "result.o", NULL};
     reset(SUCCESS);

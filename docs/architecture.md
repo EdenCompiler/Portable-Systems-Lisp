@@ -607,3 +607,10 @@ CL-USER as a nickname and one Common Lisp use relationship. It adds no symbols
 or target runtime dependencies. SOURCE remains the initial package. The seed
 and driver receiver tests check canonical identity and visibility, while source
 fixtures compare qualified PSL operations with Stage 0 on each hosted target.
+
+The PSL controller's retry policy in `bootstrap/host/compiler_ir.lisp` owns
+both IR capture growth and generated-syntax arena growth. A distinct macro
+syntax-capacity error separates retryable parser exhaustion from semantic and
+fixed binding limits. `bootstrap/host/driver.lisp` exposes checked arena
+preparation at an explicit capacity; each retry releases the prior attempt,
+preserves source bytes and rebuilds the frontend and receiving IR.
