@@ -1806,3 +1806,15 @@ byte, and passes the freestanding and smoke gates. Process failures use status
 1 while library APIs retain detailed statuses. Source-file C collection on none
 targets remains unsupported by both compilers. The complete manifest/corpus
 and fresh full Stage 1–3 gate remain open.
+
+### M8 macro API regression setup
+
+The macro LET receiver seeds the standard package catalogue once and restores
+all table bytes, counters, capacities and scratch storage before each case.
+The constant-name and lambda-position catalogue and every semantic/rollback
+assertion remain in the gate. Both native and Stage 0 core objects pass O0/O1
+with C O0/O2 receivers on all four hosted targets. One AArch64 QEMU comparison
+on the same O0 core reduced setup from 226 seconds to about one second; this
+is local test timing, not a compiler performance guarantee. Compiler behavior
+is unchanged. The full source/corpus and fresh Stage 1–3 release gate remain
+open.

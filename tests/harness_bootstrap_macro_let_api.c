@@ -10,17 +10,58 @@ static struct native_ct_use uses[32];
 static struct native_ct_alias aliases[8];
 static struct native_source_identity identities[256];
 static struct psl_ast_node nodes[256];
+static uint8_t baseline_names[sizeof names];
+static struct native_ct_package baseline_packages[sizeof packages/sizeof packages[0]];
+static struct native_ct_symbol baseline_symbols[sizeof symbols/sizeof symbols[0]];
+static struct native_ct_presence baseline_present[sizeof present/sizeof present[0]];
+static struct native_ct_use baseline_uses[sizeof uses/sizeof uses[0]];
+static struct native_ct_alias baseline_aliases[sizeof aliases/sizeof aliases[0]];
+static struct native_ct_environment seeded_environment;
+static int seeded_environment_ready;
+
+/* Seed the fixed standard package catalogue once, then restore its complete
+   caller-owned state before each independent API case. The snapshots are
+   separate storage so mutations in a prior case cannot affect the baseline. */
+static void reset_test_environment(struct native_ct_environment *env) {
+    if (!seeded_environment_ready) {
+        memset(names,0,sizeof names); memset(packages,0,sizeof packages);
+        memset(symbols,0,sizeof symbols); memset(present,0,sizeof present);
+        memset(uses,0,sizeof uses); memset(aliases,0,sizeof aliases);
+        *env=(struct native_ct_environment){.names=names,.name_capacity=sizeof names,
+            .packages=packages,.package_capacity=sizeof packages/sizeof packages[0],
+            .symbols=symbols,.symbol_capacity=sizeof symbols/sizeof symbols[0],
+            .present=present,.present_capacity=sizeof present/sizeof present[0],
+            .uses=uses,.use_capacity=sizeof uses/sizeof uses[0],
+            .aliases=aliases,.alias_capacity=sizeof aliases/sizeof aliases[0]};
+        assert(native_ct_seed_standard(env));
+        memcpy(baseline_names,names,sizeof names);
+        memcpy(baseline_packages,packages,sizeof packages);
+        memcpy(baseline_symbols,symbols,sizeof symbols);
+        memcpy(baseline_present,present,sizeof present);
+        memcpy(baseline_uses,uses,sizeof uses);
+        memcpy(baseline_aliases,aliases,sizeof aliases);
+        seeded_environment=*env;
+        seeded_environment_ready=1;
+    } else {
+        memcpy(names,baseline_names,sizeof names);
+        memcpy(packages,baseline_packages,sizeof packages);
+        memcpy(symbols,baseline_symbols,sizeof symbols);
+        memcpy(present,baseline_present,sizeof present);
+        memcpy(uses,baseline_uses,sizeof uses);
+        memcpy(aliases,baseline_aliases,sizeof aliases);
+        *env=seeded_environment;
+    }
+    memset(identities,0,sizeof identities);
+    memset(nodes,0,sizeof nodes);
+    memset(scratch,0,sizeof scratch);
+}
+
 static int rejects_constant_name(const char *name) {
     static char source[512];
-    memset(names,0,sizeof names); memset(packages,0,sizeof packages); memset(symbols,0,sizeof symbols);
-    memset(present,0,sizeof present); memset(uses,0,sizeof uses); memset(aliases,0,sizeof aliases);
-    memset(identities,0,sizeof identities); memset(nodes,0,sizeof nodes); memset(scratch,0,sizeof scratch);
+    struct native_ct_environment env;
+    reset_test_environment(&env);
     int used=snprintf(source,sizeof source,"(defmacro bad_constant () (let ((%s '1)) 1)) (bad_constant)",name);
     assert(used>0 && (size_t)used<sizeof source);
-    struct native_ct_environment env={.names=names,.name_capacity=sizeof names,.packages=packages,.package_capacity=16,
-        .symbols=symbols,.symbol_capacity=2400,.present=present,.present_capacity=3000,.uses=uses,.use_capacity=32,
-        .aliases=aliases,.alias_capacity=8};
-    assert(native_ct_seed_standard(&env));
     struct psl_scanner scanner={(const uint8_t *)source,strlen(source),0,0};
     struct psl_token token={0};
     struct native_reader_environment reader={.environment=&env,.identities=identities,.capacity=256};
@@ -115,15 +156,10 @@ static const char *const cl_constant_names[]={
 };
 static int rejects_constant_parameter(const char *name, const char *marker) {
     static char source[512];
-    memset(names,0,sizeof names); memset(packages,0,sizeof packages); memset(symbols,0,sizeof symbols);
-    memset(present,0,sizeof present); memset(uses,0,sizeof uses); memset(aliases,0,sizeof aliases);
-    memset(identities,0,sizeof identities); memset(nodes,0,sizeof nodes); memset(scratch,0,sizeof scratch);
+    struct native_ct_environment env;
+    reset_test_environment(&env);
     int used=snprintf(source,sizeof source,"(defmacro bad (%s%s) '1)",marker,name);
     assert(used>0 && (size_t)used<sizeof source);
-    struct native_ct_environment env={.names=names,.name_capacity=sizeof names,.packages=packages,.package_capacity=16,
-        .symbols=symbols,.symbol_capacity=2400,.present=present,.present_capacity=3000,.uses=uses,.use_capacity=32,
-        .aliases=aliases,.alias_capacity=8};
-    assert(native_ct_seed_standard(&env));
     struct psl_scanner scanner={(const uint8_t *)source,strlen(source),0,0};
     struct psl_token token={0};
     struct native_reader_environment reader={.environment=&env,.identities=identities,.capacity=256};
@@ -147,10 +183,8 @@ int main(void) {
         for (size_t j=0;j<sizeof parameter_markers/sizeof parameter_markers[0];++j)
             assert(rejects_constant_parameter(cl_constant_names[i],parameter_markers[j]));
     const char *text="(defmacro letter (x) (let ((saved x) (x '3)) `(wrap+ ,saved ,x))) (letter number) (defmacro fail_letter (x) (let ((saved x) (bad missing_let_binding)) `(wrap+ ,saved ,bad))) (fail_letter number) (defmacro other_constant () (let ((other::most-positive-fixnum '1)) '7)) (other_constant) (defmacro other_parameter (other::pi) '9) (other_parameter 7)";
-    struct native_ct_environment env={.names=names,.name_capacity=sizeof names,.packages=packages,.package_capacity=16,
-        .symbols=symbols,.symbol_capacity=2400,.present=present,.present_capacity=3000,.uses=uses,.use_capacity=32,
-        .aliases=aliases,.alias_capacity=8};
-    assert(native_ct_seed_standard(&env));
+    struct native_ct_environment env;
+    reset_test_environment(&env);
     const uint8_t other_name[]="OTHER";
     uintptr_t other_package=native_ct_make_package(&env,other_name,5);
     assert(other_package);
