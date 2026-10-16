@@ -6,7 +6,10 @@
 static struct native_driver *prepare(const char *source,unsigned profile) {
  struct native_driver *d=calloc(1,sizeof*d);assert(d);d->length=strlen(source);
  d->source=malloc(d->length+1);assert(d->source);memcpy(d->source,source,d->length+1);
- assert(native_prepare_driver(d));d->context.profile=profile;return d;
+ /* Reserve the hosted catalogue (28 signatures / 45 parameters) even for
+    one-byte malformed literals, so this test reaches literal validation. */
+ uintptr_t capacity=d->length+1; if(capacity<64) capacity=64;
+ assert(native_prepare_driver_capacity(d,capacity));d->context.profile=profile;return d;
 }
 static void check(const char *source,unsigned profile,unsigned phase,uint64_t modules) {
  struct native_driver *d=prepare(source,profile);struct native_unit_result r={0};
