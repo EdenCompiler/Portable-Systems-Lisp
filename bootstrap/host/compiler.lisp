@@ -55,29 +55,32 @@
                     (deref (field-pointer state 'c_sources))
                     (deref (field-pointer state 'target))))))
 
+(defun compiler_report_compile_failure (state source_path)
+  (declare (type (ptr native_compiler_state) state)
+           (type (ptr u8) source_path) (returns c-int))
+  (if (< 0 (deref (field-pointer (field-pointer state 'ir_dump) 'error)))
+      (progn
+        (ffi:call native_host_report_error 23 (ptr-from-address (ptr u8) 0) 0 0)
+        1)
+      (if (= (compiler_report_unit_error (field-pointer state 'driver)
+                                         (field-pointer state 'result)) 2)
+          1
+          (progn (ffi:call native_host_report_error 3 source_path 0 0) 1))))
+
 (defun compiler_emit_object (state source_path output_path link_requested kind
                              link_inputs link_count)
-  (declare (type (ptr native_compiler_state) state) (type (ptr u8) source_path output_path)
+  (declare (type (ptr native_compiler_state) state)
+           (type (ptr u8) source_path output_path)
            (type u32 link_requested kind) (type (ptr (ptr u8)) link_inputs)
-           (type usize link_count)
-           (returns c-int))
-      (let ((driver (field-pointer state 'driver))
-            (result (field-pointer state 'result)))
-        (let ((status (compiler_compile_with_ir_growth state)))
-      (if (< status 0) 2
-          (if (= status 0)
-              (progn
-                (if (< 0 (deref (field-pointer (field-pointer state 'ir_dump) 'error)))
-                    (ffi:call native_host_report_error 23
-                      (ptr-from-address (ptr u8) 0) 0 0)
-                    (progn
-                      (compiler_report_unit_error driver result)
-                      (ffi:call native_host_report_error 3 source_path 0 0)))
-                1)
-              (if (= (compiler_publish_compiled_output state output_path
-                          link_requested kind link_inputs link_count) 0)
-                  (compiler_path_error 4 output_path)
-                  (if (= (compiler_flush_ir_dump state) 1) 0 1)))))))
+           (type usize link_count) (returns c-int))
+  (let ((status (compiler_compile_with_ir_growth state)))
+    (if (< status 0) 2
+        (if (= status 0)
+            (compiler_report_compile_failure state source_path)
+            (if (= (compiler_publish_compiled_output state output_path
+                      link_requested kind link_inputs link_count) 0)
+                (compiler_path_error 4 output_path)
+                (if (= (compiler_flush_ir_dump state) 1) 0 1))))))
 
 (defun compiler_load_and_prepare (state source_path output_path link_requested
                                  kind link_inputs link_count)

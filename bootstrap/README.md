@@ -758,3 +758,8 @@ dump. The C controller harness also checks allocation, retry and output faults.
 The build-host package seed includes COMMON-LISP-USER/CL-USER, inheriting CL
 without implicitly using PSL. `make test-native-cl-user` checks explicit package
 selection, symbol identity, PSL qualification, deterministic objects and C calls.
+
+`make test-native-none-objects` checks both none-ELF object targets, architecture
+and ABI metadata, internal/imported calls and initialized data against C, plus
+hosted-runtime rejection and output preservation. Native standalone startup and
+linker options are separate work from this object gate.

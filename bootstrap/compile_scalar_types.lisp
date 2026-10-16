@@ -74,4 +74,5 @@
   (root_extra usize)
   (root_flags u32)
   (literal_scan native_literal_scan)
-  (ir_dump (ptr native_ir_dump)))
+  (ir_dump (ptr native_ir_dump))
+  (runtime_target_error u32))

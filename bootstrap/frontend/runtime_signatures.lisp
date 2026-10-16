@@ -257,12 +257,18 @@
           (if (= (native_runtime_data_used_p context id 0) 1) 0
               (native_runtime_names_free_p context (wrap+ id 1))))))
 
+(defun native_runtime_target_supported_p (context)
+  (declare (type (ptr native_compile_context) context) (returns c-int))
+  (if (< (native_target_os (deref (field-pointer context 'target))) 3) 1 0))
+
 (defun native_runtime_function_index (context id index)
   (declare (type (ptr native_compile_context) context) (type u32 id) (type usize index) (returns usize))
-  (let ((signatures (deref (field-pointer context 'signatures))))
-    (if (= index (deref (field-pointer signatures 'signature_count))) 0
-        (if (= (deref (field-pointer (native_signature_at signatures index) 'runtime_id)) id)
-            (wrap+ index 1) (native_runtime_function_index context id (wrap+ index 1))))))
+  (if (= (native_runtime_target_supported_p context) 0)
+      (progn (store (field-pointer context 'runtime_target_error) 1) 0)
+      (let ((signatures (deref (field-pointer context 'signatures))))
+        (if (= index (deref (field-pointer signatures 'signature_count))) 0
+            (if (= (deref (field-pointer (native_signature_at signatures index) 'runtime_id)) id)
+                (wrap+ index 1) (native_runtime_function_index context id (wrap+ index 1)))))))
 
 (defun native_runtime_storage_ready_p (signatures)
   (declare (type (ptr native_signature_context) signatures) (returns c-int))

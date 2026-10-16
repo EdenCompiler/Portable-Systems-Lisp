@@ -108,7 +108,10 @@ make compile SOURCE=program.lisp OUTPUT=build/program.o \
 The native subset compiler emits x86-64 Linux ELF by default. Select
 `--target=x86_64-windows-gnu` for Microsoft x64 COFF,
 `--target=aarch64-linux-gnu` for AAPCS64 ELF, or
-`--target=riscv64-linux-gnu` for LP64D ELF output. Its instruction encoders
+`--target=riscv64-linux-gnu` for LP64D ELF output. Native `-c` also accepts
+`x86_64-none-elf` and `riscv64-none-elf`; their standalone startup and linker
+options remain separate native driver work. Their hosted profile accepts typed
+scalar code and rejects managed-runtime requirements. Its instruction encoders
 and object writers are implemented in PSL. Run `make test-native-windows` with
 MinGW-w64 and Wine to check C calls, unwind metadata, and successive native
 subset generations on Windows. Run `make test-native-aarch64` with

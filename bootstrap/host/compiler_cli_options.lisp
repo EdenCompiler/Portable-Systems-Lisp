@@ -15,6 +15,8 @@
     ((= (compiler_cli_text_equal text (ffi:c-string "aarch64-linux-gnu")) 1) 1)
     ((= (compiler_cli_text_equal text (ffi:c-string "riscv64-linux-gnu")) 1) 2)
     ((= (compiler_cli_text_equal text (ffi:c-string "x86_64-windows-gnu")) 1) 3)
+    ((= (compiler_cli_text_equal text (ffi:c-string "x86_64-none-elf")) 1) 4)
+    ((= (compiler_cli_text_equal text (ffi:c-string "riscv64-none-elf")) 1) 5)
     (t -1)))
 
 (defun compiler_cli_profile_name (text)
@@ -237,6 +239,14 @@
                               (if (= (deref (field-pointer options 'link_input_count)) 0)
                                   1 0)) 0) 0))))))
 
+(defun compiler_cli_target_link_supported_p (options)
+  (declare (type (ptr native_cli_options) options) (returns c-int))
+  (if (< (deref (field-pointer options 'target)) 4) 1
+      (if (= (deref (field-pointer options 'compile_only)) 1) 1
+          (if (if (= (deref (field-pointer options 'output_option)) 1) t
+                  (= (deref (field-pointer options 'emit_specified)) 1))
+              0 1))))
+
 (defun compiler_cli_failure_kind (options)
   (declare (type (ptr native_cli_options) options) (returns u32))
   (if (if (= (ptr-address (deref (field-pointer options 'source))) 0)
@@ -266,7 +276,10 @@
                     (if (= (deref (field-pointer options 'cursor))
                            (wrap-cast usize argc))
                         (if (= (deref (field-pointer options 'help_requested)) 1) 1
-                            (if (= (compiler_cli_complete_p options) 1) 1
+                            (if (= (compiler_cli_complete_p options) 1)
+                                (if (= (compiler_cli_target_link_supported_p options) 1) 1
+                                    (compiler_cli_set_error options 8
+                                      (ptr-from-address (ptr u8) 0)))
                                 (compiler_cli_set_error options
                                   (compiler_cli_failure_kind options)
                                   (ptr-from-address (ptr u8) 0))))

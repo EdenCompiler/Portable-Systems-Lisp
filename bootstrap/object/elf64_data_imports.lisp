@@ -206,7 +206,7 @@
 (defun elf_data_label_count (fixups output_target)
   (declare (type (ptr native_fixup_arena) fixups)
            (type u32 output_target) (returns usize))
-  (if (= output_target 2) (deref (field-pointer fixups 'count))
+  (if (= (native_target_architecture output_target) 3) (deref (field-pointer fixups 'count))
       (wrap-cast usize 0)))
 
 (defun elf_data_import_symbol_index (functions function_count imports import_count
@@ -234,7 +234,7 @@
            (returns c-int))
   (let ((target (deref (field-pointer fixup 'target)))
         (position (deref (field-pointer fixup 'instruction)))
-        (width (if (= output_target 0) (wrap-cast usize 7)
+        (width (if (= (native_target_architecture output_target) 1) (wrap-cast usize 7)
                    (wrap-cast usize 8))))
     (if (= target 0) 0
         (if (< import_count target) 0
@@ -244,7 +244,7 @@
                           (entry (pointer+ imports
                                            (wrap-cast isize (wrap- target 1)))))
                       (if (= (deref (field-pointer entry 'referenced)) 0) 0
-                          (if (= output_target 0)
+                          (if (= (native_target_architecture output_target) 1)
                               (if (= (deref bytes) #x48)
                                   (if (= (deref (pointer+ bytes 1)) #x8b)
                                       (if (= (deref (pointer+ bytes 2)) #x05)
@@ -253,7 +253,7 @@
                                       0)
                                   0)
                               (if (= (bits-and position 3) 0)
-                                  (if (= output_target 1)
+                                  (if (= (native_target_architecture output_target) 2)
                                       (if (= (read_u32_le bytes) #x90000009)
                                           (if (= (read_u32_le (pointer+ bytes 4))
                                                  #xf9400129) 1 0)
@@ -280,7 +280,7 @@
            (returns c-int))
   (if (= index (deref (field-pointer fixups 'count))) 1
       (if (= (data_fixup_order_p fixups index
-                                 (if (= output_target 0) (wrap-cast usize 7)
+                                 (if (= (native_target_architecture output_target) 1) (wrap-cast usize 7)
                                      (wrap-cast usize 8))) 0) 0
           (if (= (elf_data_fixup_valid_p code code_size imports import_count
                                          (call_fixup_at fixups index)
@@ -331,10 +331,10 @@
                        functions function_count imports import_count
                        (deref (field-pointer fixup 'target)) output_target
                        (elf_data_label_count fixups output_target))))
-          (if (= output_target 0)
+          (if (= (native_target_architecture output_target) 1)
               (emit_elf_data_import_relocation_record
                buffer (wrap+ position 3) symbol 9 (wrap- (wrap-cast u64 0) 4))
-              (if (= output_target 1)
+              (if (= (native_target_architecture output_target) 2)
                   (progn
                     (emit_elf_data_import_relocation_record buffer position symbol 311 0)
                     (emit_elf_data_import_relocation_record
@@ -404,7 +404,7 @@
   (emit_symbol buffer 0 3 2 0 0)
   (if (= (elf_mapping_symbol_count output_target) 1)
       (emit_symbol buffer 1 0 1 0 0) (wrap-cast c-int 1))
-  (if (= output_target 2)
+  (if (= (native_target_architecture output_target) 3)
       (emit_elf_data_label_symbols buffer fixups 0) (wrap-cast c-int 1))
   (let ((next (emit_selected_symbols_from
                buffer functions 0 function_count
@@ -565,7 +565,7 @@
         (relocation_bytes
          (wrap* 24
                 (wrap+ (elf_import_call_count functions calls 0)
-                       (wrap* (if (= output_target 0) (wrap-cast usize 1)
+                       (wrap* (if (= (native_target_architecture output_target) 1) (wrap-cast usize 1)
                                   (wrap-cast usize 2))
                               (deref (field-pointer data_fixups 'count)))))))
     (let ((symbol_count (wrap+ (wrap+ (wrap+ function_symbols data_symbols)

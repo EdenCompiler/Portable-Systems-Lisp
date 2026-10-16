@@ -6,7 +6,9 @@
 ;; writer validates encoded calls but does not emit CPU instructions.
 (defun elf_call_width (target)
   (declare (type u32 target) (returns usize))
-  (if (= target 2) 8 (if (= target 0) (wrap-cast usize 5) (wrap-cast usize 4))))
+  (if (= (native_target_architecture target) 3) 8
+      (if (= (native_target_architecture target) 1) (wrap-cast usize 5)
+          (wrap-cast usize 4))))
 
 (defun elf_call_field_offset (target)
   (declare (type u32 target) (returns usize))
@@ -14,7 +16,9 @@
 
 (defun elf_call_relocation_type (target)
   (declare (type u32 target) (returns u64))
-  (if (= target 2) 19 (if (= target 0) (wrap-cast u64 4) (wrap-cast u64 283))))
+  (if (= (native_target_architecture target) 3) 19
+      (if (= (native_target_architecture target) 1) (wrap-cast u64 4)
+          (wrap-cast u64 283))))
 
 (defun elf_call_addend (target)
   (declare (type u32 target) (returns u64))
@@ -40,11 +44,11 @@
 (defun elf_encoded_call_p (code position target imported)
   (declare (type (ptr u8) code) (type usize position imported) (type u32 target) (returns c-int))
   (let ((data (pointer+ code (wrap-cast isize position))))
-    (if (= target 0)
+    (if (= (native_target_architecture target) 1)
         (if (= (deref data) #xe8)
             (if (= imported 1) (if (= (read_u32_le (pointer+ data 1)) 0) 1 0) 1) 0)
         (if (= (bits-and position 3) 0)
-            (if (= target 1) (elf_a64_encoded_call_p data imported)
+            (if (= (native_target_architecture target) 2) (elf_a64_encoded_call_p data imported)
                 (elf_rv_encoded_call_p data imported)) 0))))
 
 (defun elf_target_function_spans_p (functions count index target)

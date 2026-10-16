@@ -242,8 +242,9 @@ static void check_compilation_errors(void) {
 
 static void check_target_arguments(void) {
     const char *targets[] = {"--target=x86_64-linux-gnu", "--target=aarch64-linux-gnu",
-                             "--target=riscv64-linux-gnu", "--target=x86_64-windows-gnu"};
-    for (uint32_t target = 0; target < 4; ++target) {
+                             "--target=riscv64-linux-gnu", "--target=x86_64-windows-gnu",
+                             "--target=x86_64-none-elf", "--target=riscv64-none-elf"};
+    for (uint32_t target = 0; target < 6; ++target) {
         expected_target = target;
         expected_optimization = 1;
         char *single[] = {"pslcc-native", (char *)targets[target], "source.lisp", "result.o", NULL};
@@ -263,7 +264,7 @@ static void check_target_arguments(void) {
         }
     }
     const char *bad[] = {"--target=", "--target=aarch64-linux-gn", "--target=aarch64-linux-gnu-extra",
-        "--target=x86_64-windows-gn", "--target=riscv64-none-elf"};
+        "--target=x86_64-windows-gn", "--target=riscv64-none-elf-extra"};
     for (size_t i = 0; i < sizeof bad / sizeof *bad; ++i) {
         char *args[] = {"pslcc-native", (char *)bad[i], "source.lisp", "result.o", NULL};
         reset(SUCCESS);
@@ -277,7 +278,7 @@ static void check_target_arguments(void) {
     assert(native_compiler_main(5, duplicates) == 0);
     assert(!event_count && reads == 1 && writes == 1 && releases == 1);
     reset(SUCCESS);
-    assert(native_run_compiler_target("source.lisp", "result.o", 1, 4) == 2);
+    assert(native_run_compiler_target("source.lisp", "result.o", 1, 6) == 2);
     assert(event_count == 1 && events[0].kind == NATIVE_HOST_USAGE && !reads && !releases);
     expected_target = NATIVE_TARGET_X86_64_LINUX;
     expected_optimization = 1;
@@ -324,8 +325,9 @@ static void check_arguments(void) {
 
 static void check_object_arguments(void) {
     const char *targets[] = {"x86_64-linux-gnu", "aarch64-linux-gnu",
-                            "riscv64-linux-gnu", "x86_64-windows-gnu"};
-    for (uint32_t target = 0; target < 4; target++) {
+                            "riscv64-linux-gnu", "x86_64-windows-gnu",
+                            "x86_64-none-elf", "riscv64-none-elf"};
+    for (uint32_t target = 0; target < 6; target++) {
         for (uint32_t profile = 0; profile < 2; profile++) {
             for (uint32_t level = 0; level < 2; level++) {
                 char *args[] = {"pslcc-native", "--target", (char *)targets[target],
@@ -372,7 +374,7 @@ static void check_object_arguments(void) {
         {"pslcc-native", "-c", "-o", "result.o", NULL},
         {"pslcc-native", "-c", "source.lisp", "result.o", NULL},
         {"pslcc-native", "-c", "source.lisp", "-o", "result.o", "extra", NULL},
-        {"pslcc-native", "--target", "riscv64-none-elf", "source.lisp", "result.o", NULL},
+        {"pslcc-native", "--target", "riscv64-none-elf-extra", "source.lisp", "result.o", NULL},
         {"pslcc-native", "--profile", "unknown", "source.lisp", "result.o", NULL},
         {"pslcc-native", "--emit=bad", "source.lisp", "-o", "result", NULL},
         {"pslcc-native", "-c", "--emit=exe", "source.lisp", "-o", "result", NULL},

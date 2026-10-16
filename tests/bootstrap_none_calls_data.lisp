@@ -1,0 +1,10 @@
+(ffi:import-data "none_bias" u64)
+(ffi:export-data "none_seed" u64 7)
+(ffi:import-function "none_adjust" ((number u64)) -> u64 :no-allocation)
+(defun none_helper (number)
+  (declare (type u64 number) (returns u64))
+  (wrap+ number (deref (ffi:address-of none_seed))))
+(defun none_answer (number)
+  (declare (type u64 number) (returns u64) (c-export :c))
+  (ffi:call none_adjust
+    (wrap+ (none_helper number) (deref (ffi:address-of none_bias)))))

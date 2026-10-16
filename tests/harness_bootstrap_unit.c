@@ -24,7 +24,8 @@ struct unit_storage {
 };
 static struct unit_storage storage;
 
-static int compile_memory_target(const char *source, uint32_t target, uintptr_t object_capacity,
+static int compile_memory_target_profile(const char *source, uint32_t target, uint32_t profile,
+                           uintptr_t object_capacity,
                            struct byte_buffer *object,
                            struct native_unit_result *result) {
     memset(&storage, 0, sizeof storage);
@@ -59,9 +60,17 @@ static int compile_memory_target(const char *source, uint32_t target, uintptr_t 
         .hir = &hir, .code = &code, .fixups = &calls, .functions = storage.functions,
         .signatures = &signatures, .ssa = &ssa, .bindings = storage.bindings,
         .lir = &lir, .labels = storage.labels, .jumps = &jumps, .target = target,
-        .function_addresses = &addresses
+        .function_addresses = &addresses, .profile = profile
     };
     return native_compile_unit(&context, object, result);
+}
+
+static int compile_memory_target(const char *source, uint32_t target,
+                                uintptr_t object_capacity,
+                                struct byte_buffer *object,
+                                struct native_unit_result *result) {
+    return compile_memory_target_profile(source, target, 0, object_capacity,
+                                         object, result);
 }
 
 static int compile_memory(const char *source, uintptr_t object_capacity,
@@ -75,6 +84,35 @@ static int check_target_failure(void) {
     struct native_unit_result result = {99, 99, 99};
     if (compile_memory_target("(defun", UINT32_MAX, sizeof storage.object, &object, &result)) return 0;
     return !object.length && result.phase == NATIVE_UNIT_TARGET && !result.form && !result.index;
+}
+
+static int check_hosted_none_runtime_targets(void) {
+    static const char *managed_sources[] = {
+        "(defun managed () (declare (returns value)) nil)",
+        "(defun value-id (x) (declare (type value x) (returns value)) x)",
+        "(defun managed () (declare (returns value)) (box-fixnum 42))",
+    };
+    static const char *scalar_source =
+        "(defun scalar () (declare (returns u64)) 42)";
+    const uint32_t targets[] = {NATIVE_TARGET_X86_64_NONE,
+                                NATIVE_TARGET_RISCV64_NONE};
+    for (size_t i = 0; i < sizeof targets / sizeof targets[0]; ++i) {
+        struct byte_buffer object;
+        struct native_unit_result result = {99, 99, 99};
+        for (size_t j = 0; j < sizeof managed_sources / sizeof managed_sources[0]; ++j) {
+            result = (struct native_unit_result){99, 99, 99};
+            if (compile_memory_target_profile(managed_sources[j], targets[i], 1,
+                                              sizeof storage.object, &object,
+                                              &result)) return 0;
+            if (object.length || result.phase != NATIVE_UNIT_HOSTED_TARGET) return 0;
+        }
+        result = (struct native_unit_result){99, 99, 99};
+        if (!compile_memory_target_profile(scalar_source, targets[i], 1,
+                                           sizeof storage.object, &object,
+                                           &result)) return 0;
+        if (!object.length || result.phase) return 0;
+    }
+    return 1;
 }
 
 static int check_failure(const char *source, uintptr_t phase, uintptr_t index) {
@@ -141,7 +179,8 @@ int main(int argc, char **argv) {
         "(defun forty () (declare (returns u64)) 40)\n";
     struct native_unit_result result = {99, 99, 99};
     struct byte_buffer object;
-    if (argc != 2 || !check_failures() || !check_target_failure()) return 1;
+    if (argc != 2 || !check_failures() || !check_target_failure() ||
+        !check_hosted_none_runtime_targets()) return 1;
     if (compile_memory(source, 1, &object, &result)) return 2;
     if (result.phase != NATIVE_UNIT_OBJECT || object.length) return 3;
     if (!compile_memory(source, sizeof storage.object, &object, &result)) return 4;

@@ -245,6 +245,7 @@ struct native_compile_context {
     uint32_t root_flags;
     struct native_literal_scan literal_scan;
     struct native_ir_dump *ir_dump;
+    uint32_t runtime_target_error;
 };
 
 struct native_type_shape {
@@ -419,7 +420,8 @@ enum native_unit_phase {
     NATIVE_UNIT_CALL_FIXUPS,
     NATIVE_UNIT_OBJECT,
     NATIVE_UNIT_ALLOCATION_EFFECT,
-    NATIVE_UNIT_TARGET
+    NATIVE_UNIT_TARGET,
+    NATIVE_UNIT_HOSTED_TARGET = 12
 };
 struct native_unit_result {
     uintptr_t phase, form, index;
@@ -492,7 +494,8 @@ extern int native_parse_signature(struct native_signature_context *context,
 extern int ssa_optimize_function(struct native_compile_context *context);
 /* Native output targets, independent of the architecture hosting the compiler. */
 enum native_target_id { NATIVE_TARGET_X86_64_LINUX = 0, NATIVE_TARGET_AARCH64_LINUX = 1,
-                        NATIVE_TARGET_RISCV64_LINUX = 2, NATIVE_TARGET_X86_64_WINDOWS = 3 };
+                        NATIVE_TARGET_RISCV64_LINUX = 2, NATIVE_TARGET_X86_64_WINDOWS = 3,
+                        NATIVE_TARGET_X86_64_NONE = 4, NATIVE_TARGET_RISCV64_NONE = 5 };
 extern int native_run_compiler_target(const char *source, const char *output,
                                       uint32_t optimization, uint32_t target);
 extern int write_elf64_calls_target(uint32_t target, const uint8_t *code, uintptr_t code_size,

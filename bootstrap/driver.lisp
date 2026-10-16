@@ -122,17 +122,34 @@
   (if (= (deref (field-pointer result 'phase)) 0)
       (if (< (deref (field-pointer result 'index)) count) 1 0) 0))
 
+(defun native_managed_signature_target_supported_p (context signature index)
+  (declare (type (ptr native_compile_context) context)
+           (type (ptr native_signature) signature) (type usize index)
+           (returns c-int))
+  (if (= (deref (field-pointer context 'profile)) 0) 1
+      (if (< (native_target_os (deref (field-pointer context 'target))) 3) 1
+          (if (< 0 (deref (field-pointer signature 'runtime_id))) 1
+              (if (= (scalar_signature_type_code context signature) 15) 0
+                  (if (= index (deref (field-pointer signature 'arity))) 1
+                      (if (= (scalar_signature_parameter_code context signature index) 15) 0
+                          (native_managed_signature_target_supported_p
+                           context signature (wrap+ index 1)))))))))
+
 (defun native_predeclare_from (context result start count)
   (declare (type (ptr native_compile_context) context)
            (type (ptr native_unit_result) result) (type usize start count)
            (returns c-int))
   (store (field-pointer result 'index) start)
   (while (= (native_unit_pending_p result count) 1)
-      (if (= (predeclare_scalar_form context
-                                   (native_unit_signature context result)
-                                   (native_unit_function context result)) 1)
-        (progn (native_next_signature result) (wrap-cast c-int 1))
-        (native_unit_fail result 5)))
+      (let ((signature (native_unit_signature context result)))
+        (if (= (predeclare_scalar_form context signature
+                                      (native_unit_function context result)) 1)
+            (if (= (native_managed_signature_target_supported_p
+                    context signature 0) 1)
+                (progn (native_next_signature result) (wrap-cast c-int 1))
+                (progn (store (field-pointer context 'runtime_target_error) 1)
+                       (native_unit_fail result 12)))
+            (native_unit_fail result 5))))
   (if (= (deref (field-pointer result 'phase)) 0) 1 0))
 
 (defun native_compile_unit_bodies (context result count)
@@ -254,6 +271,7 @@
   (store (field-pointer result 'form) 0)
   (store (field-pointer result 'index) 0)
   (store (field-pointer context 'runtime_modules) 0)
+  (store (field-pointer context 'runtime_target_error) 0)
   (if (= (native_target_valid_p (deref (field-pointer context 'target))) 0)
       (native_unit_fail result 10)
       (if (< 1 (deref (field-pointer context 'profile))) (native_unit_fail result 10)
@@ -263,4 +281,6 @@
             (if (= (native_collect_unit context result) 0) 0
                 (if (= (native_collect_unit_closures context) 0)
                     (native_unit_fail result 3)
-                    (native_compile_collected_unit context object result)))))))
+                    (if (= (native_compile_collected_unit context object result) 1) 1
+                        (if (= (deref (field-pointer context 'runtime_target_error)) 1)
+                            (native_unit_fail result 12) 0))))))))

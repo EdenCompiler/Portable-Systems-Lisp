@@ -27,6 +27,10 @@
     ((= (compiler_target_suffix_p text #x343676637369723d #x672d78756e696c2d #x756e 2) 1) 2)
     ;; "=x86_64-", "windows-", "gnu"
     ((= (compiler_target_suffix_p text #x2d34365f3638783d #x2d73776f646e6977 #x756e67 3) 1) 3)
+    ;; "=x86_64-", "none-elf", ""
+    ((= (compiler_target_suffix_p text #x2d34365f3638783d #x666c652d656e6f6e 0 0) 1) 4)
+    ;; "=riscv64", "-none-el", "f"
+    ((= (compiler_target_suffix_p text #x343676637369723d #x6c652d656e6f6e2d #x66 1) 1) 5)
     (t -1)))
 
 ;; The prefix chunk spells "--target".

@@ -37,7 +37,8 @@
 (defun diagnostic_cli_usage (stream)
   (declare (type (ptr void) stream) (returns void))
   (diagnostic_write_line stream (ffi:c-string "Usage: pslcc-native [-c|--emit=exe|static|shared] SOURCE.lisp -o OUTPUT [--link-input=FILE]... [--target=TARGET] [--profile=hosted|freestanding] [-O0|-O1] [--dump-ir=hir|ssa|lir|all]"))
-  (diagnostic_write_line stream (ffi:c-string "Targets: x86_64-linux-gnu, aarch64-linux-gnu, riscv64-linux-gnu, x86_64-windows-gnu"))
+  (diagnostic_write_line stream (ffi:c-string "Targets: x86_64-linux-gnu, aarch64-linux-gnu, riscv64-linux-gnu, x86_64-windows-gnu, x86_64-none-elf, riscv64-none-elf"))
+  (diagnostic_write_line stream (ffi:c-string "The none-elf targets currently support -c object output only"))
   (diagnostic_write_line stream (ffi:c-string "Profiles: hosted, freestanding")))
 
 (defun diagnostic_cli_error (kind text)
@@ -55,6 +56,9 @@
       ((= kind 7)
        (diagnostic_write_c_string stream (ffi:c-string "unknown IR dump mode "))
        (diagnostic_write_line stream text))
+      ((= kind 8)
+       (diagnostic_write_line stream
+         (ffi:c-string "none-elf targets currently support -c object output only")))
       (t (diagnostic_noop stream)))
     (diagnostic_cli_usage stream)))
 
@@ -126,6 +130,9 @@
         text length))
       ((= kind 12)
        (diagnostic_write_line stream (ffi:c-string "cannot register hosted runtime: reserved symbol or insufficient storage")))
+      ((= kind 13)
+       (diagnostic_write_line stream
+         (ffi:c-string "managed Lisp runtime requires a supported hosted target")))
       ((= kind 19) (diagnostic_cli_usage (ffi:call native_host_stdout)))
       ((= kind 20) (diagnostic_cli_error (wrap-cast u32 length) text))
       ((= kind 21)

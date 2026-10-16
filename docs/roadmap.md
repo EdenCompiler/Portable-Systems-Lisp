@@ -1736,3 +1736,20 @@ also passed. All four production source/environment/package gates and the
 production API/allocation-fault checks passed; production smoke also passed.
 Compiler, runtime and test hashes stayed unchanged throughout validation.
 Complete M8 source, manifest, driver and Stage 1–3 corpus gates remain open.
+
+### M8 native none-target object selection
+
+The native library and CLI distinguish x86-64/RISC-V none ELF targets from hosted
+OS targets. Both reuse their architecture/ABI and ELF encoding; call validation
+and relocation selection now dispatch by architecture. Data fixup widths,
+validation, relocation counts and RISC-V anchor symbols also dispatch by
+architecture, preserving equivalent hosted/none objects. The combined code/data
+fixture checks native/Stage 0 O0/O1 internal and imported calls, writable C data,
+ELF metadata, target-independent object bytes and C O0/O2 execution, including
+QEMU RISC-V. Hosted VALUE signatures and managed calls reject these targets;
+scalar hosted-profile code remains valid. CLI link requests currently reject
+without replacing output. All four isolated hosted CLI/IR/controller gates, the none-target object gate
+and smoke passed on frozen inputs. All four production hosted CLI/IR/controller
+and diagnostic gates, the production none-target object/API gate, and production
+smoke passed. Compiler, runtime and test hashes stayed unchanged during validation. Startup/linker
+options and the complete M8 manifest/corpus/Stage 1–3 gates remain open.

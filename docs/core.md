@@ -914,3 +914,11 @@ It inherits Common Lisp names and does not implicitly use PSL. Explicit
 `in-package` preserves that package identity; PSL extensions remain qualified
 or explicitly imported. The default SOURCE package and previous package IDs
 retain their meanings. Package redefinition remains unsupported.
+
+The native object path accepts `x86_64-none-elf` and `riscv64-none-elf`, preserving
+architecture, ABI and ELF metadata independently of OS selection. Scalar,
+pointer, internal/imported call and initialized-data behavior follows the
+corresponding hosted ABI. Hosted-profile scalar code is permitted, while VALUE
+parameters/results and managed runtime calls require a supported hosted target.
+At this slice the native none-target CLI exposes object output only; startup and
+standalone linking remain separate driver work.

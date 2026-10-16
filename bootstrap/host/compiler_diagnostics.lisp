@@ -69,4 +69,5 @@
       ((= phase 6) (compiler_report_body driver result))
       ((= phase 9) (compiler_report_effect driver result))
       ((= phase 11) (progn (ffi:call native_host_report_error 12 (ptr-from-address (ptr u8) 0) 0 0) 1))
+      ((= phase 12) (progn (ffi:call native_host_report_error 13 (ptr-from-address (ptr u8) 0) 0 0) 2))
       (t 1))))
