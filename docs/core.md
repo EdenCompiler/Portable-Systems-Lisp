@@ -209,7 +209,20 @@ is false in `if`; every other managed value is true. The `psl` extensions
 rejected in raw structure fields and raw pointer types because those locations
 are not traced.
 
-`(lambda (argument) ...)`, `#'(lambda (argument) ...)`, and
+`(lambda (argument) ...)`, Stage 0 and native hosted source also provide mutable managed VALUE vectors through
+`make-value-vector`, `value-vector-length`, `value-vector-ref`,
+`value-vector-set`, and `value-vector-push`. Construction fills every element
+with the supplied initial value; push returns the previous length, and set
+returns the stored value. Length/ref/set are nonallocating and enforce exact
+logical bounds. Construction and push use precise collection. A vector keeps a
+stable identity while a separate managed storage object is copied and replaced
+as capacity grows; unused slots are NIL and the collector traces stored values.
+The native compiler resolves these five PSL operations through its checked
+runtime catalogue. Allocating construction and growth receive precise root
+frames; certified access and mutation remain nonallocating. Compiler-owned
+collections have not yet migrated to this representation.
+
+`#'(lambda (argument) ...)`, and
 `(function (lambda (argument) ...))` capture visible `value` bindings and can be
 called with `(funcall closure value)`. Stage 0 and the native hosted compiler
 support this one-argument, one-managed-result convention on all four targets.

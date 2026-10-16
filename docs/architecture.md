@@ -176,7 +176,7 @@ runtime/
   startup.c             lazy hosted initialization
   platform_linux.c      Linux stack bounds
   platform_windows.c    Windows stack bounds
-  value.c, cons.c, string.c, symbol.c, package.c, closure.c, values.c
+  value.c, cons.c, string.c, symbol.c, package.c, closure.c, values.c, vector.c
                          separately selected dynamic facilities
 ```
 
@@ -574,3 +574,11 @@ x86-64, AArch64 and RISC-V modules own their instruction forms and patching.
 The frontend creates hidden closure signatures and capture plans before unit
 compilation, while IR receivers verify address targets and managed call shapes.
 Unit output applies function-address fixups before writing the object.
+
+
+`runtime/vector.c` owns stable VALUE-vector headers and separately managed
+storage. `gc.c` traces headers and all initialized storage slots. Stage 0
+`frontend/runtime.lisp` and the native runtime catalogue expose the same five
+PSL operations and allocation effects; toolchain module selection includes the
+explicit vector-to-GC dependency. Compiler-owned collection migration remains
+a separate M8 step.

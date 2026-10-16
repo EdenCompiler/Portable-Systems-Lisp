@@ -19,7 +19,7 @@ Ordinary typed objects and binaries have no PSL runtime dependency.
 | Managed object | Aligned heap address with its low three bits clear. |
 
 The object layout is private. The runtime has cons, byte-string, symbol,
-package, and closure objects. C functions that hold values across an allocation
+package, closure, and VALUE-vector objects. C functions that hold values across an allocation
 register them with `psl_rt_push_roots`, then remove the frame with
 `psl_rt_pop_roots`. Stage 0 emits registered root frames around potentially
 allocating/collecting calls in managed functions. Only `value` virtual registers
@@ -53,6 +53,15 @@ allocation-free managed functions remain free of this extra dependency.
 The native compiler also emits precise root frames for its documented hosted
 source subset. Native managed compiler collections remain M8 work.
 
+Precise VALUE vectors use a stable managed header and separate managed storage.
+`psl_rt_make_value_vector_precise` and `psl_rt_value_vector_push_precise` root
+their live arguments across allocation. Growth copies initialized values and
+publishes the new storage without changing vector identity. Logical length is
+distinct from capacity; spare slots hold NIL and are traced. Length/ref/set
+reject wrong kinds and out-of-bounds indices and do not allocate. Stage 0 and
+native hosted source use the same five PSL vector operations. Compiler-owned
+collection migration remains open.
+
 ## Modules and linking
 
 The linker compiles the transitive dependency closure of the modules used by
@@ -69,6 +78,7 @@ the source. `src/ffi/toolchain.lisp` records the dependency edges:
 | `symbol` | `string` | Symbol allocation and names. |
 | `package` | `symbol` | Packages and symbol interning. |
 | `closure` | `gc` | Closure allocation and invocation. |
+| `vector` | `gc` | Precise VALUE vectors with stable identity and growing storage. |
 | `values` | `gc` | Two-value return storage. |
 
 `pslcc -c` leaves runtime calls as ELF or COFF relocations and does not compile C
@@ -149,8 +159,8 @@ accessor. `tests/bootstrap_multiple_values.sh` checks cold accessors, exact C AB
 O0/O1 execution, source order, nested bindings and precise collection on all four
 hosted targets.
 
-The precise closure constructor `psl_rt_make_closure_precise` and rooted
-invocation entry `psl_rt_call_closure` protect their environment, closure and argument
+Precise closure entries `psl_rt_make_closure_precise` and
+`psl_rt_call_closure_precise` protect their environment, closure and argument
 through allocation or collection. Native source closures select these explicit
 entries and the closure/GC/startup/platform dependency closure. Generated body
 addresses use PSL-owned same-text instruction encoding and patching. Closure

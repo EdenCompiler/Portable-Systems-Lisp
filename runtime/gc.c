@@ -101,6 +101,13 @@ static void mark_stack(psl_object **work, size_t *used) {
 }
 
 static void mark_children(psl_object *object, psl_object **work, size_t *used) {
+    if (object->kind == PSL_OBJECT_VALUE_VECTOR_STORAGE) {
+        psl_value *items = (psl_value *)object->bytes;
+        for (size_t index = 0; index < object->length; index++) {
+            mark_value(items[index], work, used);
+        }
+        return;
+    }
     size_t slots = 0;
     switch (object->kind) {
         case PSL_OBJECT_CONS: slots = 2; break;
@@ -108,6 +115,8 @@ static void mark_children(psl_object *object, psl_object **work, size_t *used) {
         case PSL_OBJECT_SYMBOL: slots = 3; break;
         case PSL_OBJECT_PACKAGE: slots = 2; break;
         case PSL_OBJECT_CLOSURE: slots = 1; break;
+        case PSL_OBJECT_VALUE_VECTOR: slots = 1; break;
+        case PSL_OBJECT_VALUE_VECTOR_STORAGE: abort();
     }
     for (size_t index = 0; index < slots; index++) {
         mark_value(object->slots[index], work, used);

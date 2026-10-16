@@ -534,7 +534,8 @@ extern int native_apply_package_form(struct native_compile_context *, uintptr_t,
 
 /* Profile 0: typed freestanding subset. Profile 1: hosted managed values.
  * runtime_modules reports explicitly required hosted ABI v1 modules:
- * value=1, cons=2, gc=128, startup=256, platform=512.
+ * value=1, cons=2, string=4, symbol=8, package=16, closure=32, multiple-values=64,
+ * gc=128, startup=256, platform=512, vector=1024.
  * Compiler-owned imports include their dependency closure; leaf values need none. */
 /* Caller-owned CLI parser state. Failed parses may leave partial options.
  * Parsing performs no I/O; native_compiler_main owns execution and cleanup. */

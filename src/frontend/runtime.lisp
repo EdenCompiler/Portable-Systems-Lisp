@@ -22,6 +22,16 @@
      :value :package :allocates)
     (psl:intern-symbol "psl_rt_intern" (:value :value)
      :value :package :allocates)
+    (psl:make-value-vector "psl_rt_make_value_vector_precise"
+     (:usize :value) :value :vector :allocates)
+    (psl:value-vector-length "psl_rt_value_vector_length"
+     (:value) :usize :vector :none)
+    (psl:value-vector-ref "psl_rt_value_vector_ref"
+     (:value :usize) :value :vector :none)
+    (psl:value-vector-set "psl_rt_value_vector_set"
+     (:value :usize :value) :value :vector :none)
+    (psl:value-vector-push "psl_rt_value_vector_push_precise"
+     (:value :value) :usize :vector :allocates)
     (psl:collect-garbage "psl_rt_collect" () :void :gc :allocates)))
 
 (defun runtime-operation (form)

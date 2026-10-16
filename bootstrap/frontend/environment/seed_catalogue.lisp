@@ -1210,10 +1210,20 @@
   (native_ct_seed_export env 2 9 #x5341432d50415257 #x54 #x0 #x0 #x0)
   (if (= (deref (field-pointer env 'error)) 0) 1 0))
 
+(defun native_ct_seed_psl_vectors (env)
+  (declare (type (ptr native_ct_environment) env) (returns c-int))
+  (native_ct_seed_export env 2 17 #x4c41562d454b414d #x4f544345562d4555 #x52 #x0 #x0)
+  (native_ct_seed_export env 2 19 #x45562d45554c4156 #x4e454c2d524f5443 #x485447 #x0 #x0)
+  (native_ct_seed_export env 2 16 #x45562d45554c4156 #x4645522d524f5443 #x0 #x0 #x0)
+  (native_ct_seed_export env 2 16 #x45562d45554c4156 #x5445532d524f5443 #x0 #x0 #x0)
+  (native_ct_seed_export env 2 17 #x45562d45554c4156 #x5355502d524f5443 #x48 #x0 #x0)
+  (if (= (deref (field-pointer env 'error)) 0) 1 0))
+
 (defun native_ct_seed_psl (env)
   (declare (type (ptr native_ct_environment) env) (returns c-int))
   (native_ct_seed_psl_0 env)
   (native_ct_seed_psl_1 env)
+  (native_ct_seed_psl_vectors env)
   (if (= (deref (field-pointer env 'error)) 0) 1 0))
 
 (defun native_ct_seed_psl_ffi_0 (env)

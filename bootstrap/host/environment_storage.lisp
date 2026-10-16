@@ -6,11 +6,11 @@
 
 (defun native_environment_symbol_capacity (capacity)
   (declare (type usize capacity) (returns usize))
-  (wrap+ capacity 1049))
+  (wrap+ capacity 1054))
 
 (defun native_environment_presence_capacity (capacity)
   (declare (type usize capacity) (returns usize))
-  (wrap+ capacity 1111))
+  (wrap+ capacity 1121))
 
 (defun native_environment_counts_fit (capacity)
   (declare (type usize capacity) (returns c-int))

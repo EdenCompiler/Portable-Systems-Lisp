@@ -13,7 +13,9 @@
            #:returns #:export #:c-export #:without-allocation
            #:value #:box-fixnum #:unbox-fixnum #:make-byte-string
            #:string-byte #:set-string-byte #:make-package-from-name
-           #:intern-symbol #:collect-garbage))
+           #:intern-symbol #:collect-garbage #:make-value-vector
+           #:value-vector-length #:value-vector-ref #:value-vector-set
+           #:value-vector-push))
 
 (defpackage #:psl.ffi
   (:nicknames #:ffi)

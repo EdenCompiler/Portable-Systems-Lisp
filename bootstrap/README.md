@@ -204,8 +204,16 @@ reserved against raw layout declarations.
 adds an explicit profile argument (0 freestanding, 1 hosted). Existing compiler
 entry points retain profile 0. A freshly prepared context also starts in profile
 0; direct library callers can select its `profile` field before compilation.
+The hosted operations `make-value-vector`, `value-vector-length`,
+`value-vector-ref`, `value-vector-set`, and `value-vector-push` operate on
+precise managed VALUE vectors. Construction takes a `usize` length and initial
+`value`; push returns the previous length. Ref/set use a `usize` index, set
+returns the stored `value`, and length/ref/set are nonallocating. Construction
+and growth preserve source roots across collection. Compiler collection
+migration remains open.
+
 After successful hosted compilation, `runtime_modules` reports compiler-owned
-runtime dependencies: value=1, cons=2, string=4, GC=128, startup=256, platform=512, with the
+runtime dependencies: value=1, cons=2, string=4, GC=128, startup=256, platform=512, vector=1024, with the
 transitive closure included. Leaf immediate values introduce no runtime symbols.
 Objects still require explicit linking of their imports. Internal runtime
 imports use resolved signatures and real owned C names; source calls cannot

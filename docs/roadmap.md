@@ -1647,3 +1647,23 @@ the native compiler; its earlier three disagreements are resolved. All four
 production focused gates and smoke passed with unchanged compiler, runtime and
 test hashes. This inventory leaves the complete
 source/object/interop and Stage 1–3 fixed-point gate open.
+
+
+### M8 precise managed VALUE vectors
+
+Stage 0 and native hosted source expose `make-value-vector`,
+`value-vector-length`, `value-vector-ref`, `value-vector-set`, and
+`value-vector-push`. Stable headers retain identity while separately managed
+storage grows. Construction and push root their inputs across precise
+allocation. Spare capacity holds NIL and is traced. Length/ref/set are
+nonallocating; invalid kinds, bounds and overflow use the established runtime
+rejection path. Runtime module selection includes the explicit vector/GC
+dependency closure. The unified catalogue retains the closure entries.
+
+`tests/bootstrap_managed_vectors.sh` and `tests/bootstrap_native_vectors.sh`
+check native/Stage 0 O0/O1 objects against C O0/O2 callers, stable aliases,
+nested cons/string/closure reachability, automatic collection during growth,
+every retained value, complete release, receiving verifiers and deterministic
+objects. All four isolated vector/runtime/closure/IR gates and smoke passed.
+All four production vector/runtime gates and smoke also passed with unchanged
+compiler, runtime and test hashes. Managed compiler-owned collections and complete M8 source/driver/corpus/Stage 1–3 gates remain open.

@@ -60,6 +60,11 @@
           ((= (ast_package_name_p parser head 2 (ffi:c-string "INTERN-SYMBOL") 13) 1) 19)
           ((= (ast_package_name_p parser head 1 (ffi:c-string "VALUES") 6) 1) 20)
           ((= (ast_package_name_p parser head 1 (ffi:c-string "FUNCALL") 7) 1) 23)
+          ((= (ast_package_name_p parser head 2 (ffi:c-string "MAKE-VALUE-VECTOR") 17) 1) 24)
+          ((= (ast_package_name_p parser head 2 (ffi:c-string "VALUE-VECTOR-LENGTH") 19) 1) 25)
+          ((= (ast_package_name_p parser head 2 (ffi:c-string "VALUE-VECTOR-REF") 16) 1) 26)
+          ((= (ast_package_name_p parser head 2 (ffi:c-string "VALUE-VECTOR-SET") 16) 1) 27)
+          ((= (ast_package_name_p parser head 2 (ffi:c-string "VALUE-VECTOR-PUSH") 17) 1) 28)
           (t 0)) 0)))
 
 (defun hir_from_managed_call (context body head id depth)

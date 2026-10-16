@@ -18,6 +18,7 @@
     (:symbol :string)
     (:package :symbol)
     (:closure :gc)
+    (:vector :gc)
     (:values :gc)))
 
 (defparameter *runtime-symbol-modules*
@@ -49,6 +50,11 @@
     ("psl_rt_make_closure" . :closure)
     ("psl_rt_make_closure_precise" . :closure)
     ("psl_rt_call_closure" . :closure)
+    ("psl_rt_make_value_vector_precise" . :vector)
+    ("psl_rt_value_vector_length" . :vector)
+    ("psl_rt_value_vector_ref" . :vector)
+    ("psl_rt_value_vector_set" . :vector)
+    ("psl_rt_value_vector_push_precise" . :vector)
     ("psl_rt_values2" . :values)
     ("psl_rt_nth_value" . :values)
     ("psl_rt_value_count" . :values)

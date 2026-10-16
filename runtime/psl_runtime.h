@@ -18,7 +18,9 @@ typedef enum {
     PSL_OBJECT_STRING,
     PSL_OBJECT_SYMBOL,
     PSL_OBJECT_PACKAGE,
-    PSL_OBJECT_CLOSURE
+    PSL_OBJECT_CLOSURE,
+    PSL_OBJECT_VALUE_VECTOR,
+    PSL_OBJECT_VALUE_VECTOR_STORAGE
 } psl_object_kind;
 
 typedef psl_value (*psl_closure_code)(psl_value environment, psl_value argument);
@@ -80,5 +82,13 @@ psl_value psl_rt_call_closure(psl_value closure, psl_value argument);
 psl_value psl_rt_values2(psl_value first, psl_value second);
 psl_value psl_rt_nth_value(size_t index);
 size_t psl_rt_value_count(void);
+
+/* Precise managed vectors keep a stable header while their rooted storage grows. */
+psl_value psl_rt_make_value_vector_precise(size_t length, psl_value initial);
+size_t psl_rt_value_vector_length(psl_value vector);
+psl_value psl_rt_value_vector_ref(psl_value vector, size_t index);
+psl_value psl_rt_value_vector_set(psl_value vector, size_t index,
+                                  psl_value value);
+size_t psl_rt_value_vector_push_precise(psl_value vector, psl_value value);
 
 #endif

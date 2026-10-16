@@ -22,7 +22,7 @@ int main(int argc,char **argv) {
     assert(argc==2);
     struct native_ct_environment e=create();
     assert(native_ct_seed_standard(&e)==1 && e.error==0);
-    assert(e.package_count==5 && e.symbol_count==1049);
+    assert(e.package_count==5 && e.symbol_count==1054);
     assert(native_ct_find_package(&e,(const uint8_t *)"CL",2)==1);
     assert(native_ct_find_package(&e,(const uint8_t *)"FFI",3)==3);
     assert(find(&e,5,"LOAD")==find(&e,1,"LOAD"));
@@ -45,7 +45,7 @@ int main(int argc,char **argv) {
         if(owner==2 && !find(&e,1,name)) assert(source==symbol);
         ++count;
     }
-    assert(count==1049 && fclose(catalogue)==0);
+    assert(count==1054 && fclose(catalogue)==0);
     uintptr_t saved_names=e.name_count;
     assert(find(&e,5,"WRAP+") && e.name_count==saved_names);
     assert(native_ct_seed_standard(&e)==0 && e.error==2);

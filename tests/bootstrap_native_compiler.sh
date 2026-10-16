@@ -1396,6 +1396,12 @@ PSL_NATIVE_COMPILER_HOST_TARGET=$host_target \
   sh "$project_root/tests/bootstrap_lexical_validation.sh" \
     "$work_dir/pslcc-native-slice$host_suffix" "$host_target"
 
+PSL_NATIVE_COMPILER_HOST_TARGET=$host_target \
+  sh "$project_root/tests/bootstrap_native_vectors.sh" \
+    "$work_dir/pslcc-native-slice$host_suffix" "$host_target"
+
+sh "$project_root/tests/bootstrap_managed_vectors.sh" "$host_target"
+
 sh "$project_root/tests/runtime_precise_closure_link.sh" "$host_target"
 
 if test -n "${PSL_NATIVE_OBJECT_SNAPSHOT_DIR:-}"; then

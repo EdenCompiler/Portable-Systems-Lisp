@@ -75,6 +75,8 @@ four hosted targets. Native output still requires explicit runtime linking.
 `make test-native-string-literals` checks literals, source decoding and byte-span receivers.
 `make test-native-runtime-symbols` checks symbol/package identity and precise collection.
 `make test-native-multiple-values` checks two values, lexical scope and collection.
+`make test-managed-vectors` checks the hosted VALUE-vector runtime;
+`make test-native-vectors` checks native vector lowering, effects and precise collection.
 `make test-native-ir` checks verified IR text and optional unit capture through the library API.
 `make test-native-function-addresses` checks native same-text code addresses;
 `make test-native-closures` checks lexical closures and captured root lifetimes.
