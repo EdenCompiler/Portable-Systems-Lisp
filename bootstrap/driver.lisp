@@ -3,7 +3,7 @@
 (include "unit_types.lisp")
 (include "frontend/environment/resolve.lisp")
 (include "frontend/package_forms.lisp")
-(include "frontend/macros/functions.lisp")
+(include "frontend/macros/compile_time.lisp")
 (include "frontend/layout_packed.lisp")
 
 (defun native_unit_fail (result phase)
@@ -42,6 +42,9 @@
              (native_unit_fail result 4)))
         ((= (native_macro_definition_form_p context form) 1)
          (if (< 0 (native_macro_register (field-pointer context 'macro_registry) form)) 1
+             (native_unit_fail result 4)))
+        ((= (native_eval_when_form_p context form) 1)
+         (if (= (native_collect_compile_eval_when context form) 1) 1
              (native_unit_fail result 4)))
         ((= (native_packed_layout_form_p layouts form) 1)
          (if (= (native_register_packed_layout layouts form) 1) 1

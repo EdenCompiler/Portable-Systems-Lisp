@@ -1411,6 +1411,10 @@ PSL_NATIVE_HOST_OBJECT=$work_dir/native-host.o \
     "$work_dir/pslcc-native-slice$host_suffix" "$project_root/pslcc" "$host_target"
 
 PSL_NATIVE_COMPILER_HOST_TARGET=$host_target \
+  sh "$project_root/tests/bootstrap_compile_time.sh" \
+    "$work_dir/pslcc-native-slice$host_suffix" "$host_target"
+
+PSL_NATIVE_COMPILER_HOST_TARGET=$host_target \
   sh "$project_root/tests/bootstrap_cl_user.sh" \
     "$work_dir/pslcc-native-slice$host_suffix" "$host_target"
 

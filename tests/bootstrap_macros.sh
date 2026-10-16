@@ -9,7 +9,7 @@ work_dir=$(mktemp -d)
 trap 'rm -rf "$work_dir"' EXIT HUP INT TERM
 sh "$project_root/tests/bootstrap_macro_constant_oracle.sh"
 for level in 0 1; do
-  for fixture in macros macro_rest macro_optional macro_aux macro_whole macro_control macro_sequence macro_lists macro_declarations macro_keys macro_let macro_nil_key_name; do
+  for fixture in macros macro_rest macro_optional macro_aux macro_whole macro_control macro_sequence macro_lists macro_declarations macro_keys macro_let macro_nil_key_name macro_eval_when; do
   source=$project_root/tests/bootstrap_$fixture.lisp
   run_compiler_host "$compiler" "-O$level" --target="$target" "$source" "$work_dir/native.o"
   run_compiler_host "$compiler" "-O$level" --target="$target" "$source" "$work_dir/repeat.o"
@@ -63,7 +63,7 @@ for level in 0 1; do
 done
 # Prove Linux native expansion needs no host Lisp executable or tool subprocess.
 if test "$compiler_host_target" = x86_64-linux-gnu; then
-  for fixture in macros macro_rest macro_optional macro_aux macro_whole macro_control macro_sequence macro_lists macro_declarations macro_keys macro_let macro_nil_key_name; do
+  for fixture in macros macro_rest macro_optional macro_aux macro_whole macro_control macro_sequence macro_lists macro_declarations macro_keys macro_let macro_nil_key_name macro_eval_when; do
     PATH=/nonexistent "$compiler" --target="$target" "$project_root/tests/bootstrap_$fixture.lisp" "$work_dir/without-host-lisp.o"
   done
 fi

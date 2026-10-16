@@ -468,6 +468,7 @@
 
 (defun analyze-source (forms target &optional locations (profile "freestanding"))
   "Return typed HIR functions and all known function signatures."
+  (setf forms (source-expand-compile-time-eval-when forms))
   (let ((*source-locations* locations)
         (*source-symbol-signatures* (make-hash-table :test #'eq))
         (*lexical-symbol-names* (make-hash-table :test #'eq))

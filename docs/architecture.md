@@ -614,3 +614,16 @@ syntax-capacity error separates retryable parser exhaustion from semantic and
 fixed binding limits. `bootstrap/host/driver.lisp` exposes checked arena
 preparation at an explicit capacity; each retry releases the prior attempt,
 preserves source bytes and rebuilds the frontend and receiving IR.
+
+`bootstrap/frontend/macros/compile_time.lisp` validates the supported top-level
+compile-time wrapper and registers its macro definitions in the build-host
+compilation environment. The unit driver selects this source transition before
+runtime function analysis. Stage 0 performs the corresponding source-list
+normalization in `src/frontend/macro_bridge.lisp`, retaining the original child
+forms and their source locations.
+
+`src/frontend/macro_variables.lisp` checks binding positions in host macro
+lambda lists before the seed evaluates DEFMACRO. Initializer expressions and
+explicit keyword names are preserved; validation also traverses destructuring
+patterns. This prevents the seed from silently installing an expander whose
+invalid constant binding was replaced with a compiler error stub.

@@ -771,3 +771,10 @@ including combined IR-buffer growth. Its C controller tests cover source-read
 count, selected capacities, failed reprepare cleanup and fixed-capacity errors.
 The caller-owned library API remains fixed unless explicitly prepared at a
 larger capacity.
+
+`make test-native-compile-time` checks the supported direct
+`eval-when (:compile-toplevel)` DEFMACRO wrapper. Both compilers retain source
+order, multiple definitions, empty bodies and redefinitions. The focused gate
+executes native/Stage 0 O0/O1 objects with C O0/O2 callers, repeats artifacts and
+rejection diagnostics, preserves prior outputs and checks native expansion
+without a host Lisp executable. General EVAL-WHEN execution remains unsupported.

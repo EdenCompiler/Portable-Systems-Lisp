@@ -31,6 +31,7 @@
             (subseq lambda-list key-end))))
 
 (defun source-eval-macro-definition (form)
+  (source-check-macro-variables (third form))
   (let* ((name (second form))
          (lambda-list (third form))
          (nil-key-p (source-nil-key-lambda-list-p lambda-list))
@@ -125,3 +126,18 @@
           unless (source-macro-key-known-p key key-specifiers)
             do (error "unknown keyword argument ~S" key))
     t))
+
+(defun source-expand-compile-time-eval-when (forms)
+  "Flatten the supported top-level compile-time DEFMACRO wrapper."
+  (loop for form in forms
+        append
+        (if (and (consp form) (eq (first form) 'eval-when))
+            (let ((situations (second form))
+                  (body (cddr form)))
+              (unless (and (equal situations '(:compile-toplevel))
+                           (every (lambda (child)
+                                    (and (consp child) (eq (first child) 'defmacro)))
+                                  body))
+                (error "unsupported top-level eval-when form ~S" form))
+              body)
+            (list form))))

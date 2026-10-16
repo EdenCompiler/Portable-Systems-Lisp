@@ -932,3 +932,16 @@ retry. Caller-owned library arenas retain their explicit capacity contract.
 `native_prepare_driver_capacity` accepts a chosen capacity of at least source
 length plus one, with the same partial-failure and release rules as
 `native_prepare_driver`.
+
+Stage 0 and native source also accept top-level
+`(eval-when (:compile-toplevel) (defmacro ...))`. The situation list must be
+exactly `(:compile-toplevel)` and every body form must be a direct DEFMACRO;
+an empty body is permitted. Definitions become available in source order,
+including redefinitions, and expand on the compiler host during cross
+compilation. Other situations, nested wrappers and arbitrary compile-time body
+forms remain unsupported. This wrapper adds no target runtime code.
+
+Stage 0 validates macro binding variables before installing a host expander.
+Common Lisp constants cannot be binding variables, including unused macro
+definitions. Explicit keyword names and empty destructuring patterns retain
+their ordinary Common Lisp roles.

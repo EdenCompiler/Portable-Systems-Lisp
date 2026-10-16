@@ -1770,3 +1770,20 @@ API against native and Stage 0 O0/O1 cores with C O0/O2 callers on all four
 targets. Compiler/runtime inputs stayed unchanged; corrected fixture inputs
 were frozen for the API audit. The complete M8 source/manifest/corpus and
 Stage 1–3 gates remain open.
+
+### M8 build-host compile-toplevel macro wrappers
+
+Stage 0 and native source register direct DEFMACRO bodies in the supported
+`eval-when (:compile-toplevel)` wrapper. Definitions retain source order across
+multiple forms and redefinitions; empty wrappers add no runtime code. Validation
+rejects other situations and body forms. Expansion executes on the compiler
+host, including cross compilation. The implementation lives in the frontend;
+the unit driver coordinates the transition. The seed also validates constant
+binding variables before installing host expanders, including unused macros,
+while preserving empty/nested patterns and explicit keyword names. All four
+combined and production native/Stage 0 O0/O1 gates passed with C O0/O2 callers,
+deterministic artifacts/diagnostics and output preservation. Full Linux macro,
+nested-growth and smoke regressions passed in both trees. Production compiler
+and all eight objects match the frozen candidate byte for byte; source/runtime/
+test hashes stayed unchanged throughout validation. General compile-time
+evaluation and the complete M8 source/manifest/corpus/Stage 1–3 gate remain open.
