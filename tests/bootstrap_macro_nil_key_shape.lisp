@@ -1,0 +1,16 @@
+(defmacro nil-key-shape (&whole whole &rest tail &key ((nil value) 3 supplied))
+  (if (and (= (length whole) 3)
+           (= (length tail) 2)
+           (eq (second whole) nil)
+           supplied
+           (= value 7))
+      37
+      99))
+(defun nil_key_shape ()
+  (declare (returns u64) (c-export :c))
+  (nil-key-shape nil 7))
+(defmacro nil-key-redefined (&key ((nil value) 3)) value)
+(defmacro nil-key-redefined (&key value) value)
+(defun nil_key_redefined ()
+  (declare (returns u64) (c-export :c))
+  (nil-key-redefined :value 8))

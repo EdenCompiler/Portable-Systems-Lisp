@@ -501,7 +501,7 @@
         (let ((*source-location* (and locations (gethash form locations))))
           (cond
             ((form-p form "defmacro")
-             (handler-case (eval form)
+             (handler-case (source-eval-macro-definition form)
                (error (condition)
                  (fail "macro definition failed: ~A" condition))))
             ((or (psl-form-p form "defun/c") (form-p form "defun"))

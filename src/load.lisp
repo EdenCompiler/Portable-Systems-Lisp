@@ -15,6 +15,7 @@
                   "frontend/strings.lisp"
                   "frontend/multiple-values.lisp"
                   "frontend/pointers.lisp"
+                  "frontend/macro_bridge.lisp"
                   "frontend/analyze.lisp"
                   "frontend/effects.lisp"
                   "ir/lower.lisp"

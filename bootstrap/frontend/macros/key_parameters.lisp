@@ -31,6 +31,22 @@
             (if (= (deref (field-pointer (parser_node parser name) 'kind)) 1)
                 (native_macro_next registry (deref (field-pointer (parser_node parser name) 'first))) name))))))
 
+(defun native_macro_nil_symbol (parser)
+  (declare (type (ptr psl_parser) parser) (returns usize))
+  (let ((reader (deref (field-pointer parser 'environment))))
+    (if (= (ptr-address reader) 0) 0
+        (let ((env (deref (field-pointer reader 'environment))))
+          (if (= (ptr-address env) 0) 0
+              (deref (field-pointer env 'nil_symbol)))))))
+
+(defun native_macro_key_form_identity (parser reference)
+  (declare (type (ptr psl_parser) parser) (type usize reference) (returns usize))
+  (let ((node (parser_node parser reference)))
+    (if (if (= (deref (field-pointer node 'kind)) 1)
+            (= (deref (field-pointer node 'first)) 0) nil)
+        (native_macro_nil_symbol parser)
+        (ast_symbol_identity parser reference))))
+
 (defun native_macro_key_explicit (registry reference)
   (declare (type (ptr native_macro_registry) registry) (type usize reference) (returns usize))
   (let ((parser (native_macro_parser registry)))
@@ -38,8 +54,14 @@
       (if (= (deref (field-pointer node 'kind)) 1)
           (let ((name (deref (field-pointer node 'first))))
             (if (= name 0) 0
-                (if (= (deref (field-pointer (parser_node parser name) 'kind)) 1)
-                    (deref (field-pointer (parser_node parser name) 'first)) 0))) 0))))
+            (if (= (deref (field-pointer (parser_node parser name) 'kind)) 1)
+                (deref (field-pointer (parser_node parser name) 'first)) 0))) 0))))
+
+(defun native_macro_key_explicit_identity (registry reference)
+  (declare (type (ptr native_macro_registry) registry) (type usize reference) (returns usize))
+  (let ((parser (native_macro_parser registry))
+        (explicit (native_macro_key_explicit registry reference)))
+    (if (= explicit 0) 0 (native_macro_key_form_identity parser explicit))))
 
 (defun native_macro_key_spec_p (registry reference)
   (declare (type (ptr native_macro_registry) registry) (type usize reference) (returns c-int))
@@ -49,7 +71,7 @@
         (cond
           ((= (native_macro_parameter_p registry name) 0) 0)
           ((if (< 0 explicit)
-               (if (= (ast_symbol_identity parser explicit) 0) t
+               (if (= (native_macro_key_explicit_identity registry reference) 0) t
                    (if (= (native_macro_raw_dot_p registry explicit) 1) t
                        (< 0 (native_macro_next registry name)))) nil) 0)
           ((= (deref (field-pointer node 'kind)) 1)

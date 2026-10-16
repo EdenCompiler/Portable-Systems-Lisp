@@ -897,3 +897,13 @@ capture failure publishes neither partial text nor a new artifact. A stdout
 write error after successful artifact publication returns failure and retains
 the published artifact. The exported IR library keeps its explicit caller-owned
 buffer and capacity contract.
+
+
+Explicit macro keyword parameter names may be any symbol, including CL:NIL.
+In definitions and invocations, NIL and the empty list denote that same symbol.
+Omitted values retain lazy defaults and supplied flags; the first repeated key
+wins. `&whole` and `&rest` retain the original invocation shape. Stage 0 uses a
+narrow host-expander bridge for the seed's explicit-NIL-key discrepancy: it
+checks unknown keys against the original lambda list without adding invocation
+arguments. Native matching uses resolved identities and rejects missing reader
+state transactionally.

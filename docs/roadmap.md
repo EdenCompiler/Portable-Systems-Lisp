@@ -1706,3 +1706,18 @@ All four production selector/controller/diagnostic gates and smoke passed
 with unchanged source, runtime and test hashes. The production compiler and
 objects match the frozen full-core-dump candidate byte for byte. The full M8
 source/driver/manifest/corpus and Stage 1–3 gates remain open.
+
+
+### M8 explicit NIL macro keyword names
+
+Native macro keyword definitions and calls normalize NIL and the empty list to
+the CL:NIL identity. Matching preserves lazy defaults, supplied flags, repeated
+key order and original whole/rest syntax. The Stage 0 host bridge preserves that
+same contract despite the SBCL seed's raw expander discrepancy. Missing native
+reader state rejects with syntax, identity and binding rollback. All four
+combined macro O0/O1 gates and smoke passed. Production NIL-key source/shape
+fixtures passed with C O0/O2 callers, deterministic objects and failure
+preservation on all four targets. The actual production core passed the keyword
+API rollback/default/null-reader checks at C O0/O2, and production smoke passed.
+Compiler, runtime and test hashes stayed unchanged throughout validation. The
+complete M8 manifest, source/driver and Stage 1–3 gates remain open.
