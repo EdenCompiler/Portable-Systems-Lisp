@@ -45,6 +45,12 @@
             (progn
               (store (field-pointer (native_ct_alias_at env (deref (field-pointer env 'alias_count))) 'name) start)
               (store (field-pointer env 'name_count) (wrap+ start length)) 1)))))
+(defun native_ct_seed_cl_user (env)
+  (declare (type (ptr native_ct_environment) env) (returns c-int))
+  (if (= (native_ct_seed_package env 6 16
+             #x4c2d4e4f4d4d4f43 #x524553552d505349) 0) 0
+      (if (= (native_ct_seed_alias env 6 7 #x524553552d4c43) 0) 0
+          (native_ct_link_use env 6 1))))
 (defun native_ct_seed_packages (env)
   (declare (type (ptr native_ct_environment) env) (returns c-int))
   (if (= (native_ct_seed_package env 1 11 #x4c2d4e4f4d4d4f43 #x505349) 0) 0
@@ -53,7 +59,8 @@
               (if (= (native_ct_seed_package env 4 7 #x44524f5759454b 0) 0) 0
                   (if (= (native_ct_seed_package env 5 6 #x454352554f53 0) 0) 0
                       (if (= (native_ct_seed_alias env 1 2 #x4c43) 0) 0
-                          (native_ct_seed_alias env 3 3 #x494646))))))))
+                          (if (= (native_ct_seed_alias env 3 3 #x494646) 0) 0
+                              (native_ct_seed_cl_user env)))))))))
 (defun native_ct_seed_exports (env)
   (declare (type (ptr native_ct_environment) env) (returns c-int))
   (if (= (native_ct_seed_common_lisp env) 0) 0

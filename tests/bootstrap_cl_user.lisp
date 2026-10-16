@@ -1,0 +1,7 @@
+(in-package #:cl-user)
+(defun cl_user_helper (value)
+  (declare (type psl:u64 value) (psl:returns psl:u64))
+  (psl:wrap+ value 7))
+(defun cl_user_value (value)
+  (declare (type psl:u64 value) (psl:returns psl:u64) (psl:c-export :c))
+  (if 0 (cl-user::cl_user_helper value) 999))

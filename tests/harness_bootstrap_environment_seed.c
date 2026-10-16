@@ -22,8 +22,14 @@ int main(int argc,char **argv) {
     assert(argc==2);
     struct native_ct_environment e=create();
     assert(native_ct_seed_standard(&e)==1 && e.error==0);
-    assert(e.package_count==5 && e.symbol_count==1054);
+    assert(e.package_count==6 && e.symbol_count==1054);
     assert(native_ct_find_package(&e,(const uint8_t *)"CL",2)==1);
+    assert(native_ct_find_package(&e,(const uint8_t *)"COMMON-LISP-USER",16)==6);
+    assert(native_ct_find_package(&e,(const uint8_t *)"CL-USER",7)==6);
+    assert(e.packages[5].uses && uses[e.packages[5].uses-1].package==1);
+    assert(find(&e,6,"CAR")==find(&e,1,"CAR"));
+    assert(native_ct_read_symbol(&e,(const uint8_t *)"CL-USER::CAR",12)==find(&e,1,"CAR"));
+    assert(find(&e,6,"WRAP+")==0);
     assert(native_ct_find_package(&e,(const uint8_t *)"FFI",3)==3);
     assert(find(&e,5,"LOAD")==find(&e,1,"LOAD"));
     assert(find(&e,5,"LOAD")!=find(&e,2,"LOAD"));
@@ -49,9 +55,9 @@ int main(int argc,char **argv) {
     uintptr_t saved_names=e.name_count;
     assert(find(&e,5,"WRAP+") && e.name_count==saved_names);
     assert(native_ct_seed_standard(&e)==0 && e.error==2);
-    for(unsigned capacity=0;capacity<=5;capacity++) {
+    for(unsigned capacity=0;capacity<=6;capacity++) {
         e=create();e.package_capacity=capacity;
-        if(capacity<5) assert(native_ct_seed_standard(&e)==0 && e.error==1);
+        if(capacity<6) assert(native_ct_seed_standard(&e)==0 && e.error==1);
         else assert(native_ct_seed_standard(&e)==1 && e.error==0);
     }
     e=create();e.symbol_capacity=8;

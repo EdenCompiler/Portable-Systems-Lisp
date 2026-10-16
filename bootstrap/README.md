@@ -698,7 +698,7 @@ names preserve decoded spelling, and omitted use inherits nothing, matching
 SBCL. Stage 0 also processes package forms/includes in reader order and disposes
 all owned packages. `tests/bootstrap_package_forms.sh [COMPILER] [TARGET]`
 checks linked C behavior, SBCL symbol observations, source rejection, repeated
-objects and the native 128-record package bound. Five records belong to the
+objects and the native 128-record package bound. Six records belong to the
 standard seed. Redefinition, remaining DEFPACKAGE options, growable arenas,
 source-loader identities and native macro execution remain open M8 work.
 
@@ -753,3 +753,8 @@ error while leaving that artifact available. `make test-native-cli-ir` checks
 selectors at O0/O1, repeated text, identical object bytes with dumping enabled,
 generated closure bodies, buffer growth, rooted C behavior and a full native-core
 dump. The C controller harness also checks allocation, retry and output faults.
+
+
+The build-host package seed includes COMMON-LISP-USER/CL-USER, inheriting CL
+without implicitly using PSL. `make test-native-cl-user` checks explicit package
+selection, symbol identity, PSL qualification, deterministic objects and C calls.

@@ -68,9 +68,18 @@ static void check_initialized(struct native_driver *d) {
     assert(d->reader.identities == d->storage.identities && d->reader.capacity == cap);
     assert(!d->reader.count && !d->reader.cursor && !d->reader.error && !d->reader.failure);
     assert(d->environment.names == d->storage.symbol_names);
-    assert(d->environment.package_count == 5 && d->environment.symbol_count == 1054);
-    assert(d->environment.present_count == 1121 && d->environment.use_count == 2);
-    assert(d->environment.alias_count == 2 && d->environment.current_package == 5);
+    assert(d->environment.package_count == 6 && d->environment.symbol_count == 1054);
+    assert(d->environment.present_count == 1121 && d->environment.use_count == 3);
+    assert(d->environment.alias_count == 3 && d->environment.current_package == 5);
+    assert(native_ct_find_package(&d->environment,
+           (const uint8_t *)"COMMON-LISP-USER", 16) == 6);
+    assert(native_ct_find_package(&d->environment,
+           (const uint8_t *)"CL-USER", 7) == 6);
+    assert(native_ct_find_symbol(&d->environment, 6,
+           (const uint8_t *)"CAR", 3) == native_ct_find_symbol(&d->environment, 1,
+           (const uint8_t *)"CAR", 3));
+    assert(!native_ct_find_symbol(&d->environment, 6,
+           (const uint8_t *)"WRAP+", 5));
     assert(d->environment.keyword_package == 4 && d->environment.nil_symbol && d->environment.true_symbol);
     assert(!d->environment.error);
     assert(d->parser.nodes == d->storage.syntax && d->parser.capacity == cap);

@@ -740,8 +740,8 @@ resolving the following parsed form. Shadows precede use relationships,
 imports/interning precede exports, and disjoint name collections are checked
 before package creation. Imports preserve the original symbol identity and
 string designators retain their case. The development hosted driver reserves
-128 package records (five seeded), 128 nickname records (two seeded), and 512
-use records (two seeded); exhaustion rejects the unit without writing an object.
+128 package records (six seeded), 128 nickname records (three seeded), and 512
+use records (three seeded); exhaustion rejects the unit without writing an object.
 These records do not allocate in the native core. A failed source package form
 ends collection; whole-DEFPACKAGE rollback is not a public guarantee.
 
@@ -907,3 +907,10 @@ narrow host-expander bridge for the seed's explicit-NIL-key discrepancy: it
 checks unknown keys against the original lambda list without adding invocation
 arguments. Native matching uses resolved identities and rejects missing reader
 state transactionally.
+
+
+The native build-host seed includes COMMON-LISP-USER with nickname CL-USER.
+It inherits Common Lisp names and does not implicitly use PSL. Explicit
+`in-package` preserves that package identity; PSL extensions remain qualified
+or explicitly imported. The default SOURCE package and previous package IDs
+retain their meanings. Package redefinition remains unsupported.

@@ -13,7 +13,7 @@ python3 - "$work_dir" <<'PYTHON'
 import pathlib, sys
 root = pathlib.Path(sys.argv[1])
 body = '(defun capacity_answer () (declare (returns u64) (c-export :c)) 42)\n'
-for count, name in ((123, "capacity.lisp"), (124, "exhausted.lisp")):
+for count, name in ((122, "capacity.lisp"), (123, "exhausted.lisp")):
     forms = ''.join(f'(defpackage "PSL.CAP.{index}" (:use))\n' for index in range(count))
     (root / name).write_text(forms + body)
 PYTHON

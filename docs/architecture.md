@@ -600,3 +600,10 @@ optimization. `compiler.lisp` publishes the compiled artifact before asking the
 C stdout adapter to flush the captured bytes. Native IR formatting and receiving
 verifiers remain in the core; the reusable library acquires no allocator or
 stdio imports.
+
+
+The native environment seed reserves package ID 6 for COMMON-LISP-USER, with
+CL-USER as a nickname and one Common Lisp use relationship. It adds no symbols
+or target runtime dependencies. SOURCE remains the initial package. The seed
+and driver receiver tests check canonical identity and visibility, while source
+fixtures compare qualified PSL operations with Stage 0 on each hosted target.

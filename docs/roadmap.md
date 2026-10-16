@@ -1721,3 +1721,18 @@ preservation on all four targets. The actual production core passed the keyword
 API rollback/default/null-reader checks at C O0/O2, and production smoke passed.
 Compiler, runtime and test hashes stayed unchanged throughout validation. The
 complete M8 manifest, source/driver and Stage 1–3 gates remain open.
+
+
+### M8 canonical CL-USER source package
+
+The native seed includes COMMON-LISP-USER and its CL-USER nickname, with CL
+inheritance and explicit PSL qualification. SOURCE and the previous package IDs
+are preserved. Seed/driver bounds and package-capacity fixtures account for the
+additional package, alias and use record; aggregate fixtures use a fresh package
+rather than redefining this pre-existing package. All four source, environment
+and package gates passed. Corrected aggregate/unit/driver C O0/O2 receivers and
+Linux allocation-fault tests passed on both compiler optimization levels; smoke
+also passed. All four production source/environment/package gates and the
+production API/allocation-fault checks passed; production smoke also passed.
+Compiler, runtime and test hashes stayed unchanged throughout validation.
+Complete M8 source, manifest, driver and Stage 1–3 corpus gates remain open.
