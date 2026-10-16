@@ -56,11 +56,15 @@ POSIX path service, driver, output writer, and diagnostic renderer into `build/n
 `build/native-host.o`, `build/native-source.o`, `build/native-input.o`,
 `build/native-path.o`, `build/native-driver.o`, `build/native-output.o`, and
 `build/native-diagnostics.o`, then links the process entry and primitive stdio adapter.
-The small C toolchain adapter is used only when a unit explicitly declares
-`ffi:source`; PSL still encodes its own machine code and object records.
+The C toolchain adapter compiles explicit `ffi:source` inputs and links requested
+artifacts; PSL encodes its own machine code and object records.
 `build/pslcc-native -c SOURCE -o OUTPUT.o [-O0|-O1] [--target=TARGET] [--profile=freestanding|hosted]` accepts the
 [documented bootstrap subset](bootstrap/README.md). The legacy `SOURCE OUTPUT.o`
-syntax also works; options may appear before or after the source. It is not yet the complete
+syntax also works; options may appear before or after the source. From a Linux
+compiler host, `SOURCE -o OUTPUT --emit=exe|static|shared` links through the
+selected target toolchain; repeated `--link-input=FILE` options add C objects
+and libraries. `make test-native-cli-link` checks these artifacts and runtime
+selection. A native Windows compiler host supports object output. It is not yet the complete
 Stage 0 compiler. `make example` uses Stage 0 to build and run a pure Lisp
 program. Use `make help` for native generation checks, cross-target tests,
 cleanup, and build variables. For example, `make PSLFLAGS=-O0` selects
@@ -68,7 +72,8 @@ unoptimized compilation on a fresh build; `make clean` removes generated files. 
 native default remains the typed freestanding subset. Explicit `--profile=hosted`
 adds managed values, UTF-8 string literals, byte-string creation/access/mutation, symbols, runtime packages, the two-value subset, CONS, explicit
 collection and precise root frames on all
-four hosted targets. Native output still requires explicit runtime linking.
+four hosted targets. Native object output requires explicit runtime linking; artifact commands select
+the declared runtime modules and their dependencies.
 `make test-native-managed` checks values and profile safety;
 `make test-native-roots` checks collection, root lifetime and ABI behavior.
 `make test-native-byte-strings` checks byte strings and their precise allocator.

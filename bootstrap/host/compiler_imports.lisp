@@ -16,6 +16,15 @@
 (ffi:import-function "native_host_merge_c_sources"
   ((path (ptr u8)) (object (ptr byte_buffer))
    (sources (ptr native_c_source_path)) (target u32)) -> c-int)
+(ffi:import-function "native_host_link_artifact"
+  ((path (ptr u8)) (object (ptr byte_buffer))
+   (sources (ptr native_c_source_path)) (target u32) (profile u32)
+   (runtime_modules u64) (kind u32) (inputs (ptr (ptr u8)))
+   (input_count usize)) -> c-int)
+(ffi:import-function "native_host_link_supported" () -> c-int)
+(ffi:import-function "native_host_runtime_roots"
+  ((target u32) (sources (ptr native_c_source_path))
+   (inputs (ptr (ptr u8))) (input_count usize)) -> u64)
 (ffi:import-function "native_host_report_error"
   ((kind u32) (text (ptr u8)) (length usize) (position usize)) -> void)
 (ffi:import-function "calloc" ((count usize) (size usize)) -> (ptr void))

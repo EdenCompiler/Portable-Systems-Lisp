@@ -534,18 +534,36 @@ extern int native_apply_package_form(struct native_compile_context *, uintptr_t,
 
 /* Profile 0: typed freestanding subset. Profile 1: hosted managed values.
  * runtime_modules reports explicitly required hosted ABI v1 modules:
- * value=1, cons=2, string=4, symbol=8, package=16, closure=32, multiple-values=64,
- * gc=128, startup=256, platform=512, vector=1024.
+ * value=1, cons=2, string=4, symbol=8, package=16, closure=32,
+ * multiple-values=64, gc=128, startup=256, platform=512, vector=1024.
  * Compiler-owned imports include their dependency closure; leaf values need none. */
 /* Caller-owned CLI parser state. Failed parses may leave partial options.
  * Parsing performs no I/O; native_compiler_main owns execution and cleanup. */
 struct native_cli_options {
     const uint8_t *source, *output;
-    uint32_t optimization, target, profile, compile_only, output_option;
+    uint32_t optimization, target, profile, kind, emit_specified;
+    uint32_t compile_only, output_option;
     uintptr_t paths, cursor;
+    const uint8_t *const *link_inputs;
+    uintptr_t link_input_count, link_input_capacity;
+    uint32_t help_requested, parse_error;
+    const uint8_t *parse_error_text;
 };
 extern int native_parse_cli_options(int argc, const char *const *argv,
                                     struct native_cli_options *options);
+struct native_c_source_path;
+extern int native_parse_cli_options_with_inputs(
+    int argc, const char *const *argv, struct native_cli_options *options,
+    const uint8_t **inputs, uintptr_t input_capacity);
+extern int native_host_link_supported(void);
+extern int native_host_link_artifact(
+    const uint8_t *path, const struct byte_buffer *object,
+    const struct native_c_source_path *sources, uint32_t target,
+    uint32_t profile, uint64_t runtime_modules, uint32_t kind,
+    const uint8_t *const *inputs, uintptr_t input_count);
+extern uint64_t native_host_runtime_roots(
+    uint32_t target, const struct native_c_source_path *sources,
+    const uint8_t *const *inputs, uintptr_t input_count);
 extern int native_run_compiler_profile(const char *, const char *, uint32_t, uint32_t, uint32_t);
 extern int native_register_runtime_signatures(struct native_compile_context *);
 extern int native_runtime_signature_p(struct native_compile_context *, struct native_signature *);

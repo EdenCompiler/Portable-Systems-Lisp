@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+
 enum scenario { SUCCESS, READ_FAILURE, PREPARE_FAILURE, COMPILE_FAILURE, WRITE_FAILURE };
 struct event { uint32_t kind; uintptr_t position, length; char text[64]; };
 static enum scenario scenario;
@@ -23,20 +24,25 @@ static uint8_t object_bytes[] = {0x7f, 'E', 'L', 'F'};
 #ifdef PSL_TEST_ALLOCATOR_FAULTS
 void *__real_calloc(size_t, size_t);
 void __real_free(void *);
-static void *state_allocation;
-static int fail_state;
+static void *owned_allocations[8];
+static size_t owned_count, allocation_count, fail_at;
 
 void *__wrap_calloc(size_t count, size_t size) {
-    assert(count == 1 && size >= sizeof(struct native_driver) + sizeof(struct native_unit_result));
-    assert(!state_allocation);
-    if (fail_state) return NULL;
-    state_allocation = __real_calloc(count, size);
-    assert(state_allocation);
-    return state_allocation;
+    ++allocation_count;
+    if (fail_at && allocation_count == fail_at) return NULL;
+    void *memory = __real_calloc(count, size);
+    assert(memory && owned_count < sizeof owned_allocations / sizeof *owned_allocations);
+    owned_allocations[owned_count++] = memory;
+    return memory;
 }
 
 void __wrap_free(void *memory) {
-    if (memory == state_allocation) state_allocation = NULL;
+    for (size_t i = 0; i < owned_count; ++i) {
+        if (owned_allocations[i] == memory) {
+            owned_allocations[i] = owned_allocations[--owned_count];
+            break;
+        }
+    }
     __real_free(memory);
 }
 #endif
@@ -120,6 +126,37 @@ int native_release_driver(struct native_driver *driver) {
     return 1;
 }
 
+uint64_t native_host_runtime_roots(uint32_t target,
+                                   const struct native_c_source_path *sources,
+                                   const uint8_t *const *inputs,
+                                   uintptr_t input_count) {
+    (void)target;
+    (void)sources;
+    (void)inputs;
+    (void)input_count;
+    return 0;
+}
+
+int native_host_link_supported(void) {
+    return 1;
+}
+
+int native_host_link_artifact(const uint8_t *path,
+                              const struct byte_buffer *object,
+                              const struct native_c_source_path *sources,
+                              uint32_t target, uint32_t profile,
+                              uint64_t runtime_modules, uint32_t kind,
+                              const uint8_t *const *inputs,
+                              uintptr_t input_count) {
+    (void)profile;
+    (void)runtime_modules;
+    (void)kind;
+    (void)inputs;
+    (void)input_count;
+    return sources ? native_host_merge_c_sources(path, object, sources, target)
+                   : native_host_write_object(path, object);
+}
+
 void native_host_report_error(uint32_t kind, const uint8_t *text,
                               uintptr_t length, uintptr_t position) {
     struct event *event;
@@ -129,7 +166,7 @@ void native_host_report_error(uint32_t kind, const uint8_t *text,
     event->position = position;
     event->length = length;
     if (text) {
-        size_t size = length ? length : strlen((const char *)text);
+        size_t size = length && kind != NATIVE_HOST_CLI_PARSE ? length : strlen((const char *)text);
         assert(size < sizeof event->text);
         memcpy(event->text, text, size);
         event->text[size] = 0;
@@ -137,6 +174,10 @@ void native_host_report_error(uint32_t kind, const uint8_t *text,
 }
 
 static void reset(enum scenario next) {
+#ifdef PSL_TEST_ALLOCATOR_FAULTS
+    assert(!owned_count);
+    allocation_count = fail_at = 0;
+#endif
     scenario = next;
     event_count = reads = prepares = compiles = writes = releases = 0;
     memset(events, 0, sizeof events);
@@ -150,7 +191,7 @@ static void check_run(enum scenario next, int expected) {
     assert(compiles == (size_t)(next != READ_FAILURE && next != PREPARE_FAILURE));
     assert(writes == (size_t)(next == SUCCESS || next == WRITE_FAILURE));
 #ifdef PSL_TEST_ALLOCATOR_FAULTS
-    assert(!state_allocation);
+    assert(!owned_count);
 #endif
 }
 
@@ -197,8 +238,8 @@ static void check_target_arguments(void) {
     for (size_t i = 0; i < sizeof bad / sizeof *bad; ++i) {
         char *args[] = {"pslcc-native", (char *)bad[i], "source.lisp", "result.o", NULL};
         reset(SUCCESS);
-        assert(native_compiler_main(4, args) == 2);
-        assert(event_count == 1 && events[0].kind == NATIVE_HOST_USAGE && !reads && !releases);
+        assert(native_compiler_main(4, args) == 1);
+        assert(event_count == 1 && events[0].kind == NATIVE_HOST_CLI_PARSE && !reads && !releases);
     }
     char *duplicates[] = {"pslcc-native", "--target=aarch64-linux-gnu",
         "--target=x86_64-linux-gnu", "source.lisp", "result.o", NULL};
@@ -223,6 +264,12 @@ static void check_arguments(void) {
         assert(event_count == 1 && events[0].kind == NATIVE_HOST_USAGE);
         assert(!reads && !prepares && !compiles && !writes && !releases);
     }
+    for (int argc = -1; argc <= 0; ++argc) {
+        reset(SUCCESS);
+        assert(native_compiler_main(argc, argv) == 2);
+        assert(event_count == 1 && events[0].kind == NATIVE_HOST_USAGE);
+        assert(!reads && !prepares && !compiles && !writes && !releases);
+    }
     reset(SUCCESS);
     assert(native_compiler_main(3, argv) == 0);
     assert(reads == 1 && writes == 1 && releases == 1 && !event_count);
@@ -237,8 +284,8 @@ static void check_arguments(void) {
     for (i = 0; i < sizeof bad / sizeof *bad; ++i) {
         char *options[] = {"pslcc-native", (char *)bad[i], "source.lisp", "result.o", NULL};
         reset(SUCCESS);
-        assert(native_compiler_main(4, options) == 2);
-        assert(event_count == 1 && events[0].kind == NATIVE_HOST_USAGE && !reads && !releases);
+        assert(native_compiler_main(4, options) == 1);
+        assert(event_count == 1 && events[0].kind == NATIVE_HOST_CLI_PARSE && !reads && !releases);
     }
     reset(SUCCESS);
     assert(native_run_compiler_options("source.lisp", "result.o", 2) == 2);
@@ -294,21 +341,78 @@ static void check_object_arguments(void) {
         {"pslcc-native", "-c", "source.lisp", NULL},
         {"pslcc-native", "-c", "source.lisp", "-o", NULL},
         {"pslcc-native", "-c", "-o", "result.o", NULL},
-        {"pslcc-native", "source.lisp", "-o", "result.o", NULL},
         {"pslcc-native", "-c", "source.lisp", "result.o", NULL},
         {"pslcc-native", "-c", "source.lisp", "-o", "result.o", "extra", NULL},
         {"pslcc-native", "--target", "riscv64-none-elf", "source.lisp", "result.o", NULL},
         {"pslcc-native", "--profile", "unknown", "source.lisp", "result.o", NULL},
-        {"pslcc-native", "--emit=exe", "source.lisp", "result.o", NULL}
+        {"pslcc-native", "--emit=bad", "source.lisp", "-o", "result", NULL},
+        {"pslcc-native", "-c", "--emit=exe", "source.lisp", "-o", "result", NULL},
+        {"pslcc-native", "--link-input", NULL}
     };
     for (size_t index = 0; index < sizeof bad / sizeof *bad; index++) {
         int argc = 0;
         while (bad[index][argc]) argc++;
         reset(SUCCESS);
-        assert(native_compiler_main(argc, bad[index]) == 2);
-        assert(event_count == 1 && events[0].kind == NATIVE_HOST_USAGE);
+        int result;
+        result = native_compiler_main(argc, bad[index]);
+        assert(result == 1);
+        assert(event_count == 1 && events[0].kind == NATIVE_HOST_CLI_PARSE);
         assert(!reads && !prepares && !compiles && !writes && !releases);
     }
+}
+
+static void check_link_cli_parse(void) {
+    char *args[] = {"pslcc-native", "source.lisp", "-o", "app",
+                    "--emit=shared", "--link-input=one.o",
+                    "--link-input", "two.o", NULL};
+    char *one_input_args[] = {"pslcc-native", "source.lisp", "-o", "app",
+                              "--emit=shared", "--link-input=one.o", NULL};
+    struct {
+        const uint8_t *slot;
+        uint64_t canary;
+    } bounded = {NULL, UINT64_C(0xa1b2c3d4e5f60718)};
+    const uint8_t *inputs[8] = {0};
+    struct {
+        uint64_t before;
+        struct native_cli_options options;
+        uint64_t after;
+    } parsed = {.before = UINT64_C(0x1111222233334444),
+                .after = UINT64_C(0x5555666677778888)};
+    assert(native_parse_cli_options_with_inputs(
+        8, (const char *const *)args, &parsed.options, inputs, 8));
+    assert(parsed.before == UINT64_C(0x1111222233334444));
+    assert(parsed.after == UINT64_C(0x5555666677778888));
+    assert(parsed.options.kind == 2 && parsed.options.emit_specified == 1);
+    assert(parsed.options.output_option == 1 && parsed.options.paths == 1);
+    assert(parsed.options.link_input_count == 2);
+    assert(!strcmp((const char *)parsed.options.link_inputs[0], "one.o"));
+    assert(!strcmp((const char *)parsed.options.link_inputs[1], "two.o"));
+    assert(native_parse_cli_options_with_inputs(
+        6, (const char *const *)one_input_args, &parsed.options,
+        &bounded.slot, 1));
+    assert(!strcmp((const char *)bounded.slot, "one.o"));
+    assert(bounded.canary == UINT64_C(0xa1b2c3d4e5f60718));
+    assert(!native_parse_cli_options_with_inputs(
+        8, (const char *const *)args, &parsed.options, &bounded.slot, 1));
+    assert(bounded.canary == UINT64_C(0xa1b2c3d4e5f60718));
+    assert(!native_parse_cli_options_with_inputs(
+        8, (const char *const *)args, &parsed.options, NULL, 1));
+    assert(!native_parse_cli_options(8, (const char *const *)args,
+                                     &parsed.options));
+}
+
+static void check_cli_diagnostics(void) {
+    char *help[] = {"pslcc-native", "--help", NULL};
+    char *bare[] = {"pslcc-native", NULL};
+    reset(SUCCESS);
+    assert(native_compiler_main(2, help) == 0);
+    assert(event_count == 1 && events[0].kind == NATIVE_HOST_CLI_HELP);
+    assert(!reads && !prepares && !compiles && !writes && !releases);
+    reset(SUCCESS);
+    assert(native_compiler_main(1, bare) == 1);
+    assert(event_count == 1 && events[0].kind == NATIVE_HOST_CLI_PARSE);
+    assert(events[0].length == 4);
+    assert(!reads && !prepares && !compiles && !writes && !releases);
 }
 
 int main(void) {
@@ -325,12 +429,26 @@ int main(void) {
     check_arguments();
     check_target_arguments();
     check_object_arguments();
+    check_link_cli_parse();
+    check_cli_diagnostics();
 #ifdef PSL_TEST_ALLOCATOR_FAULTS
+    char *args[] = {"pslcc-native", "source.lisp", "result.o", NULL};
     reset(SUCCESS);
-    fail_state = 1;
+    assert(native_compiler_main(3, args) == 0);
+    size_t cli_allocations = allocation_count;
+    assert(cli_allocations && !owned_count);
+    for(size_t index = 1; index <= cli_allocations; ++index) {
+        reset(SUCCESS);
+        fail_at = index;
+        assert(native_compiler_main(3, args) == 2);
+        assert(event_count == 1 && events[0].kind == NATIVE_HOST_ALLOCATE);
+        assert(!reads && !prepares && !compiles && !writes && !releases && !owned_count);
+    }
+    reset(SUCCESS);
+    fail_at = 1;
     assert(native_run_compiler("source.lisp", "result.o") == 2);
     assert(event_count == 1 && events[0].kind == NATIVE_HOST_ALLOCATE);
-    assert(!reads && !prepares && !compiles && !writes && !releases && !state_allocation);
+    assert(!reads && !prepares && !compiles && !writes && !releases && !owned_count);
 #endif
     puts("PSL compiler driver exit codes, diagnostics, and cleanup passed");
     return 0;

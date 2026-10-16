@@ -38,6 +38,14 @@ for level in 0 1; do
         "$work_dir/$version-driver.o" -o "$work_dir/controller$target_suffix"
       run_target "$work_dir/controller$target_suffix"
     done
+    if test "$target" = x86_64-linux-gnu; then
+      "$target_cc" -O2 -std=c11 -Wall -Wextra -Werror \
+        -DPSL_TEST_ALLOCATOR_FAULTS \
+        "$project_root/tests/harness_bootstrap_compiler.c" \
+        "$work_dir/$version-driver.o" -Wl,--wrap=calloc -Wl,--wrap=free \
+        -o "$work_dir/controller-faults"
+      run_target "$work_dir/controller-faults"
+    fi
   done
 done
 
@@ -48,8 +56,8 @@ if run_compiler_host "$compiler" -c "$source" -o "$work_dir/preserved.o" \
   echo 'native CLI accepted a missing target value' >&2
   exit 1
 else
-  test "$?" -eq 2
+  test "$?" -eq 1
 fi
 cmp "$work_dir/expected" "$work_dir/preserved.o"
-grep -q 'usage: pslcc-native-slice' "$work_dir/stderr"
+grep -q '^Usage: pslcc-native ' "$work_dir/stderr"
 printf 'Native object CLI, parser ABI, profiles, option order and cleanup passed (%s)\n' "$target"

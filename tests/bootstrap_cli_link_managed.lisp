@@ -1,0 +1,5 @@
+(defun native_cli_cons ()
+  (declare (returns value) (c-export :c))
+  (let ((vector (make-value-vector 1 (cons 42 nil))))
+    (value-vector-push vector nil)
+    (value-vector-ref vector 0)))

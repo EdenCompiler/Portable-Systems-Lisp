@@ -1667,3 +1667,25 @@ every retained value, complete release, receiving verifiers and deterministic
 objects. All four isolated vector/runtime/closure/IR gates and smoke passed.
 All four production vector/runtime gates and smoke also passed with unchanged
 compiler, runtime and test hashes. Managed compiler-owned collections and complete M8 source/driver/corpus/Stage 1–3 gates remain open.
+
+
+### M8 native executable and library CLI
+
+The native controller links executables, static archives and shared libraries
+from a POSIX compiler host, with repeated C objects/archives, explicit C sources
+and checked runtime dependency selection. PSL owns option parsing and runtime
+dependency closure; the C adapter spawns conventional target tools and publishes
+a staged destination only after success. Windows compiler hosts retain object
+output and reject link requests without replacing prior output. Help and the
+covered parse errors use the documented output streams and Stage 0 statuses.
+The reusable parser accepts caller-owned input slots; allocation fault paths
+release every owned controller allocation.
+
+Isolated Linux-host O0/O1 linking and object-controller gates passed for all four
+targets, with C O0/O2 callers, static/shared artifact consumption, precise runtime
+imports from C sources/objects/archives, long destinations and failure
+preservation. ASan verified the static-archive argument extent. The combined
+closure/IR/vector and CLI gates passed on all four targets and smoke. All four
+production CLI/parser/link/diagnostic gates and production smoke also passed
+with unchanged compiler, runtime and test hashes. Freestanding target/driver
+options, complete IR/diagnostic parity and the full M8 Stage 1–3 gate remain open.

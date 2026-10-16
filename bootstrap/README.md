@@ -28,12 +28,30 @@ sh tests/bootstrap_self_core.sh
 ```
 
 The object CLI accepts `-c SOURCE -o OUTPUT` and the legacy `SOURCE OUTPUT`
-syntax. `-O0`/`-O1`, `--target=TARGET`, and `--profile=PROFILE` may appear anywhere;
-`--target TARGET` and `--profile PROFILE` are also accepted. Repeated options
-use their last value, matching Stage 0. The modern syntax requires `-c` because
-native executable and library linking remain open. `native_parse_cli_options`
-provides a caller-owned record API without I/O; a failed parse may leave partial
-options. Invalid arguments are rejected before source loading or output writes.
+syntax. `SOURCE -o OUTPUT` links a hosted executable by default;
+`--emit=exe|static|shared` selects the artifact, and repeated `--link-input`
+options add C objects or libraries. Runtime imports in the source and supplied
+objects select runtime modules and their transitive dependencies. Link tools run
+at the host C boundary, while PSL owns option parsing, object generation, and
+runtime dependency closure. Final artifacts are staged beside the destination
+and published by rename after a successful link. The Linux host driver supports
+the x86-64, AArch64, and RISC-V Linux targets plus x86-64 Windows when their
+target link tools are installed. Native artifact linking is implemented for
+POSIX compiler hosts and verified from Linux; a native Windows compiler host
+still supports object output but rejects executable, archive, and shared-link
+requests. `-O0`/`-O1`, `--target=TARGET`, and
+`--profile=PROFILE` may appear anywhere; `--target TARGET` and `--profile
+PROFILE` are also accepted. Repeated options use their last value, matching
+Stage 0. `native_parse_cli_options` provides a caller-owned record API without
+I/O; `native_parse_cli_options_with_inputs` accepts a caller-owned link-input
+arena. Invalid arguments are rejected before source loading or output writes.
+
+The full native regression uses Python 3.11 or newer to reuse API-harness
+core and driver objects within its temporary directory. Entries identify the
+compiler binary, compiler source inputs, target, profile and optimization level,
+and verify object hashes before reuse. Standalone focused tests compile fresh.
+Compiler-generation and fixed-point builds always compile their modules fresh;
+this fixture reuse does not replace a Stage 1, 2 or 3 build.
 
 The full native regression uses Python 3.11 or newer to reuse API-harness
 core and driver objects within its temporary directory. Entries identify the

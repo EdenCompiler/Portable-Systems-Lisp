@@ -451,8 +451,13 @@ malformed parameters, mismatched arity/types, ordinary calls to imports, and
 the same verified HIR/SSA/LIR pipeline. The ELF writer emits undefined function
 symbols and `R_X86_64_PLT32` relocations only for referenced imports. Unused
 imports are absent from the symbol table. C-built executables, static libraries,
-and shared libraries consume these objects; the native CLI still emits objects
-rather than invoking a linker.
+and shared libraries consume these objects. On hosted targets, the native CLI
+can also link an executable, static archive, or shared library with
+`--emit=exe|static|shared`; repeated `--link-input` options add C objects or
+libraries from a POSIX compiler host (verified from Linux). A native Windows
+compiler host continues to emit objects but rejects those link modes. Runtime
+symbols referenced by the source and link inputs select the
+declared runtime modules and their dependencies.
 
 Native C data declarations use `(ffi:import-data "name" type)`,
 `(ffi:export-data "name" type initializer)`, and `(ffi:address-of name)`.

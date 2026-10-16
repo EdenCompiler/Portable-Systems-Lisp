@@ -6,6 +6,10 @@ void *native_host_stderr(void) {
     return stderr;
 }
 
+void *native_host_stdout(void) {
+    return stdout;
+}
+
 void native_host_write_usize(void *stream, uintptr_t value) {
     fprintf(stream, "%" PRIuPTR, value);
 }

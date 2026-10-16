@@ -2,6 +2,7 @@
 ;; adapter only exposes the platform's stderr macro and integer formatting.
 
 (ffi:import-function "native_host_stderr" () -> (ptr void))
+(ffi:import-function "native_host_stdout" () -> (ptr void))
 (ffi:import-function "native_host_write_usize"
   ((stream (ptr void)) (value usize)) -> void)
 (ffi:import-function "native_host_write_c_string"
@@ -32,6 +33,27 @@
 (defun diagnostic_noop (stream)
   (declare (type (ptr void) stream) (returns void))
   (diagnostic_write_bytes stream (ffi:c-string "") 0))
+
+(defun diagnostic_cli_usage (stream)
+  (declare (type (ptr void) stream) (returns void))
+  (diagnostic_write_line stream (ffi:c-string "Usage: pslcc-native [-c|--emit=exe|static|shared] SOURCE.lisp -o OUTPUT [--link-input=FILE]... [--target=TARGET] [--profile=hosted|freestanding] [-O0|-O1]"))
+  (diagnostic_write_line stream (ffi:c-string "Targets: x86_64-linux-gnu, aarch64-linux-gnu, riscv64-linux-gnu, x86_64-windows-gnu"))
+  (diagnostic_write_line stream (ffi:c-string "Profiles: hosted, freestanding")))
+
+(defun diagnostic_cli_error (kind text)
+  (declare (type u32 kind) (type (ptr u8) text) (returns void))
+  (let ((stream (ffi:call native_host_stderr)))
+    (cond
+      ((= kind 1) (diagnostic_write_path stream (ffi:c-string "unknown option ") text))
+      ((= kind 2)
+       (diagnostic_write_c_string stream text)
+       (diagnostic_write_line stream (ffi:c-string " requires a value")))
+      ((= kind 3) (diagnostic_write_path stream (ffi:c-string "unexpected argument ") text))
+      ((= kind 4) (diagnostic_write_line stream (ffi:c-string "SOURCE and -o OUTPUT are required")))
+      ((= kind 5) (diagnostic_write_line stream (ffi:c-string "-c cannot be combined with --emit")))
+      ((= kind 6) (diagnostic_write_line stream (ffi:c-string "-c does not accept link inputs")))
+      (t (diagnostic_noop stream)))
+    (diagnostic_cli_usage stream)))
 
 (defun diagnostic_write_path (stream prefix path)
   (declare (type (ptr void) stream) (type (ptr u8) prefix path)
@@ -68,14 +90,14 @@
        (diagnostic_write_path stream
                               (ffi:c-string "unsupported or malformed source: ") text))
       ((= kind 4)
-       (diagnostic_write_path stream (ffi:c-string "cannot write object: ") text))
+       (diagnostic_write_path stream (ffi:c-string "cannot write or link output: ") text))
       ((= kind 5)
        (diagnostic_write_line
         stream
         (ffi:c-string
-         "usage: pslcc-native-slice -c SOURCE.lisp -o OUTPUT.o [-O0|-O1] [--target=TARGET] [--profile=freestanding|hosted]"))
+         "usage: pslcc-native-slice SOURCE.lisp -o OUTPUT [--emit=exe|static|shared] [--link-input=FILE]... [-O0|-O1] [--target=TARGET] [--profile=freestanding|hosted]"))
        (diagnostic_write_line stream
-         (ffi:c-string "legacy object syntax: pslcc-native-slice [OPTIONS] SOURCE.lisp OUTPUT.o")))
+         (ffi:c-string "object output: pslcc-native-slice -c SOURCE.lisp -o OUTPUT.o or [OPTIONS] SOURCE.lisp OUTPUT.o")))
       ((= kind 6)
        (diagnostic_write_position stream
                                   (ffi:c-string "cannot register layout at byte ")
@@ -101,6 +123,8 @@
         text length))
       ((= kind 12)
        (diagnostic_write_line stream (ffi:c-string "cannot register hosted runtime: reserved symbol or insufficient storage")))
+      ((= kind 19) (diagnostic_cli_usage (ffi:call native_host_stdout)))
+      ((= kind 20) (diagnostic_cli_error (wrap-cast u32 length) text))
       (t (diagnostic_noop stream)))))
 
 (defun source_error_kind_p (kind)

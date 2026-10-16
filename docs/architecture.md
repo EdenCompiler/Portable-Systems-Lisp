@@ -582,3 +582,12 @@ storage. `gc.c` traces headers and all initialized storage slots. Stage 0
 PSL operations and allocation effects; toolchain module selection includes the
 explicit vector-to-GC dependency. Compiler-owned collection migration remains
 a separate M8 step.
+
+
+The native hosted controller owns artifact options and combines runtime roots
+in `host/compiler_link.lisp`. `platform_toolchain.c` scans explicit C inputs for
+known runtime symbols, invokes the selected conventional C/link tools, and
+publishes a staged destination only after success. Its module catalogue
+includes precise closures and VALUE vectors. Executable/library linking is
+implemented on POSIX compiler hosts; the Windows host adapter retains object
+output and fails link requests without replacing the destination.
