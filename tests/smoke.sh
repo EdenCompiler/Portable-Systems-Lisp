@@ -24,6 +24,8 @@ for level in 0 1; do
   "$work_dir/abi-void-O$level"
 done
 
+sh "$project_root/tests/bootstrap_void_conditions.sh"
+
 for level in 0 1; do
   "$project_root/pslcc" "-O$level" -c \
     "$project_root/examples/abi/aggregate.lisp" \

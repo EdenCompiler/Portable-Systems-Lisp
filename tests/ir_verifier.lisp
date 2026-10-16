@@ -25,6 +25,26 @@
       signatures 64))
    "does not fit")
 
+  (let ((side-effect (psl.ir:make-signature
+                       :name "side_effect" :arguments nil :result :void
+                       :external-p t)))
+    (setf (gethash "side_effect" signatures) side-effect)
+    (expect-failure
+     "HIR VOID condition"
+     (lambda ()
+       (psl.ir:verify-hir-function
+        (psl.ir:make-function-def
+         :signature signature :parameters nil
+         :body (psl.ir:make-hir
+                :kind :if :type :u64
+                :children (list
+                           (psl.ir:make-hir :kind :call :type :void
+                                            :value "side_effect")
+                           (psl.ir:make-hir :kind :literal :type :u64 :value 42)
+                           (psl.ir:make-hir :kind :literal :type :u64 :value 0))))
+        signatures 64))
+     "IF condition cannot have VOID type"))
+
   (let* ((entry (psl.ir:make-ssa-block
                  :id 0
                  :instructions (list (psl.ir:make-ssa-instruction

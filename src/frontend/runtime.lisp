@@ -82,6 +82,8 @@
                 :children arguments))))
 
 (defun dynamic-truth-test (condition context)
+  (when (eq (hir-type condition) :void)
+    (fail "IF condition cannot have VOID type"))
   (if (eq (hir-type condition) :value)
       (make-hir :kind :call :type :boolean
                 :value (register-runtime-call

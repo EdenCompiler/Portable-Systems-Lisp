@@ -124,6 +124,8 @@
       (:if
        (let ((types (verify-hir-children node environment signatures pointer-bits)))
          (expect-count types 3 "IF")
+         (when (eq (first types) :void)
+           (fail "HIR IF condition cannot have VOID type"))
          (expect-same-type (second types) (third types) "IF branches")
          (expect-same-type (hir-type node) (second types) "IF result")))
       (:while

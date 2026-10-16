@@ -1829,3 +1829,11 @@ outputs and temporary-file cleanup. It passed all four hosted targets, followed
 by smoke, with frozen source/artifact hashes unchanged. The host proof used
 different devices for the build directory and /tmp. The complete M8 release
 manifest/corpus and fresh Stage 1–3 gate remain open.
+
+The Stage 0 truth conversion and HIR verifier reject VOID IF conditions before
+lowering, matching the native compiler and the documented VOID contract.
+`tests/bootstrap_void_conditions.sh [COMPILER] [TARGET]` checks direct, lexical,
+sequence and managed-collection conditions at O0/O1, preserves prior output,
+and executes the valid VOID-call/opaque-pointer C harness at C O0/O2. The
+repository smoke gate runs the Stage 0 regression; `tests/ir_verifier.lisp`
+checks direct rejection at the HIR receiving boundary.

@@ -482,7 +482,9 @@ Native `void` calls may appear in sequences, `let` bindings/bodies, conditional
 arms, and loop bodies. Functions declared `(returns void)` must end in a void
 expression. Void results carry completion metadata through SSA/LIR; they never
 become return-register values or PHI copies. Void parameters, structure fields,
-conditions, arithmetic, and value arguments are rejected. Opaque pointers may
+conditions, arithmetic, and value arguments are rejected. The Stage 0 analyzer
+and HIR verifier also reject VOID conditions, including lexical VOID bindings
+and the last result of a sequence. Opaque pointers may
 be passed, returned, stored in pointer fields, and explicitly cast. A `(ptr void)`
 must be cast to a sized pointee before dereferencing or using `pointer+`.
 Opaque null pointers are true under the raw-pointer Lisp truth rule.
