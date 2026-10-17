@@ -73,7 +73,7 @@
 (defun source_ast_type_equal_p (context left right depth)
   (declare (type (ptr native_compile_context) context)
            (type usize left right depth) (returns c-int))
-  (if (< 128 depth) 0
+  (if (= (native_compile_depth_exceeded_p depth) 1) 0
       (if (= (source_type_reference_p context (source_pointer_base left)) 0) 0
           (if (= (source_type_reference_p context (source_pointer_base right)) 0) 0
               (if (= (source_pointer_flags left) (source_pointer_flags right))

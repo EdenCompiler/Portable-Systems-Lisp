@@ -34,7 +34,7 @@
            (type usize form wanted depth) (type u8 shadowed)
            (returns c-int))
   (if (= form 0) 0
-      (if (< 128 depth) 0
+      (if (= (native_compile_depth_exceeded_p depth) 1) 0
           (let ((parser (deref (field-pointer context 'parser)))
                 (source (deref (field-pointer context 'source))))
             (let ((node (parser_node parser form))

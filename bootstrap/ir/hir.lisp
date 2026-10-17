@@ -347,7 +347,7 @@
            (type (ptr native_function) functions)
            (type usize reference prior_count arity depth)
            (returns c-int))
-  (if (< 128 depth)
+  (if (= (native_compile_depth_exceeded_p depth) 1)
       0
       (if (= reference 0)
           0

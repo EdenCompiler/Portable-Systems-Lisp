@@ -69,7 +69,7 @@
 (defun source_aggregate_at_depth_p (context type depth)
   (declare (type (ptr native_compile_context) context)
            (type usize type depth) (returns c-int))
-  (if (< 128 depth) 0
+  (if (= (native_compile_depth_exceeded_p depth) 1) 0
       (if (= (source_type_reference_p context type) 0) 0
           (let ((layouts (source_layouts context)))
             (let ((index (native_find_layout layouts type)))

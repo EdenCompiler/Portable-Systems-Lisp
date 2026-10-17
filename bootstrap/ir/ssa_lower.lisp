@@ -25,7 +25,7 @@
 (defun ssa_lower_arguments (context chain depth)
   (declare (type (ptr native_compile_context) context)
            (type usize chain depth) (returns usize))
-  (if (< 128 depth) 0
+  (if (= (native_compile_depth_exceeded_p depth) 1) 0
       (if (= chain 0) 0
           (let ((node (hir_node_at (deref (field-pointer context 'hir)) chain)))
             (let ((previous (ssa_lower_arguments context (deref (field-pointer node 'right))
@@ -71,7 +71,7 @@
 (defun ssa_lower_expr (context reference depth)
   (declare (type (ptr native_compile_context) context)
            (type usize reference depth) (returns usize))
-  (if (< 128 depth) 0
+  (if (= (native_compile_depth_exceeded_p depth) 1) 0
       (let ((node (hir_node_at (deref (field-pointer context 'hir)) reference)))
         (let ((kind (deref (field-pointer node 'kind))))
           (cond

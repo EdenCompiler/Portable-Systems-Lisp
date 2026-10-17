@@ -146,7 +146,7 @@
 (defun analyze_scalar_expr (context body depth)
   (declare (type (ptr native_compile_context) context)
            (type usize body depth) (returns usize))
-  (if (< 128 depth)
+  (if (= (native_compile_depth_exceeded_p depth) 1)
       0
       (if (= body 0)
           0

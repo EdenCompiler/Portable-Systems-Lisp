@@ -239,7 +239,7 @@
 (defun hir_verify_scalar_tree (context reference depth)
   (declare (type (ptr native_compile_context) context)
            (type usize reference depth) (returns c-int) (c-export :c))
-  (if (< 128 depth)
+  (if (= (native_compile_depth_exceeded_p depth) 1)
       0
       (let ((node (hir_node_at (deref (field-pointer context 'hir)) reference)))
         (if (= (hir_source_type_p context node) 0)

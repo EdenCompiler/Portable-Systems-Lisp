@@ -49,7 +49,7 @@
 (defun analyze_cond_from (context clause source depth)
   (declare (type (ptr native_compile_context) context)
            (type usize clause source depth) (returns usize))
-  (if (< 128 depth)
+  (if (= (native_compile_depth_exceeded_p depth) 1)
       0
       (if (= clause 0)
           (hir_new_scalar (deref (field-pointer context 'hir))

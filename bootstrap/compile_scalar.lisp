@@ -1,4 +1,8 @@
 (include "compile_scalar_types.lisp")
+
+(defun native_compile_depth_exceeded_p (depth)
+  (declare (type usize depth) (returns c-int))
+  (if (< 1024 depth) 1 0))
 (include "target.lisp")
 (include "frontend/parser.lisp")
 (include "frontend/atoms.lisp")

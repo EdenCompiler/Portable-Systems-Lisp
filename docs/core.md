@@ -427,6 +427,12 @@ Escaped references and lexical binders resolve through reader identities.
 Explicit C linker names remain exact strings. Ordered source package
 forms support the options documented above; broader package operations remain
 outside the source interface.
+
+Typed analysis, HIR verification and SSA lowering share a recursion bound of
+1,024. The Windows frame gate verifies 400 observable imported calls, nested
+wrapping arithmetic, stack probing and partial-prologue unwinding at O0/O1.
+Reader, macro and recursive layout traversal retain their separate limits.
+
 ### Floating values and ABI transport
 
 Native `f32`/`c-float` and `f64`/`c-double` values may appear in literals,

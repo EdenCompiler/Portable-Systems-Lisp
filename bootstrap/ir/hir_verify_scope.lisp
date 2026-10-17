@@ -106,7 +106,7 @@
   (declare (type (ptr native_hir_arena) arena)
            (type usize binding scope depth)
            (returns c-int))
-  (if (< 128 depth)
+  (if (= (native_compile_depth_exceeded_p depth) 1)
       0
       (if (= scope 0)
           0
@@ -153,7 +153,7 @@
   (declare (type (ptr native_hir_arena) arena)
            (type usize reference scope depth)
            (returns c-int))
-  (if (< 128 depth)
+  (if (= (native_compile_depth_exceeded_p depth) 1)
       0
       (let ((node (hir_node_at arena reference)))
         (let ((kind (deref (field-pointer node 'kind))))

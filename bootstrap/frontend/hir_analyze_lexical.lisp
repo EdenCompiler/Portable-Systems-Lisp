@@ -38,7 +38,7 @@
   (declare (type (ptr native_compile_context) context)
            (type usize next current source depth)
            (returns usize))
-  (if (< 128 depth)
+  (if (= (native_compile_depth_exceeded_p depth) 1)
       0
       (if (= next 0)
           current
@@ -122,7 +122,7 @@
   (declare (type (ptr native_compile_context) context)
            (type usize next previous outer depth)
            (returns usize))
-  (if (< 128 depth)
+  (if (= (native_compile_depth_exceeded_p depth) 1)
       0
       (if (= next 0)
           previous
