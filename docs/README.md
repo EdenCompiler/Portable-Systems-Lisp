@@ -15,6 +15,7 @@ records which gates have passed.
 | Check accepted syntax, types, profiles, or a limitation | [Implemented language contract](core.md) |
 | Understand managed values, roots, and runtime linking | [Hosted runtime](runtime.md) |
 | Use or test the compiled native compiler | [Native bootstrap guide](../bootstrap/README.md) |
+| Reproduce the complete M8 bootstrap gate | [Release verification](bootstrap-release.md) |
 
 ## Work on the compiler
 

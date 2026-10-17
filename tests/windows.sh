@@ -2,7 +2,13 @@
 set -eu
 
 project_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-sh "$project_root/tests/windows_frame.sh"
+native_compiler=${1:-${PSL_NATIVE_COMPILER:-$project_root/pslcc}}
+target=${2:-x86_64-windows-gnu}
+if test "$target" != x86_64-windows-gnu; then
+  echo "Windows integration gate requires x86_64-windows-gnu, got $target" >&2
+  exit 2
+fi
+sh "$project_root/tests/windows_frame.sh" "$native_compiler"
 work_dir=$(mktemp -d)
 trap 'rm -rf "$work_dir"' EXIT HUP INT TERM
 
@@ -17,14 +23,14 @@ run_windows() {
 
 for level in 0 1; do
   for example in arithmetic recursion macros layout no_allocation; do
-    "$project_root/pslcc" --target=x86_64-windows-gnu "-O$level" \
+    "$native_compiler" --target="$target" "-O$level" \
       "$project_root/examples/native/$example.lisp" \
       -o "$work_dir/native-$example-O$level.exe"
     run_windows "$work_dir/native-$example-O$level.exe"
   done
 
   for example in stack float aggregate layout void windows_odd_aggregate; do
-    "$project_root/pslcc" -c --target=x86_64-windows-gnu "-O$level" \
+    "$native_compiler" -c --target="$target" "-O$level" \
       "$project_root/examples/abi/$example.lisp" \
       -o "$work_dir/abi-$example-O$level.o"
     x86_64-w64-mingw32-gcc \
@@ -35,7 +41,7 @@ for level in 0 1; do
   done
 
   for example in immediate list gc_list string_package closure multiple_values; do
-    "$project_root/pslcc" --target=x86_64-windows-gnu \
+    "$native_compiler" --target="$target" \
       --profile=hosted "-O$level" \
       "$project_root/examples/hosted/$example.lisp" \
       -o "$work_dir/hosted-$example-O$level.exe"
@@ -58,17 +64,24 @@ cat >"$work_dir/oversized.lisp" <<'SOURCE'
   (declare (type too-large value) (returns too-large) (c-export :c))
   value)
 SOURCE
-if "$project_root/pslcc" -c --target=x86_64-windows-gnu \
+if "$project_root/pslcc" -c --target="$target" \
     "$work_dir/oversized.lisp" -o "$work_dir/oversized.o" \
-    >"$work_dir/oversized-out" 2>"$work_dir/oversized-err"; then
-  echo 'Expected oversized Windows C aggregate to fail' >&2
+    >"$work_dir/oversized-seed-out" 2>"$work_dir/oversized-seed-err"; then
+  echo 'Expected Stage 0 oversized Windows C aggregate to fail' >&2
   exit 1
 fi
-grep -q 'scalar C layout of at most 16 bytes' "$work_dir/oversized-err"
+grep -q 'scalar C layout of at most 16 bytes' "$work_dir/oversized-seed-err"
 test ! -e "$work_dir/oversized.o"
+if "$native_compiler" -c --target="$target" \
+    "$work_dir/oversized.lisp" -o "$work_dir/oversized-stage.o" \
+    >"$work_dir/oversized-stage-out" 2>"$work_dir/oversized-stage-err"; then
+  echo 'Expected current-stage oversized Windows C aggregate to fail' >&2
+  exit 1
+fi
+test ! -e "$work_dir/oversized-stage.o"
 
 for example in data_import source_import data_only; do
-  "$project_root/pslcc" -c --target=x86_64-windows-gnu \
+  "$native_compiler" -c --target="$target" \
     "$project_root/examples/ffi/$example.lisp" \
     -o "$work_dir/ffi-$example.o"
   x86_64-w64-mingw32-gcc \
@@ -78,7 +91,7 @@ for example in data_import source_import data_only; do
   run_windows "$work_dir/ffi-$example.exe"
 done
 
-"$project_root/pslcc" --target=x86_64-windows-gnu --emit=static \
+"$native_compiler" --target="$target" --emit=static \
   "$project_root/examples/basic/standalone.lisp" \
   -o "$work_dir/libpsl.a"
 x86_64-w64-mingw32-gcc "$project_root/examples/basic/harness_standalone.c" \
@@ -86,32 +99,42 @@ x86_64-w64-mingw32-gcc "$project_root/examples/basic/harness_standalone.c" \
 run_windows "$work_dir/static.exe"
 x86_64-w64-mingw32-gcc -c "$project_root/tests/windows_function_provider.c" \
   -o "$work_dir/provider.obj"
-"$project_root/pslcc" --target=x86_64-windows-gnu --emit=static \
+"$native_compiler" --target="$target" --emit=static \
   --link-input="$work_dir/provider.obj" \
   "$project_root/examples/basic/standalone.lisp" \
   -o "$work_dir/libpsl-obj.a"
 x86_64-w64-mingw32-gcc "$project_root/examples/basic/harness_standalone.c" \
   "$work_dir/libpsl-obj.a" -o "$work_dir/static-obj.exe"
 run_windows "$work_dir/static-obj.exe"
+# This exact partial-unwind harness was authored against the Stage 0
+# standalone frame shape. Keep that reference object here; the dedicated
+# bootstrap_win64_frame gate runs the same large/partial-prologue checks with
+# each current-stage compiler.
+"$project_root/pslcc" --target="$target" --emit=static \
+  "$project_root/examples/basic/standalone.lisp" \
+  -o "$work_dir/libpsl-seed-unwind.a"
 x86_64-w64-mingw32-gcc "$project_root/tests/harness_windows_unwind.c" \
-  "$work_dir/libpsl.a" -o "$work_dir/unwind.exe"
+  "$work_dir/libpsl-seed-unwind.a" -o "$work_dir/unwind.exe"
 run_windows "$work_dir/unwind.exe"
+x86_64-w64-mingw32-gcc "$project_root/tests/harness_windows_unwind.c" \
+  "$work_dir/libpsl.a" -o "$work_dir/unwind-stage.exe"
+run_windows "$work_dir/unwind-stage.exe"
 
-"$project_root/pslcc" --target=x86_64-windows-gnu --profile=hosted \
+"$native_compiler" --target="$target" --profile=hosted \
   --emit=static "$project_root/examples/hosted/closure_module.lisp" \
   -o "$work_dir/libpsl-hosted.a"
 x86_64-w64-mingw32-gcc "$project_root/tests/harness_closure_module.c" \
   "$work_dir/libpsl-hosted.a" -o "$work_dir/hosted-static.exe"
 run_windows "$work_dir/hosted-static.exe"
 
-"$project_root/pslcc" --target=x86_64-windows-gnu --emit=shared \
+"$native_compiler" --target="$target" --emit=shared \
   "$project_root/examples/basic/standalone.lisp" \
   -o "$work_dir/psl.dll"
 x86_64-w64-mingw32-gcc "$project_root/examples/basic/harness_standalone.c" \
   "$work_dir/psl.dll" -o "$work_dir/shared.exe"
 run_windows "$work_dir/shared.exe"
 
-"$project_root/pslcc" --target=x86_64-windows-gnu --emit=shared \
+"$native_compiler" --target="$target" --emit=shared \
   "$project_root/examples/ffi/shared_data.lisp" \
   -o "$work_dir/psl_data.dll"
 x86_64-w64-mingw32-gcc "$project_root/examples/ffi/harness_shared_data.c" \
@@ -122,7 +145,7 @@ x86_64-w64-mingw32-gcc -shared \
   "$project_root/examples/ffi/data_provider.c" \
   "-Wl,--out-implib,$work_dir/libprovider.dll.a" \
   -o "$work_dir/provider.dll"
-"$project_root/pslcc" --target=x86_64-windows-gnu --emit=shared \
+"$native_compiler" --target="$target" --emit=shared \
   --link-input="$work_dir/libprovider.dll.a" \
   "$project_root/examples/ffi/data_import.lisp" \
   -o "$work_dir/consumer.dll"
@@ -135,7 +158,7 @@ x86_64-w64-mingw32-gcc -shared \
   "$project_root/tests/windows_function_provider.c" \
   "-Wl,--out-implib,$work_dir/libfunction.dll.a" \
   -o "$work_dir/function.dll"
-"$project_root/pslcc" --target=x86_64-windows-gnu --emit=shared \
+"$native_compiler" --target="$target" --emit=shared \
   --link-input="$work_dir/libfunction.dll.a" \
   "$project_root/examples/basic/add.lisp" \
   -o "$work_dir/function_consumer.dll"
@@ -144,10 +167,10 @@ x86_64-w64-mingw32-gcc \
   "$work_dir/function_consumer.dll" -o "$work_dir/import_function.exe"
 run_windows "$work_dir/import_function.exe"
 
-"$project_root/pslcc" -c --target=x86_64-windows-gnu --profile=hosted \
+"$native_compiler" -c --target="$target" --profile=hosted \
   "$project_root/examples/hosted/closure_module.lisp" \
   -o "$work_dir/closure_module.o"
-"$project_root/pslcc" --target=x86_64-windows-gnu --emit=shared \
+"$native_compiler" --target="$target" --emit=shared \
   --link-input="$work_dir/closure_module.o" \
   "$project_root/examples/basic/standalone.lisp" \
   -o "$work_dir/psl_combined.dll"
@@ -174,16 +197,16 @@ run_windows "$work_dir/runtime.exe"
 
 mkdir "$work_dir/repeat-a" "$work_dir/repeat-b"
 for directory in repeat-a repeat-b; do
-  "$project_root/pslcc" -c --target=x86_64-windows-gnu \
+  "$native_compiler" -c --target="$target" \
     "$project_root/examples/basic/standalone.lisp" \
     -o "$work_dir/$directory/psl.o"
-  "$project_root/pslcc" --target=x86_64-windows-gnu --emit=static \
+  "$native_compiler" --target="$target" --emit=static \
     "$project_root/examples/basic/standalone.lisp" \
     -o "$work_dir/$directory/psl.a"
-  "$project_root/pslcc" --target=x86_64-windows-gnu --emit=shared \
+  "$native_compiler" --target="$target" --emit=shared \
     "$project_root/examples/basic/standalone.lisp" \
     -o "$work_dir/$directory/psl.dll"
-  "$project_root/pslcc" --target=x86_64-windows-gnu \
+  "$native_compiler" --target="$target" \
     "$project_root/examples/native/arithmetic.lisp" \
     -o "$work_dir/$directory/psl.exe"
 done

@@ -5,6 +5,7 @@ project_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 work_dir=$(mktemp -d)
 trap 'rm -rf "$work_dir"' EXIT HUP INT TERM
 target=${1:-x86_64-linux-gnu}
+compiler=${PSL_NATIVE_COMPILER:-$project_root/pslcc}
 
 case $target in
   x86_64-linux-gnu)
@@ -52,7 +53,8 @@ run_target() {
 }
 
 for level in 0 1; do
-  "$project_root/pslcc" "-O$level" -c \
+  # The generator runs on the Linux compiler host; its API selects the output target.
+  "$compiler" "-O$level" --target=x86_64-linux-gnu -c \
     "$project_root/bootstrap/object/static_data.lisp" \
     -o "$work_dir/writer-$level.o"
   cc -std=c11 -Wall -Wextra -Werror \

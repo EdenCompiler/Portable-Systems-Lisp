@@ -4,7 +4,14 @@ set -eu
 project_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 work_dir=$(mktemp -d)
 trap 'rm -rf "$work_dir"' EXIT HUP INT TERM
-target=${1:-x86_64-linux-gnu}
+case ${1:-} in
+  x86_64-linux-gnu|aarch64-linux-gnu|riscv64-linux-gnu)
+    native_compiler=$project_root/pslcc
+    target=$1 ;;
+  *)
+    native_compiler=${1:-$project_root/pslcc}
+    target=${2:-x86_64-linux-gnu} ;;
+esac
 
 case $target in
   x86_64-linux-gnu)
@@ -46,7 +53,7 @@ cp "$work_dir/stage0.o" "$work_dir/extract.o"
   "$work_dir/extract.o"
 
 for level in 0 1; do
-  "$project_root/pslcc" "-O$level" -c \
+  "$native_compiler" --target=x86_64-linux-gnu "-O$level" -c \
     "$project_root/bootstrap/object/elf64.lisp" \
     -o "$work_dir/writer-O$level.o"
   cc -Wall -Wextra -Werror "$project_root/tests/harness_bootstrap_elf64.c" \
@@ -60,7 +67,7 @@ for level in 0 1; do
   run_target "$work_dir/answer-O$level"
 done
 
-"$project_root/pslcc" -O1 -c "$project_root/bootstrap/object/elf64.lisp" \
+"$native_compiler" --target=x86_64-linux-gnu -O1 -c "$project_root/bootstrap/object/elf64.lisp" \
   -o "$work_dir/repeat.o"
 cmp "$work_dir/writer-O1.o" "$work_dir/repeat.o"
 

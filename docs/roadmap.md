@@ -87,9 +87,12 @@ The macro evaluator now covers the bounded list/integer predicates found by
 source preaudits, including canonical NIL equality. The hosted CLI also reserves
 the runtime catalogue for short valid inputs. Focused gates compare these
 behaviors with Stage 0; they still require the complete integrated release proof.
+Large typed functions and native Windows linker reproducibility also pass
+focused execution gates, including the original 400-call frame fixture.
 
-The complete source inventory, release wiring and fresh three-stage corpus
-remain open.
+The complete source inventory and fresh three-stage corpus remain open. The
+[release guide](bootstrap-release.md) describes the manifest, ownership checks,
+commands and retained reports.
 
 M8 closes only after all of the following pass on one frozen source snapshot:
 

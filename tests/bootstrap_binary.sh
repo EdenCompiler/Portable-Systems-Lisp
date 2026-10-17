@@ -7,12 +7,13 @@ trap 'rm -rf "$work_dir"' EXIT HUP INT TERM
 target=${1:-x86_64-linux-gnu}
 . "$project_root/tests/bootstrap_target.sh"
 select_bootstrap_target
+native_compiler=${PSL_NATIVE_COMPILER:-$project_root/pslcc}
 
 PSL_BOOTSTRAP_REFERENCE="$work_dir/reference.bin" \
   sbcl --noinform --script "$project_root/tests/reference_bootstrap_binary.lisp"
 
 for level in 0 1; do
-  "$project_root/pslcc" --target="$target" "-O$level" -c \
+  "$native_compiler" --target="$target" "-O$level" -c \
     "$project_root/bootstrap/binary.lisp" -o "$work_dir/binary-O$level.o"
   case $target in
     x86_64-windows-gnu)
@@ -33,7 +34,7 @@ for level in 0 1; do
   cmp "$work_dir/reference.bin" "$work_dir/native-O$level.bin"
 done
 
-"$project_root/pslcc" --target="$target" -O1 -c \
+"$native_compiler" --target="$target" -O1 -c \
   "$project_root/bootstrap/binary.lisp" \
   -o "$work_dir/repeat.o"
 cmp "$work_dir/binary-O1.o" "$work_dir/repeat.o"

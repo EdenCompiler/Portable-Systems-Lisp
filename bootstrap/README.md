@@ -34,6 +34,10 @@ and [compiler-library API](../docs/compiler.md) for details.
 
 ## Verify changes
 
+For the complete fresh Stage 1–3 gate, use the
+[release verification guide](../docs/bootstrap-release.md). The checks below
+exercise individual compiler components.
+
 Run the broad smoke check after compiler changes, then the focused gate for the
 component being changed:
 
