@@ -4,12 +4,19 @@ set -eu
 project_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 work_dir=$(mktemp -d)
 trap 'rm -rf "$work_dir"' EXIT HUP INT TERM
-target=${1:-x86_64-linux-gnu}
+case ${1:-} in
+  x86_64-linux-gnu|aarch64-linux-gnu|riscv64-linux-gnu|x86_64-windows-gnu)
+    native_compiler=$project_root/pslcc
+    target=$1 ;;
+  *)
+    native_compiler=${1:-$project_root/pslcc}
+    target=${2:-x86_64-linux-gnu} ;;
+esac
 . "$project_root/tests/bootstrap_target.sh"
 select_bootstrap_target
 
 for level in 0 1; do
-  "$project_root/pslcc" --target="$target" "-O$level" -c \
+  "$native_compiler" --target="$target" "-O$level" -c \
     "$project_root/bootstrap/frontend/reader.lisp" -o "$work_dir/reader-O$level.o"
   "$compiler" -Wall -Wextra -Werror \
     "$project_root/tests/harness_bootstrap_reader.c" \
@@ -23,7 +30,7 @@ for level in 0 1; do
   esac
 done
 
-"$project_root/pslcc" --target="$target" -O1 -c \
+"$native_compiler" --target="$target" -O1 -c \
   "$project_root/bootstrap/frontend/reader.lisp" -o "$work_dir/repeat.o"
 cmp "$work_dir/reader-O1.o" "$work_dir/repeat.o"
 

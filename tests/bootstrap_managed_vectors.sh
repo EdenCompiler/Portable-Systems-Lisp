@@ -38,12 +38,12 @@ done
   -o "$work_dir/vectors-harness.o"
 for level in 0 1; do
   source=$project_root/tests/bootstrap_managed_vectors.lisp
-  "$project_root/pslcc" "-O$level" --target="$target" --profile=hosted \
+  "$native_compiler" "-O$level" --target="$target" --profile=hosted \
     -c "$source" -o "$work_dir/native.o"
-  "$project_root/pslcc" "-O$level" --target="$target" --profile=hosted \
+  "$native_compiler" "-O$level" --target="$target" --profile=hosted \
     -c "$source" -o "$work_dir/repeat.o"
   cmp "$work_dir/native.o" "$work_dir/repeat.o"
-  "$project_root/pslcc" "-O$level" --target="$target" --profile=hosted \
+  "$native_compiler" "-O$level" --target="$target" --profile=hosted \
     --link-input="$work_dir/vectors-harness.o" "$source" \
     -o "$work_dir/check$target_suffix"
   run_target "$work_dir/check$target_suffix"
