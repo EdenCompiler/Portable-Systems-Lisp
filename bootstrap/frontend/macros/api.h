@@ -3,6 +3,7 @@
 #include "../environment.h"
 struct psl_parser;
 struct native_compile_context;
+struct psl_parsed_integer;
 /* Build-host rewrites use caller-owned syntax and identity arenas. Inputs must
    already have resolved identities. Origins point to the same or an earlier
    node; generated trees are verified before language analysis. Errors latch.
@@ -23,6 +24,8 @@ struct native_macro_registry {
     struct psl_parser *parser;
     const uint8_t *source;
     struct native_tree_context *tree;
+    /* Private integer-literal scratch owned by the active compile context. */
+    struct psl_parsed_integer *integer;
     uintptr_t definition_handle;
     uintptr_t count, capacity;
     uint32_t error;

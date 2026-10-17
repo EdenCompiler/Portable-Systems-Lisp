@@ -791,6 +791,24 @@ level in-memory API retains explicit capacity limits.
 
 ### Native macro evaluation
 
+The bounded native evaluator provides `and`, integer `=`, `length` on proper
+lists, `second`, and `eq` for symbols and NIL. `and` evaluates left to right and
+stops at NIL; integer zero is true. Integer `=` accepts one or more integers
+with a 64-bit magnitude, including equivalent radix spellings and negative zero.
+`length` returns an integer value that can be returned by a macro or inserted
+into a template. `second` returns NIL for empty or one-element proper lists and
+copies selected syntax without its following siblings. Empty lists and the NIL
+symbol have the same NIL identity under `eq`; other symbols retain their resolved
+package identities. Other object identity comparisons and arbitrary build-host
+calls remain unsupported. These list operations require proper-list notation;
+dotted-tail syntax, including spellings ending in NIL, remains unsupported.
+
+Generated integers carry explicit magnitude/sign fields in the native AST;
+source spans remain source references and child links remain node references.
+Copying, template construction, scalar analysis and the AST verifier preserve
+and validate this representation. Clients of `bootstrap/native_api.h` must use
+the matching record definitions when linking a compiled core.
+
 The native build-host macro slice accepts top-level `defmacro` with a proper
 list of fixed symbol parameters and build-host body forms. A body can return an
 argument form, a constant, quoted syntax, or a backquoted template with ordinary

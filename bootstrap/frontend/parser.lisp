@@ -42,6 +42,8 @@
             (store (field-pointer node 'first) 0)
             (store (field-pointer node 'last) 0)
             (store (field-pointer node 'next) 0)
+            (store (field-pointer node 'integer_magnitude) 0)
+            (store (field-pointer node 'integer_negative) 0)
             (store (field-pointer parser 'count) reference)
             reference))
         (progn (store (field-pointer parser 'error) 4) 0))))

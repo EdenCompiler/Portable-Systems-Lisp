@@ -4,6 +4,7 @@
   (parser (ptr psl_parser))
   (source (ptr u8))
   (tree (ptr native_tree_context))
+  (integer (ptr u8))
   (definition_handle usize)
   (count usize)
   (capacity usize)

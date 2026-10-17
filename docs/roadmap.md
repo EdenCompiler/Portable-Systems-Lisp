@@ -83,10 +83,11 @@ Stage 1, and Stage 3 by Stage 2, from the same complete source manifest.
 
 ### Remaining work
 
-The latest source preaudits found native/seed differences in macro-body list
-and integer predicates, and in hosted CLI capacity for very short valid source.
-Their fixes are under validation. The complete source inventory, release
-wiring, and fresh integrated proof are still required.
+The macro evaluator now covers the bounded list/integer predicates found by
+source preaudits, including canonical NIL equality. Focused gates compare these
+behaviors with Stage 0. Hosted CLI capacity for very short valid sources remains
+under validation, along with the complete source inventory, release wiring and
+fresh integrated proof.
 
 M8 closes only after all of the following pass on one frozen source snapshot:
 

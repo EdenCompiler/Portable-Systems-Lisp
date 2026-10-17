@@ -9,6 +9,8 @@ work_dir=$(mktemp -d)
 trap 'rm -rf "$work_dir"' EXIT HUP INT TERM
 source=$project_root/tests/bootstrap_macro_destructuring.lisp
 nil_key_source=$project_root/tests/bootstrap_macro_nil_key_destructuring.lisp
+shape_source=$project_root/tests/bootstrap_macro_nil_key_shape.lisp
+primitive_source=$project_root/tests/bootstrap_macro_primitive_eval.lisp
 for level in 0 1; do
   for version in native stage0; do
     object=$work_dir/$version-$level.o
@@ -62,6 +64,34 @@ for level in 0 1; do
       run_target "$work_dir/prefix-api-check$target_suffix"
     done
   done
+  for version in native stage0; do
+    object=$work_dir/shape-$version-$level.o
+    if test "$version" = native; then
+      run_compiler_host "$compiler" "-O$level" --target="$target" -c "$shape_source" -o "$object"
+    else
+      "$project_root/pslcc" "-O$level" --target="$target" -c "$shape_source" -o "$object"
+    fi
+    for c_level in 0 2; do
+      "$target_cc" "-O$c_level" -std=c11 -Wall -Wextra -Werror \
+        "$project_root/tests/harness_bootstrap_macro_nil_key_shape.c" "$object" \
+        -o "$work_dir/shape-check$target_suffix"
+      run_target "$work_dir/shape-check$target_suffix"
+    done
+  done
+  for version in native stage0; do
+    object=$work_dir/primitive-$version-$level.o
+    if test "$version" = native; then
+      run_compiler_host "$compiler" "-O$level" --target="$target" -c "$primitive_source" -o "$object"
+    else
+      "$project_root/pslcc" "-O$level" --target="$target" -c "$primitive_source" -o "$object"
+    fi
+    for c_level in 0 2; do
+      "$target_cc" "-O$c_level" -std=c11 -Wall -Wextra -Werror \
+        "$project_root/tests/harness_bootstrap_macro_primitive_eval.c" "$object" \
+        -o "$work_dir/primitive-check$target_suffix"
+      run_target "$work_dir/primitive-check$target_suffix"
+    done
+  done
 done
 for fixture in "$project_root"/tests/bootstrap_macro_errors/destructuring-*.lisp; do
   for version in native stage0; do
@@ -79,6 +109,37 @@ for fixture in "$project_root"/tests/bootstrap_macro_errors/destructuring-*.lisp
       exit 1
     fi
     test ! -e "$output"
+    test -s "$work_dir/err"
+  done
+done
+for fixture in \
+  "$project_root/tests/bootstrap_macro_errors/primitive-equal-arity.lisp" \
+  "$project_root/tests/bootstrap_macro_errors/primitive-length-type.lisp" \
+  "$project_root/tests/bootstrap_macro_errors/primitive-length-dotted.lisp" \
+  "$project_root/tests/bootstrap_macro_errors/primitive-second-type.lisp"; do
+  for version in native stage0; do
+    output=$work_dir/rejected-primitive.o
+    printf 'preserve-output\n' >"$output"
+    if test "$version" = native; then
+      if run_compiler_host "$compiler" -O0 --target="$target" -c "$fixture" -o "$output" \
+           >"$work_dir/out" 2>"$work_dir/err"; then
+        echo "native compiler accepted invalid macro primitive source: $fixture" >&2
+        exit 1
+      else
+        status=$?
+        test "$status" -eq 1
+      fi
+    else
+      if "$project_root/pslcc" -O0 --target="$target" -c "$fixture" -o "$output" \
+           >"$work_dir/out" 2>"$work_dir/err"; then
+        echo "Stage 0 accepted invalid macro primitive source: $fixture" >&2
+        exit 1
+      else
+        status=$?
+        test "$status" -eq 1
+      fi
+    fi
+    test "$(cat "$output")" = preserve-output
     test -s "$work_dir/err"
   done
 done

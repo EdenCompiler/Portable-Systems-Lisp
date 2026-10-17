@@ -255,6 +255,9 @@
     (store (field-pointer record 'closure_name_capacity) (wrap* capacity 16))
     (let ((registry (field-pointer record 'macro_registry))
           (call (field-pointer record 'macro_call)))
+      (store (field-pointer registry 'integer)
+             (ptr-from-address (ptr u8)
+               (ptr-address (deref (field-pointer record 'integer)))))
       (store (field-pointer registry 'definition_handle)
              (deref (field-pointer (field-pointer driver 'storage) 'macro_definition_handle)))
       ;; Macro trees, definitions, and lexical slots are bounded by the

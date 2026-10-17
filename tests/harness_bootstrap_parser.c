@@ -23,6 +23,8 @@ struct psl_ast_node {
     uintptr_t first;
     uintptr_t last;
     uintptr_t next;
+    uint64_t integer_magnitude;
+    uint8_t integer_negative;
 };
 
 struct psl_parser {

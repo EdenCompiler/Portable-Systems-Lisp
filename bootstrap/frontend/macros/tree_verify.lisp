@@ -22,6 +22,8 @@
            (progn (native_tree_fail context 4) 0))
           ((< (deref (field-pointer (deref (field-pointer reader 'environment)) 'symbol_count)) symbol)
            (progn (native_tree_fail context 4) 0))
+          ((if (= (deref (field-pointer node 'kind)) 11) (< 0 symbol) nil)
+           (progn (native_tree_fail context 4) 0))
           ((if (< 0 symbol) (if (= (deref (field-pointer node 'kind)) 8) nil t) nil)
            (progn (native_tree_fail context 4) 0))
           (t 1))))))
@@ -73,6 +75,13 @@
                    (progn (native_tree_fail context 4) 0))))
           ((if (= kind 7) t (= kind 8))
            (if (if (= first 0) (= (deref (field-pointer node 'last)) 0) nil) 1
+               (progn (native_tree_fail context 4) 0)))
+          ((= kind 11)
+           (if (if (= first 0) (= (deref (field-pointer node 'last)) 0) nil)
+               (if (= (deref (field-pointer node 'length)) 0)
+                   (if (< (deref (field-pointer node 'integer_negative)) 2) 1
+                       (progn (native_tree_fail context 4) 0))
+                   (progn (native_tree_fail context 4) 0))
                (progn (native_tree_fail context 4) 0)))
           (t (progn (native_tree_fail context 4) 0)))))))
 

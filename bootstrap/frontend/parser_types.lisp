@@ -8,7 +8,12 @@
   (length usize)
   (first usize)
   (last usize)
-  (next usize))
+  (next usize)
+  ;; Kind 11 is a compiler-generated integer literal. These fields are
+  ;; payload, never child references; source spans remain real zero-length
+  ;; origins and the reader identity side table keeps the macro origin.
+  (integer_magnitude u64)
+  (integer_negative u8))
 
 (defcstruct psl_parser
   (scanner (ptr psl_scanner))

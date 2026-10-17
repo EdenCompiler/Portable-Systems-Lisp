@@ -135,6 +135,9 @@
     (let ((kind (deref (field-pointer (parser_node parser body) 'kind))))
       (cond
         ((= kind 8) (hir_from_atom context body))
+        ((= kind 11)
+         (if (= (hir_integer_atom_p context body) 1)
+             (hir_from_literal context body) 0))
         ((= kind 7) (analyze_string_literal context body))
         ((= kind 1) (analyze_scalar_list context body depth))
         ((= kind 9) (analyze_native_lambda_form context body depth))

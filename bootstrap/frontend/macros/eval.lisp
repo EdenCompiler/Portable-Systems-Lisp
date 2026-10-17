@@ -1,3 +1,4 @@
+(include "primitive_eval.lisp")
 (include "list_eval.lisp")
 (include "let_eval.lisp")
 
@@ -40,7 +41,14 @@
             (let ((copy (parser_new_node parser (deref (field-pointer node 'kind))
                          (deref (field-pointer node 'start)) (deref (field-pointer node 'length)))))
               (if (= copy 0) (native_macro_call_fail call 3)
-                  (progn (native_tree_copy_identity tree reference copy) copy))))
+                  (progn
+                    (let ((destination (parser_node parser copy)))
+                      (store (field-pointer destination 'integer_magnitude)
+                             (deref (field-pointer node 'integer_magnitude)))
+                      (store (field-pointer destination 'integer_negative)
+                             (deref (field-pointer node 'integer_negative))))
+                    (native_tree_copy_identity tree reference copy)
+                    copy))))
           (native_macro_call_fail call 3)))))
 
 (defun native_macro_splice_children (call parent reference)
@@ -125,7 +133,10 @@
   (declare (type (ptr native_macro_call) call) (type usize reference) (returns usize))
   (let ((parser (native_macro_call_parser call)) (registry (deref (field-pointer call 'registry))))
     (let ((head (deref (field-pointer (parser_node parser reference) 'first))))
+      (let ((primitive (if (= head 0) (wrap-cast usize 0)
+                           (native_macro_eval_primitives call head))))
       (if (= head 0) (native_macro_boolean_form call reference 0)
+          (if (< 0 primitive) primitive
           (if (= (ast_builtin_word_p parser (deref (field-pointer registry 'source)) head #x65746f7571 0 5) 1)
               (let ((value (native_macro_next registry head)))
                 (if (if (= value 0) t (< 0 (native_macro_next registry value)))
@@ -138,7 +149,7 @@
                           (native_macro_eval_sequence call (native_macro_next registry head))
                           (if (= (ast_builtin_word_p parser (deref (field-pointer registry 'source)) head #x7473696c 0 4) 1)
                               (native_macro_eval_list_constructor call head)
-                              (native_macro_call_fail call 10))))))))))
+                              (native_macro_call_fail call 10))))))))))))
 
 (defun native_macro_eval_construct (call reference)
   (declare (type (ptr native_macro_call) call) (type usize reference) (returns usize))
@@ -149,6 +160,7 @@
           ((= kind 3) (native_macro_eval_quote call (deref (field-pointer node 'first))))
           ((= kind 4) (native_macro_qq_node call (deref (field-pointer node 'first)) 1))
           ((= kind 8) (native_macro_eval_atom call reference))
+          ((= kind 11) (native_macro_copy_form call reference 0))
           ((= kind 7) (native_macro_copy_form call reference 0))
           ((= kind 1) (native_macro_eval_list call reference))
           (t (native_macro_call_fail call 10)))))))

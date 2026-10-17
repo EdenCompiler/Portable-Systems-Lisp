@@ -39,6 +39,11 @@
                    (deref (field-pointer node 'start)) (deref (field-pointer node 'length)))))
         (if (= copy 0) (native_tree_fail context 3)
             (progn
+              (let ((destination (parser_node parser copy)))
+                (store (field-pointer destination 'integer_magnitude)
+                       (deref (field-pointer node 'integer_magnitude)))
+                (store (field-pointer destination 'integer_negative)
+                       (deref (field-pointer node 'integer_negative))))
               (native_tree_copy_identity context reference copy)
               (store (field-pointer context 'depth) (wrap+ (deref (field-pointer context 'depth)) 1))
               (native_tree_copy_children context copy (deref (field-pointer node 'first)))
