@@ -583,6 +583,13 @@ int native_host_link_artifact(const uint8_t *path,
             arguments[count++] = (char *)compiler;
             if (use_runtime && target != NATIVE_TARGET_X86_64_WINDOWS)
                 arguments[count++] = "-pthread";
+            if (target == NATIVE_TARGET_X86_64_WINDOWS) {
+                if (kind == 2)
+                    arguments[count++] =
+                        "-Wl,--disable-auto-image-base,--no-insert-timestamp";
+                else if (kind == 0)
+                    arguments[count++] = "-Wl,--no-insert-timestamp";
+            }
             if (kind == 2) arguments[count++] = "-shared";
             arguments[count++] = "-o";
             arguments[count++] = stage_output;
