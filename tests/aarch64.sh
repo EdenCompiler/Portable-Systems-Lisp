@@ -2,6 +2,7 @@
 set -eu
 
 project_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+native_compiler=${1:-$project_root/pslcc}
 work_dir=$(mktemp -d)
 trap 'rm -rf "$work_dir"' EXIT HUP INT TERM
 target=aarch64-linux-gnu
@@ -22,7 +23,7 @@ compile_case() {
   harness=$3
   for level in 0 1; do
     object="$work_dir/$name-O$level.o"
-    "$project_root/pslcc" --target="$target" "-O$level" -c \
+    "$native_compiler" --target="$target" "-O$level" -c \
       "$project_root/examples/$source.lisp" -o "$object"
     aarch64-linux-gnu-gcc "$project_root/examples/$harness.c" \
       "$object" -o "$work_dir/$name-O$level"
@@ -41,7 +42,7 @@ compile_case memory memory/memory memory/harness_memory
 compile_case data_import ffi/data_import ffi/harness_data_import
 compile_case source_import ffi/source_import ffi/harness_source_import
 
-"$project_root/pslcc" --target="$target" -c \
+"$native_compiler" --target="$target" -c \
   "$project_root/examples/basic/add.lisp" -o "$work_dir/repeat.o"
 cmp "$work_dir/add-O1.o" "$work_dir/repeat.o"
 aarch64-linux-gnu-readelf -h "$work_dir/add-O1.o" |
@@ -56,7 +57,7 @@ aarch64-linux-gnu-nm -g "$work_dir/add-O1.o" | grep -q ' T add'
 
 for example in arithmetic recursion macros layout no_allocation; do
   for level in 0 1; do
-    "$project_root/pslcc" --target="$target" "-O$level" \
+    "$native_compiler" --target="$target" "-O$level" \
       "$project_root/examples/native/$example.lisp" \
       -o "$work_dir/native-$example-O$level"
     run_target "$work_dir/native-$example-O$level"
@@ -67,7 +68,7 @@ test -z "$(aarch64-linux-gnu-nm "$work_dir/native-arithmetic-O1" |
 
 for example in immediate list gc_list string_package closure multiple_values; do
   for level in 0 1; do
-    "$project_root/pslcc" --target="$target" --profile=hosted "-O$level" \
+    "$native_compiler" --target="$target" --profile=hosted "-O$level" \
       "$project_root/examples/hosted/$example.lisp" \
       -o "$work_dir/hosted-$example-O$level"
     run_target "$work_dir/hosted-$example-O$level"
@@ -77,28 +78,28 @@ aarch64-linux-gnu-nm "$work_dir/hosted-list-O1" | grep -q ' T psl_rt_cons'
 test -z "$(aarch64-linux-gnu-nm "$work_dir/hosted-list-O1" |
   grep ' T psl_rt_make_string' || true)"
 
-"$project_root/pslcc" --target="$target" --emit=static \
+"$native_compiler" --target="$target" --emit=static \
   "$project_root/examples/basic/standalone.lisp" -o "$work_dir/libpsl.a"
 aarch64-linux-gnu-ar t "$work_dir/libpsl.a" | grep -q psl.o
 aarch64-linux-gnu-gcc "$project_root/examples/basic/harness_standalone.c" \
   "$work_dir/libpsl.a" -o "$work_dir/static-harness"
 run_target "$work_dir/static-harness"
 cp "$work_dir/libpsl.a" "$work_dir/libpsl-first.a"
-"$project_root/pslcc" --target="$target" --emit=static \
+"$native_compiler" --target="$target" --emit=static \
   "$project_root/examples/basic/standalone.lisp" -o "$work_dir/libpsl.a"
 cmp "$work_dir/libpsl-first.a" "$work_dir/libpsl.a"
 
-"$project_root/pslcc" --target="$target" --emit=shared \
+"$native_compiler" --target="$target" --emit=shared \
   "$project_root/examples/basic/standalone.lisp" -o "$work_dir/libpsl.so"
 aarch64-linux-gnu-gcc "$project_root/examples/basic/harness_standalone.c" \
   "$work_dir/libpsl.so" -Wl,-rpath,"$work_dir" \
   -o "$work_dir/shared-harness"
 run_target "$work_dir/shared-harness"
 
-"$project_root/pslcc" --target="$target" --emit=shared \
+"$native_compiler" --target="$target" --emit=shared \
   "$project_root/examples/ffi/shared_data.lisp" \
   -o "$work_dir/libpsl-data.so"
-"$project_root/pslcc" --target="$target" --emit=shared \
+"$native_compiler" --target="$target" --emit=shared \
   "$project_root/examples/ffi/shared_data.lisp" \
   -o "$work_dir/libpsl-data-again.so"
 cmp "$work_dir/libpsl-data.so" "$work_dir/libpsl-data-again.so"
@@ -107,7 +108,7 @@ aarch64-linux-gnu-gcc "$project_root/examples/ffi/harness_shared_data.c" \
   -o "$work_dir/shared-data-harness"
 run_target "$work_dir/shared-data-harness"
 
-"$project_root/pslcc" --target="$target" --emit=shared \
+"$native_compiler" --target="$target" --emit=shared \
   "$project_root/examples/ffi/source_import.lisp" \
   -o "$work_dir/libpsl-ffi.so"
 aarch64-linux-gnu-gcc "$project_root/examples/ffi/harness_source_import.c" \
