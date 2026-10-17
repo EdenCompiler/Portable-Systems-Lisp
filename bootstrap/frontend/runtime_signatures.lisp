@@ -1,5 +1,6 @@
 ;; Resolved runtime ABI v1 signatures. No source AST or parser-node sentinel
 ;; supplies the types of these compiler-owned imports.
+(include "runtime_catalogue_capacity.lisp")
 (defun native_runtime_name (id)
   (declare (type u32 id) (returns (ptr u8)))
   (cond
@@ -278,10 +279,12 @@
         (parameter_capacity (deref (field-pointer signatures 'parameter_capacity))))
     (if (= (ptr-address (deref (field-pointer signatures 'signatures))) 0) 0
         (if (= (ptr-address (deref (field-pointer signatures 'parameters))) 0) 0
-            (if (< capacity count) 0
-                (if (< (wrap- capacity count) 28) 0
-                    (if (< parameter_capacity first) 0
-                        (if (< (wrap- parameter_capacity first) 45) 0 1))))))))
+                (if (< capacity count) 0
+                    (if (< (wrap- capacity count)
+                           (native_runtime_catalogue_signature_count)) 0
+                        (if (< parameter_capacity first) 0
+                            (if (< (wrap- parameter_capacity first)
+                                   (native_runtime_catalogue_parameter_count)) 0 1))))))))
 
 ;; Reserve both tables before reading source symbols or writing records. Publish
 ;; their counts only after construction; failed validation leaves them unchanged.

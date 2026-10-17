@@ -1,6 +1,17 @@
 (include "compiler_diagnostics.lisp")
 (include "../target.lisp")
 (include "compiler_link.lisp")
+(ffi:import-function "native_runtime_catalogue_minimum_capacity" () -> usize)
+
+(defun compiler_driver_capacity_for_source (length profile)
+  (declare (type usize length) (type u32 profile) (returns usize))
+  (let ((source_capacity (wrap+ length 1)))
+    (if (= profile 1)
+        (let ((catalogue_capacity
+                (ffi:call native_runtime_catalogue_minimum_capacity)))
+          (if (< source_capacity catalogue_capacity)
+              catalogue_capacity source_capacity))
+        source_capacity)))
 
 (defun compiler_release_c_sources (state)
   (declare (type (ptr native_compiler_state) state) (returns c-int))
@@ -111,7 +122,9 @@
         (compiler_path_error 1 source_path)
         (progn
           (store (field-pointer state 'driver_capacity)
-                 (wrap+ (deref (field-pointer driver 'length)) 1))
+                 (compiler_driver_capacity_for_source
+                   (deref (field-pointer driver 'length))
+                   (deref (field-pointer state 'profile))))
           (if (= (ffi:call native_prepare_driver_capacity driver
                            (deref (field-pointer state 'driver_capacity))) 0)
             (compiler_path_error 2 (ptr-from-address (ptr u8) 0))

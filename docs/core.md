@@ -787,7 +787,10 @@ remain unsupported. Native macro definitions and bindings use managed vectors
 held through opaque handles; generated syntax and reader identities remain in
 capacity-checked caller-owned arenas. The hosted CLI retries syntax-capacity
 failures from the same assembled source bytes with larger arenas. The lower
-level in-memory API retains explicit capacity limits.
+level in-memory API retains explicit capacity limits. The hosted CLI also reserves
+the runtime catalogue minimum for short source files: 28 signature records and
+45 parameter records. This source-derived capacity floor does not change the
+exact capacities supplied to the reusable driver API.
 
 ### Native macro evaluation
 

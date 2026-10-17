@@ -32,17 +32,28 @@ for level in 0 1; do
   "$project_root/pslcc" "-O$level" --target="$target" -c \
     "$project_root/bootstrap/host/compiler.lisp" -o "$work_dir/seed-driver.o"
   for version in native seed; do
+    if test "$version" = native; then
+      run_compiler_host "$compiler" "-O$level" --profile=hosted --target="$target" -c \
+        "$project_root/bootstrap/frontend/runtime_catalogue_capacity.lisp" \
+        -o "$work_dir/native-capacity.o"
+    else
+      "$project_root/pslcc" "-O$level" --profile=hosted --target="$target" -c \
+        "$project_root/bootstrap/frontend/runtime_catalogue_capacity.lisp" \
+        -o "$work_dir/seed-capacity.o"
+    fi
     for c_level in 0 2; do
       "$target_cc" "-O$c_level" -std=c11 -Wall -Wextra -Werror \
         "$project_root/tests/harness_bootstrap_compiler.c" \
-        "$work_dir/$version-driver.o" -o "$work_dir/controller$target_suffix"
+        "$work_dir/$version-driver.o" "$work_dir/$version-capacity.o" \
+        -o "$work_dir/controller$target_suffix"
       run_target "$work_dir/controller$target_suffix"
     done
     if test "$target" = x86_64-linux-gnu; then
       "$target_cc" -O2 -std=c11 -Wall -Wextra -Werror \
         -DPSL_TEST_ALLOCATOR_FAULTS \
         "$project_root/tests/harness_bootstrap_compiler.c" \
-        "$work_dir/$version-driver.o" -Wl,--wrap=calloc -Wl,--wrap=free \
+        "$work_dir/$version-driver.o" "$work_dir/$version-capacity.o" \
+        -Wl,--wrap=calloc -Wl,--wrap=free \
         -o "$work_dir/controller-faults"
       run_target "$work_dir/controller-faults"
     fi

@@ -77,6 +77,19 @@ run_host() {
   esac
 }
 
+run_supplied_compiler() {
+  compiler_host_target=${PSL_NATIVE_COMPILER_HOST_TARGET:-x86_64-linux-gnu}
+  case $compiler_host_target in
+    x86_64-linux-gnu) "$@" ;;
+    x86_64-windows-gnu) WINEDEBUG=-all wine "$@" ;;
+    aarch64-linux-gnu)
+      qemu-aarch64 -L "${AARCH64_SYSROOT:-/usr/aarch64-linux-gnu}" "$@" ;;
+    riscv64-linux-gnu)
+      qemu-riscv64 -L "${RISCV64_SYSROOT:-/usr/riscv64-linux-gnu}" "$@" ;;
+    *) echo "unsupported supplied compiler host: $compiler_host_target" >&2; return 2 ;;
+  esac
+}
+
 if test -n "${PSL_NATIVE_CORE_OBJECT:-}"; then
   cp "$PSL_NATIVE_CORE_OBJECT" "$work_dir/native-core.o"
 else
@@ -113,6 +126,15 @@ if test -n "${PSL_NATIVE_DRIVER_OBJECT:-}"; then
 else
   "$project_root/pslcc" --profile=hosted --target="$host_target" -c \
     "$project_root/bootstrap/host/compiler.lisp" -o "$work_dir/native-driver.o"
+fi
+if test -n "${PSL_NATIVE_COMPILER:-}"; then
+  run_supplied_compiler "$PSL_NATIVE_COMPILER" --profile=hosted --target="$host_target" -c \
+    "$project_root/bootstrap/frontend/runtime_catalogue_capacity.lisp" \
+    -o "$work_dir/native-catalogue-capacity.o"
+else
+  "$project_root/pslcc" --profile=hosted --target="$host_target" -c \
+    "$project_root/bootstrap/frontend/runtime_catalogue_capacity.lisp" \
+    -o "$work_dir/native-catalogue-capacity.o"
 fi
 if test -n "${PSL_NATIVE_OUTPUT_OBJECT:-}"; then
   cp "$PSL_NATIVE_OUTPUT_OBJECT" "$work_dir/native-output.o"
@@ -160,7 +182,8 @@ host_link -Wall -Wextra -Werror $allocator_flags \
   "$work_dir/native-core.o" "$work_dir/native-host.o" -o "$work_dir/driver-check$host_suffix"
 run_host "$work_dir/driver-check$host_suffix"
 host_link -Wall -Wextra -Werror $allocator_flags \
-  "$project_root/tests/harness_bootstrap_compiler.c" "$work_dir/native-driver.o" \
+  "$project_root/tests/harness_bootstrap_compiler.c" \
+  "$work_dir/native-driver.o" "$work_dir/native-catalogue-capacity.o" \
   -o "$work_dir/compiler-driver-check$host_suffix"
 run_host "$work_dir/compiler-driver-check$host_suffix"
 # The recursive compiler needs the same 8 MiB stack reserve as the Linux host.
@@ -388,13 +411,17 @@ run_host "$work_dir/pslcc-native-slice$host_suffix" \
 run_host "$work_dir/pslcc-native-slice$host_suffix" \
   "$project_root/bootstrap/host/compiler.lisp" "$work_dir/native-driver-native.o"
 run_host "$work_dir/pslcc-native-slice$host_suffix" \
+  "$project_root/bootstrap/frontend/runtime_catalogue_capacity.lisp" \
+  "$work_dir/native-catalogue-capacity-native.o"
+run_host "$work_dir/pslcc-native-slice$host_suffix" \
   "$project_root/bootstrap/host/output.lisp" "$work_dir/native-output-native.o"
 run_host "$work_dir/pslcc-native-slice$host_suffix" \
   "$project_root/bootstrap/host/diagnostics.lisp" \
   "$work_dir/native-diagnostics-native.o"
 if test "$host_target" = x86_64-linux-gnu; then
   cc -Wall -Wextra -Werror $allocator_flags \
-    "$project_root/tests/harness_bootstrap_compiler.c" "$work_dir/native-driver-native.o" \
+    "$project_root/tests/harness_bootstrap_compiler.c" \
+    "$work_dir/native-driver-native.o" "$work_dir/native-catalogue-capacity-native.o" \
     -o "$work_dir/compiler-native-check"
   "$work_dir/compiler-native-check"
 fi
@@ -1227,12 +1254,16 @@ fi
 "$project_root/pslcc" -O0 --profile=hosted --target="$host_target" -c \
   "$project_root/bootstrap/host/compiler.lisp" -o "$work_dir/native-driver-O0.o"
 "$project_root/pslcc" -O0 --profile=hosted --target="$host_target" -c \
+  "$project_root/bootstrap/frontend/runtime_catalogue_capacity.lisp" \
+  -o "$work_dir/native-catalogue-capacity-O0.o"
+"$project_root/pslcc" -O0 --profile=hosted --target="$host_target" -c \
   "$project_root/bootstrap/host/output.lisp" -o "$work_dir/native-output-O0.o"
 "$project_root/pslcc" -O0 --profile=hosted --target="$host_target" -c \
   "$project_root/bootstrap/host/diagnostics.lisp" \
   -o "$work_dir/native-diagnostics-O0.o"
 host_link -Wall -Wextra -Werror $allocator_flags \
-  "$project_root/tests/harness_bootstrap_compiler.c" "$work_dir/native-driver-O0.o" \
+  "$project_root/tests/harness_bootstrap_compiler.c" \
+  "$work_dir/native-driver-O0.o" "$work_dir/native-catalogue-capacity-O0.o" \
   -o "$work_dir/compiler-driver-O0-check$host_suffix"
 run_host "$work_dir/compiler-driver-O0-check$host_suffix"
 host_link -Wall -Wextra -Werror $source_allocator_flags \

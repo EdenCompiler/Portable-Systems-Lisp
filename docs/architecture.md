@@ -80,6 +80,11 @@ boundary; `*_types.lisp` files declare record layouts, while implementation
 logic remains in PSL. `bootstrap/host/platform_stdio.c` and
 `bootstrap/host/platform_toolchain.c` provide primitive host operations.
 
+`bootstrap/frontend/runtime_catalogue_capacity.lisp` owns the shared runtime
+signature/parameter reserve counts. The core uses them to check catalogue
+storage; the host controller imports its exported minimum to size short hosted
+source compilations. The caller-owned driver API retains exact capacities.
+
 The native source loader and controller are separately compiled units because
 they own filesystem traversal, persistent driver storage and command-line
 execution. Their runtime dependencies belong to the hosted compiler process;

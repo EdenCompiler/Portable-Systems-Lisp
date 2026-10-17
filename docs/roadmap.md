@@ -84,10 +84,12 @@ Stage 1, and Stage 3 by Stage 2, from the same complete source manifest.
 ### Remaining work
 
 The macro evaluator now covers the bounded list/integer predicates found by
-source preaudits, including canonical NIL equality. Focused gates compare these
-behaviors with Stage 0. Hosted CLI capacity for very short valid sources remains
-under validation, along with the complete source inventory, release wiring and
-fresh integrated proof.
+source preaudits, including canonical NIL equality. The hosted CLI also reserves
+the runtime catalogue for short valid inputs. Focused gates compare these
+behaviors with Stage 0; they still require the complete integrated release proof.
+
+The complete source inventory, release wiring and fresh three-stage corpus
+remain open.
 
 M8 closes only after all of the following pass on one frozen source snapshot:
 
