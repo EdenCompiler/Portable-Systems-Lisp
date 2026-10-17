@@ -1,5 +1,6 @@
 (include "parser.lisp")
 (include "symbols.lisp")
+(include "identity_syntax.lisp")
 
 ;; Source-unit loading uses this parser interface. The host supplies file I/O
 ;; and canonical paths; PSL recognizes include forms and decodes their strings.
@@ -17,9 +18,7 @@
           (if (= head 0) 0
               (let ((node (parser_node parser head)))
                 (if (= (deref (field-pointer node 'kind)) 8)
-                    (source_builtin_word_p source
-                      (deref (field-pointer node 'start))
-                      (deref (field-pointer node 'length)) first last length)
+                    (ast_builtin_word_p parser source head first last length)
                     0))))
         0)))
 

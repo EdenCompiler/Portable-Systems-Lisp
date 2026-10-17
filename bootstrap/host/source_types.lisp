@@ -15,7 +15,12 @@
   (c_sources (ptr native_c_source_path))
   (c_source_tail (ptr native_c_source_path))
   (search_cursor (ptr native_source_file))
-  (search_result (ptr native_source_file)))
+  (search_result (ptr native_source_file))
+  (environment native_ct_environment)
+  (environment_bytes usize)
+  (environment_capacity usize)
+  (reader_state (ptr void))
+  (reader_scratch (ptr u8)))
 
 (defcstruct native_source_frame
   (file (ptr native_source_file))
@@ -25,4 +30,5 @@
   (token psl_token)
   (parser psl_parser)
   (root usize)
-  (status c-int))
+  (status c-int)
+  (reader native_reader_environment))

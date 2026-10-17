@@ -15,6 +15,12 @@
   ((parser (ptr psl_parser)) (bytes (ptr u8)) (root usize)
    (output (ptr u8)) (capacity usize)) -> c-int)
 
+(ffi:import-function "native_ct_seed_standard" ((env (ptr native_ct_environment))) -> c-int)
+(ffi:import-function "native_source_reader_state_size" () -> usize)
+(ffi:import-function "native_source_reader_form"
+  ((state (ptr void)) (parser (ptr psl_parser)) (source (ptr u8))
+   (root usize) (scratch (ptr u8))) -> u32)
+
 ;; File input and host-specific path handling are separate PSL units. The
 ;; remaining C adapter renders source diagnostics.
 (ffi:import-function "native_source_read_file"

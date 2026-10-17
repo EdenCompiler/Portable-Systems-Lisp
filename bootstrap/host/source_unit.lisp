@@ -43,9 +43,11 @@
 (defun source_process_form (unit frame)
   (declare (type (ptr native_source_unit) unit)
            (type (ptr native_source_frame) frame) (returns c-int))
-  (let ((kind (ffi:call native_source_form_kind (field-pointer frame 'parser)
+  (let ((kind (ffi:call native_source_reader_form (deref (field-pointer unit 'reader_state))
+                      (field-pointer frame 'parser)
                       (deref (field-pointer frame 'bytes))
-                      (deref (field-pointer frame 'root)))))
+                      (deref (field-pointer frame 'root))
+                      (deref (field-pointer unit 'reader_scratch)))))
     (cond
       ((= kind 2) (source_load_include unit frame))
       ((= kind 3) (source_record_c_path unit frame))
@@ -79,7 +81,7 @@
 (defun source_load_new_file (unit file)
   (declare (type (ptr native_source_unit) unit) (type (ptr native_source_file) file)
            (returns c-int))
-  (let ((frame (source_prepare_frame file)))
+  (let ((frame (source_prepare_frame unit file)))
     (if (= (ptr-address frame) 0) 0
         (let ((result (source_load_forms unit frame)))
           (source_release_frame frame)
@@ -129,8 +131,10 @@
   (let ((unit (ptr-cast (ptr native_source_unit)
                (ffi:call calloc 1 (sizeof 'native_source_unit)))))
     (if (= (ptr-address unit) 0) (ptr-from-address (ptr u8) 0)
-        (let ((status (source_load_file unit path)))
+        (let ((status (if (= (source_allocate_environment unit) 1)
+                          (source_load_file unit path) (wrap-cast c-int 0))))
           (source_release_files unit)
+          (source_release_environment unit)
           (let ((bytes (if (= status 1) (source_take_bytes unit length)
                            (progn
                              (ffi:call free

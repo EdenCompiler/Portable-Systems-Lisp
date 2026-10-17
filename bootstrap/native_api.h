@@ -441,7 +441,14 @@ extern int native_compile_unit(struct native_compile_context *, struct byte_buff
                                struct native_unit_result *);
 
 extern uintptr_t parser_next(struct psl_parser *parser);
-extern uint32_t native_source_form_kind(struct psl_parser *, const uint8_t *, uintptr_t);
+/* Source-loader transition: zeroed state of the queried size, a parser with
+   a live reader and valid parsed root, and at least 4096 writable scratch
+   bytes are caller-owned. */
+extern uintptr_t native_source_reader_state_size(void);
+uint32_t native_source_reader_form(void *state, struct psl_parser *parser,
+                                  const uint8_t *source, uintptr_t root,
+                                  uint8_t *scratch);
+uint32_t native_source_form_kind(struct psl_parser *, const uint8_t *, uintptr_t);
 extern uintptr_t native_source_include_size(struct psl_parser *, const uint8_t *, uintptr_t);
 extern int native_source_include_copy(struct psl_parser *, const uint8_t *, uintptr_t,
                                       uint8_t *, uintptr_t);

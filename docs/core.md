@@ -537,9 +537,10 @@ C adapters write objects, render messages selected by the PSL driver, and
 invoke the selected conventional C compiler for explicit `ffi:source` units.
 `bootstrap/driver.c` is only a `main` trampoline.
 
-Top-level lowercase `(include "relative-file.lisp")` now splices source into
-the same unit. A native PSL parser identifies include forms and decodes their
-filenames. The hosted PSL loader resolves relative include paths, deduplicates
+Top-level `psl:include` forms splice source into the same unit. The loader
+resolves directive symbols through the same reader/package interface as
+compilation, including imported/exported aliases, nicknames and escaped names.
+A native PSL parser decodes their filenames. The hosted PSL loader resolves relative include paths, deduplicates
 canonical files, rejects active cycles, and assembles forms in source order.
 Its PSL host units read files and canonicalize paths; a temporary C adapter
 renders errors. Nested paths are relative to the file naming them. The loader
@@ -749,7 +750,7 @@ ends collection; whole-DEFPACKAGE rollback is not a public guarantee.
 
 Package redefinition, source package mutation functions, general macro environments,
 managed compile-time values, growable compiler tables, Unicode reader case
-conversion, and package-aware/escaped source-loader directives remain pending.
+conversion remain pending.
 
 The native build-host macro slice accepts top-level `defmacro` with a proper
 list of fixed symbol parameters and build-host body forms. A body can return an
@@ -963,3 +964,13 @@ requested object output before publishing by rename. Outputs therefore work
 when the build directory and TMPDIR are on different filesystems. Failed C
 compilation and missing output parents preserve existing files and release the
 staging directory, with the same publication contract as the native driver.
+
+The native source loader applies package definitions and selection in read order,
+including changes made by an included file. A distinct same-spelling INCLUDE
+symbol remains ordinary source. Included Lisp and C paths remain relative to
+their declaring files; canonical deduplication and cycle checks use those paths.
+The loader owns a per-unit typed symbol/name/presence environment and grows its
+backing tables as additional files are read. IDs and byte offsets survive growth.
+Per-file AST identities, package state, numeric scratch and all partial storage
+are released on success or rejection. These build-host tables add no runtime
+dependency to generated user objects.

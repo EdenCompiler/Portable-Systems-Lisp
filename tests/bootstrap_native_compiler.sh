@@ -210,6 +210,11 @@ check_cli_failure 1 "$project_root/tests/bootstrap_answer.lisp" "$work_dir/outpu
 grep -q 'cannot write or link output' "$work_dir/cli.err"
 if test "$host_target" = x86_64-linux-gnu; then
   sh "$project_root/tests/bootstrap_c_output.sh" "$work_dir/pslcc-native-slice$host_suffix"
+  sh "$project_root/tests/bootstrap_source_loader_identities.sh" \
+    "$work_dir/pslcc-native-slice$host_suffix" "$host_target"
+  sh "$project_root/tests/bootstrap_source_loader_allocations.sh" \
+    "$work_dir/native-core.o" "$work_dir/native-source.o" \
+    "$work_dir/native-input.o" "$work_dir/native-path.o"
   for level in 0 1; do
     run_host "$work_dir/pslcc-native-slice$host_suffix" "-O$level" \
       "$project_root/examples/ffi/source_import.lisp" \
@@ -1215,6 +1220,11 @@ run_host "$work_dir/compiler-driver-O0-check$host_suffix"
   "$project_root/tests/harness_bootstrap_source_unit.c" \
   "$work_dir/native-core-O0.o" "$work_dir/native-source-O0.o" -o "$work_dir/source-unit-O0-check$host_suffix"
 run_host "$work_dir/source-unit-O0-check$host_suffix"
+if test "$host_target" = x86_64-linux-gnu; then
+  sh "$project_root/tests/bootstrap_source_loader_allocations.sh" \
+    "$work_dir/native-core-O0.o" "$work_dir/native-source-O0.o" \
+    "$work_dir/native-input-O0.o" "$work_dir/native-path-O0.o"
+fi
 "$host_compiler" -Wall -Wextra -Werror $allocator_flags \
   "$project_root/tests/harness_bootstrap_driver.c" \
   "$work_dir/native-core-O0.o" "$work_dir/native-host-O0.o" -o "$work_dir/driver-O0-check$host_suffix"

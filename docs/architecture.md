@@ -634,3 +634,13 @@ The driver coordinates that step after verified function encoding. Startup
 selection is restored by `bootstrap/host/compiler_ir.lisp` on every complete
 syntax/IR retry. The C toolchain adapter owns selected linker invocation and
 staged executable/map publication; architecture emission stays in PSL.
+
+`bootstrap/frontend/source_reader.lisp` exposes the core reader/package transition
+for the separate source loader through an opaque, size-queried context. It owns
+symbol resolution and ordered package interpretation without constructing IR.
+`bootstrap/host/source_environment.lisp` owns allocation, growth and release of
+the loader's typed namespace tables; per-file frames own their AST side tables.
+The same frontend directive matcher uses resolved identities when attached to a
+reader, and retains its raw component interface for callers without one. Path
+resolution, canonical-file ownership and C source collection remain in the host
+source unit. No target code runs while loading source for cross compilation.

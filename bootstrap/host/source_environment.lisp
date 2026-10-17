@@ -1,0 +1,113 @@
+(include "source_imports.lisp")
+
+;; These typed tables hold byte offsets and symbol IDs. Growing a backing
+;; array preserves every reference and leaves fresh records zero-initialized.
+(defun source_grow_array (slot capacity requested size)
+  (declare (type (ptr (ptr void)) slot) (type (ptr usize) capacity)
+           (type usize requested size) (returns c-int))
+  (if (< (deref capacity) requested)
+      (let ((memory (ffi:call calloc requested size)))
+        (if (= (ptr-address memory) 0) 0
+            (progn
+              (if (< 0 (deref capacity))
+                  (ffi:call memcpy memory (deref slot)
+                            (wrap* (deref capacity) size))
+                  memory)
+              (ffi:call free (deref slot))
+              (store slot memory)
+              (store capacity requested)
+              1)))
+      1))
+
+(defun source_grow_environment (unit capacity)
+  (declare (type (ptr native_source_unit) unit) (type usize capacity)
+           (returns c-int))
+  (let ((env (field-pointer unit 'environment)))
+    (if (= (source_grow_array
+             (ptr-cast (ptr (ptr void)) (field-pointer env 'names))
+             (field-pointer env 'name_capacity) (wrap+ (wrap* capacity 16) 12000)
+             (sizeof 'u8)) 0) 0
+        (if (= (source_grow_array
+                 (ptr-cast (ptr (ptr void)) (field-pointer env 'symbols))
+                 (field-pointer env 'symbol_capacity) (wrap+ capacity 1054)
+                 (sizeof 'native_ct_symbol)) 0) 0
+            (if (= (source_grow_array
+                     (ptr-cast (ptr (ptr void)) (field-pointer env 'present))
+                     (field-pointer env 'present_capacity) (wrap+ capacity 1121)
+                     (sizeof 'native_ct_presence)) 0) 0
+                (progn (store (field-pointer unit 'environment_capacity) capacity)
+                       1))))))
+
+(defun source_reserve_environment (unit length)
+  (declare (type (ptr native_source_unit) unit) (type usize length)
+           (returns c-int))
+  (let ((previous (deref (field-pointer unit 'environment_bytes)))
+        (capacity (deref (field-pointer unit 'environment_capacity)))
+        (maximum (wrap-cast usize -1)))
+    (let ((needed (wrap+ previous length)))
+      (if (< needed previous) 0
+          (if (< (shr64 (wrap-cast u64 (wrap- maximum 12000)) 4)
+                 (wrap-cast u64 needed)) 0
+              (if (< capacity needed)
+                  (let ((doubled (wrap+ capacity capacity)))
+                    (let ((grown (if (< needed doubled) doubled needed)))
+                      (if (< (shr64 (wrap-cast u64 (wrap- maximum 12000)) 4)
+                             (wrap-cast u64 grown))
+                          (source_finish_environment_reserve unit needed needed)
+                          (source_finish_environment_reserve unit grown needed))))
+                  (progn (store (field-pointer unit 'environment_bytes) needed) 1)))))))
+
+(defun source_finish_environment_reserve (unit capacity bytes)
+  (declare (type (ptr native_source_unit) unit) (type usize capacity bytes)
+           (returns c-int))
+  (if (= (source_grow_environment unit capacity) 0) 0
+      (progn (store (field-pointer unit 'environment_bytes) bytes) 1)))
+
+(defun source_allocate_environment (unit)
+  (declare (type (ptr native_source_unit) unit) (returns c-int))
+  (let ((env (field-pointer unit 'environment)))
+    (store (field-pointer env 'packages)
+           (ptr-cast (ptr native_ct_package)
+                     (ffi:call calloc 128 (sizeof 'native_ct_package))))
+    (store (field-pointer env 'uses)
+           (ptr-cast (ptr native_ct_use)
+                     (ffi:call calloc 512 (sizeof 'native_ct_use))))
+    (store (field-pointer env 'aliases)
+           (ptr-cast (ptr native_ct_alias)
+                     (ffi:call calloc 128 (sizeof 'native_ct_alias))))
+    (store (field-pointer env 'buckets)
+           (ptr-cast (ptr usize) (ffi:call calloc 131072 (sizeof 'usize))))
+    (store (field-pointer unit 'reader_state)
+           (ffi:call calloc 1 (ffi:call native_source_reader_state_size)))
+    (store (field-pointer unit 'reader_scratch)
+           (ptr-cast (ptr u8) (ffi:call calloc 4096 1)))
+    (cond
+      ((= (ptr-address (deref (field-pointer env 'packages))) 0) 0)
+      ((= (ptr-address (deref (field-pointer env 'uses))) 0) 0)
+      ((= (ptr-address (deref (field-pointer env 'aliases))) 0) 0)
+      ((= (ptr-address (deref (field-pointer env 'buckets))) 0) 0)
+      ((= (ptr-address (deref (field-pointer unit 'reader_state))) 0) 0)
+      ((= (ptr-address (deref (field-pointer unit 'reader_scratch))) 0) 0)
+      ((= (source_grow_environment unit 4096) 0) 0)
+      (t
+       (store (field-pointer env 'package_capacity) 128)
+       (store (field-pointer env 'use_capacity) 512)
+       (store (field-pointer env 'alias_capacity) 128)
+       (store (field-pointer env 'bucket_count) 1024)
+       (store (field-pointer env 'bucket_capacity) 131072)
+       (ffi:call native_ct_seed_standard env)))))
+
+(defun source_release_environment (unit)
+  (declare (type (ptr native_source_unit) unit) (returns c-int))
+  (let ((env (field-pointer unit 'environment)))
+    (ffi:call free (ptr-cast (ptr void) (deref (field-pointer env 'names))))
+    (ffi:call free (ptr-cast (ptr void) (deref (field-pointer env 'packages))))
+    (ffi:call free (ptr-cast (ptr void) (deref (field-pointer env 'symbols))))
+    (ffi:call free (ptr-cast (ptr void) (deref (field-pointer env 'present))))
+    (ffi:call free (ptr-cast (ptr void) (deref (field-pointer env 'uses))))
+    (ffi:call free (ptr-cast (ptr void) (deref (field-pointer env 'aliases))))
+    (ffi:call free (ptr-cast (ptr void) (deref (field-pointer env 'buckets))))
+    (ffi:call free (deref (field-pointer unit 'reader_state)))
+    (ffi:call free (ptr-cast (ptr void)
+                            (deref (field-pointer unit 'reader_scratch))))
+    1))

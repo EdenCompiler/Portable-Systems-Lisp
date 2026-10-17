@@ -15,3 +15,4 @@
 (include "compile_scalar.lisp")
 (include "driver.lisp")
 (include "backend/function_addresses.lisp")
+(include "frontend/source_reader.lisp")

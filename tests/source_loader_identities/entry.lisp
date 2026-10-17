@@ -1,0 +1,10 @@
+(defpackage #:loader-directives
+  (:use #:cl)
+  (:nicknames #:ld)
+  (:import-from #:psl #:include)
+  (:import-from #:ffi #:source)
+  (:export #:include #:source))
+(in-package #:loader-directives)
+(ld:|INCLUDE| "child files/declarations.lisp")
+(ld:include "child files/declarations.lisp")
+(ld:include "child files/functions.lisp")

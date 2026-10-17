@@ -1837,3 +1837,19 @@ sequence and managed-collection conditions at O0/O1, preserves prior output,
 and executes the valid VOID-call/opaque-pointer C harness at C O0/O2. The
 repository smoke gate runs the Stage 0 regression; `tests/ir_verifier.lisp`
 checks direct rejection at the HIR receiving boundary.
+
+### M8 source-loader directive identities
+
+The native loader uses the shared reader/package interface before classifying
+PSL:INCLUDE and FFI:SOURCE directives. Package aliases, nicknames and escaped
+spelling retain symbol identity; shadowed lookalikes are ordinary source.
+Included package changes remain visible in following source, while directive
+paths retain their declaring file. Typed loader tables grow across files and
+preserve earlier IDs; partial tables and per-file identities have explicit
+release paths. The regression gate compares linked C behavior and rejection
+with Stage 0, including table growth, canonical deduplication, cycles and
+preserved outputs. All four hosted output-target checks, allocation-failure
+checks, smoke and the full native regression passed. Fresh native generations
+rebuild all eight units; their Stage 2/3 objects and executables match, and both
+generated stages pass the loader and allocation gates. The complete M8
+release manifest/corpus gate remains open.
