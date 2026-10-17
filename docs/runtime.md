@@ -1,5 +1,7 @@
 # Hosted runtime (M4)
 
+[Documentation](README.md) / Hosted runtime
+
 The first hosted runtime supports x86-64 Linux, x86-64 Windows, AArch64
 Linux, and RISC-V64 Linux as a single-threaded
 module set. Its

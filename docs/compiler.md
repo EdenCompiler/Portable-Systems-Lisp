@@ -1,6 +1,10 @@
 # Stage 0 compiler pipeline
 
-The SBCL library exposes the same stages used by `pslcc`:
+[Documentation](README.md) / Compiler-library API
+
+After loading `src/load.lisp` under SBCL, the library exposes the same stages
+used by `pslcc`. For native entry points and ownership, see the
+[native guide](../bootstrap/README.md) and [architecture](architecture.md):
 
 ```lisp
 (let ((unit (psl.compiler:read-unit "examples/basic/add.lisp")))

@@ -1,5 +1,7 @@
 # Portable Systems Lisp Core Specification
 
+[Documentation](README.md) / Language design
+
 **Revision:** 1.0 M0 baseline
 
 **Scope:** source language, compile-time behavior, machine model, and execution

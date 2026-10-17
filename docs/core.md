@@ -1,8 +1,28 @@
-# PSL Stage 0 implemented core
+# Implemented language contract
 
-This file is the contract for behavior accepted by the current `pslcc`.
-The [Core Specification](specification.md) defines M0 language semantics,
-including facilities still awaiting implementation.
+[Documentation](README.md) / Language reference
+
+This file describes accepted source and its limits. The first sections describe
+`./pslcc`, the SBCL-hosted Stage 0 seed. The [native compiler section](#native-bootstrap-subset)
+records the separately implemented `build/pslcc-native` contract. A native limit
+does not remove behavior from the seed contract.
+
+For commands, start with [Getting started](getting-started.md). The
+[language design](specification.md) includes planned semantics; the
+[roadmap](roadmap.md) records milestone status.
+
+## On this page
+
+- [Build and profiles](#build-and-profiles)
+- [Source forms](#source-forms)
+- [Machine values and layout](#machine-values-and-layout)
+- [Hosted managed values](#hosted-managed-values)
+- [C source, function, and data imports](#c-source-function-and-data-imports)
+- [Objects and runtime dependencies](#object-and-runtime-contract)
+- [Native compiler reference](#native-bootstrap-subset)
+- [Native IR capture](#native-ir-text-capture)
+- [Native targets](#native-output-target-selection)
+- [Native reader, packages and macros](#native-build-host-symbol-reader-api)
 
 ## Build and profiles
 
@@ -209,7 +229,7 @@ is false in `if`; every other managed value is true. The `psl` extensions
 rejected in raw structure fields and raw pointer types because those locations
 are not traced.
 
-`(lambda (argument) ...)`, Stage 0 and native hosted source also provide mutable managed VALUE vectors through
+Stage 0 and native hosted source also provide mutable managed VALUE vectors through
 `make-value-vector`, `value-vector-length`, `value-vector-ref`,
 `value-vector-set`, and `value-vector-push`. Construction fills every element
 with the supplied initial value; push returns the previous length, and set
@@ -219,10 +239,12 @@ stable identity while a separate managed storage object is copied and replaced
 as capacity grows; unused slots are NIL and the collector traces stored values.
 The native compiler resolves these five PSL operations through its checked
 runtime catalogue. Allocating construction and growth receive precise root
-frames; certified access and mutation remain nonallocating. Compiler-owned
-collections have not yet migrated to this representation.
+frames; certified access and mutation remain nonallocating. Native macro
+definitions and lexical binding tables use these managed vectors through
+runtime handles. Parser nodes, reader identities, and IR records remain in
+explicit caller-owned arenas.
 
-`#'(lambda (argument) ...)`, and
+`(lambda (argument) ...)`, `#'(lambda (argument) ...)`, and
 `(function (lambda (argument) ...))` capture visible `value` bindings and can be
 called with `(funcall closure value)`. Stage 0 and the native hosted compiler
 support this one-argument, one-managed-result convention on all four targets.
@@ -265,7 +287,7 @@ length/index arguments are `usize`, fills/bytes/results are `u8`, and managed
 strings retain the opaque `value` representation. Ordinary literals preserve Lisp escapes,
 UTF-8 and embedded zero bytes. Each evaluation returns a fresh mutable string;
 mutation does not alter the compiler-owned private bytes. Decoding is iterative
-and rejects malformed UTF-8. Managed compiler collections still need native ports. Its default and explicit freestanding profiles reject `value`.
+and rejects malformed UTF-8. Its default and explicit freestanding profiles reject `value`.
 The same raw pointer/structure restrictions apply.
 Native symbol/package creation and interning use precise allocation; accessors
 are nonallocating. Fresh symbol identity, byte-name interning and case behavior
@@ -356,7 +378,8 @@ corresponding runtime modules. They retain only registered roots and
 permanent roots; the constructor registers its arguments internally. Stage 0
 managed source continues to use conservative collection. Native hosted managed
 source uses registered precise root frames and the explicit precise constructors.
-Managed compiler collections remain required M8 work.
+Native macro definition and binding storage use managed VALUE vectors held by
+opaque runtime handles; syntax and identity arrays remain caller-owned.
 
 The native bootstrap exposes data-only writers as `write_elf64_data` and
 `write_coff64_data`. A `native_data_symbol` supplies an ASCII linker name,
@@ -400,10 +423,12 @@ structure, and field names. Defined linker names use lowercase spelling,
 including hyphenated exports. `cl:` qualifies implemented Common Lisp forms
 and `psl:` qualifies implemented extensions; unrelated package prefixes do
 not alias those names. Explicit C function and data strings remain exact.
-Uppercase escaped references resolve through reader identities. Escaped binder
-and linker declarations still require a native port. Ordered source package
+Escaped references and lexical binders resolve through reader identities.
+Explicit C linker names remain exact strings. Ordered source package
 forms support the options documented above; broader package operations remain
 outside the source interface.
+### Floating values and ABI transport
+
 Native `f32`/`c-float` and `f64`/`c-double` values may appear in literals,
 locals, pointer/field loads and stores, conditional joins, and imported/exported
 data. Decimal syntax uses the ordinary single-float default and `e`, `f`, or
@@ -498,8 +523,9 @@ the native subset's types and spelling rules.
 Explicit libc imports such as `malloc` and `free` work; they do not become
 implicit runtime dependencies of other units.
 
-Managed compiler collections and named general byte data remain unsupported
-by the native subset. Import effect annotations and
+General named byte data remains unsupported by the native subset. Macro
+registry and binding collections use managed vectors and opaque handles;
+source syntax and IR continue to use typed arenas. Import effect annotations and
 allocation-effect certification are implemented for the documented direct-call
 subset; unannotated imports remain unknown.
 
@@ -524,13 +550,16 @@ diagnostic locations. The native object CLI accepts `-c SOURCE.lisp -o OUTPUT.o`
 and legacy `SOURCE.lisp OUTPUT.o`, with `-O0`/`-O1`, target and profile options
 in any order. Both `--target=TARGET`/`--target TARGET` and
 `--profile=PROFILE`/`--profile PROFILE` work; repeated options use their last
-value. The modern spelling requires `-c`; executable/library linking and IR
-dump options remain open. `native_parse_cli_options` takes caller-owned storage
-and performs no I/O. Supported native targets are
-`x86_64-linux-gnu`, `x86_64-windows-gnu`, `aarch64-linux-gnu`, and
-`riscv64-linux-gnu`. Status is 0 on
-success, 1 for rejected language input, and 2 for usage, I/O, or allocation
-failure. Arguments are checked for missing values, extra paths, malformed
+value. The modern object spelling requires `-c`. On Linux compiler hosts,
+`SOURCE -o OUTPUT` and `--emit=exe|static|shared` link artifacts; repeated
+`--link-input=FILE` options add explicit C inputs. `--dump-ir=hir|ssa|lir|all`
+captures verified IR separately from object output. `native_parse_cli_options`
+takes caller-owned storage and performs no I/O. Native object targets include
+`x86_64-linux-gnu`, `x86_64-windows-gnu`, `aarch64-linux-gnu`,
+`riscv64-linux-gnu`, `x86_64-none-elf`, and `riscv64-none-elf`; hosted managed
+runtime support is limited to the four OS targets. The process returns 0 on
+success and 1 on failure; reusable controller APIs retain detailed result
+statuses. Arguments are checked for missing values, extra paths, malformed
 options and unsupported output modes before source loading. Repeated run
 calls allocate independent state and release it on every return. The temporary
 C adapters write objects, render messages selected by the PSL driver, and
@@ -560,8 +589,8 @@ Native C-source merging is currently verified from the x86-64 Linux compiler
 host for all four hosted output targets. Target-hosted generated compilers are
 not yet required to launch a C toolchain during bootstrap comparison.
 
-It does not yet support complete source package semantics, arbitrary build-host
-macro evaluation, or structure values. Its
+It does not yet support complete source package semantics or arbitrary
+build-host macro evaluation. Its
 implemented subset now passes verified HIR, typed CFG/SSA, and flat LIR; the
 backend consumes virtual registers and explicit labels. Native `-O1` (the
 default) now folds wrapping arithmetic, bitwise AND, masked U64 shifts, signed/
@@ -578,8 +607,8 @@ storage; the type catalog is rebuilt and SSA is verified after compaction.
 Folding and pruning iterate together until stable. A subsequent liveness pass omits
 unused pure definitions and unused PHI copies from LIR. It keeps stable SSA
 IDs/catalog records and verifies every retained dependency. Conditions,
-returns, calls, stores, and all loads are roots; loads are conservatively
-retained pending native memory qualifiers/effects. Native `-O0` skips both
+returns, calls, stores, and all loads are roots; loads are retained
+conservatively, including volatile reads. Native `-O0` skips both
 passes and marks all definitions live.
 
 Native `-O1` first inlines direct calls to verified one-block pure functions of
@@ -601,7 +630,8 @@ calls, arguments, lexical initializers, loop bodies, and conditional arms are
 checked, including dead arms. Outer lexical reads exclude earlier initializers.
 Regions return their last typed body value, including void. Effect annotations
 do not make calls pure for dead-value removal. Foreign promises remain the
-caller's responsibility; managed/GC/indirect facilities are not native yet.
+caller's responsibility; managed allocation and collection are tracked by the
+effect pass, and unproven indirect calls remain unknown effects.
 Use `native_compile_unit` for complete-unit summaries; `compile_scalar_form`
 rejects region calls whose internal summaries are unfinished. Failure phase 9
 identifies the caller index and unsafe callee name AST; diagnostics name the
@@ -610,13 +640,12 @@ call. HIR checks region metadata before certification and lowering.
 `native_run_compiler_options(source, output, level)` selects 0 or 1; other levels
 return a usage failure. In-memory callers set `context.optimization` to 0 or 1;
 `native_prepare_driver` initializes it to 1. The exported optimizer rejects
-invalid SSA before mutation. Managed/indirect effect support still needs a native
-port. It directly compiles
+invalid SSA before mutation. It directly compiles
 its full native core, including frontend, IR verification, x86-64/AArch64/RISC-V64 encoding,
 and ELF writing. Successive native core generations reproduce identical
-objects and pass the native subset suite. The broader Stage 0 corpus, remaining
-targets and ABI/object features, and the remaining C file/diagnostic/path adapter ports remain
-open, so it is still an M8 development slice. See [the bootstrap contract](../bootstrap/README.md)
+objects and pass the native subset suite. The complete Stage 1–3 release and
+full source/object/IR/diagnostic/runtime/interop/cross-target corpus remain open,
+so M8 is still in progress. See [the bootstrap contract](../bootstrap/README.md)
 for its tests and remaining gate.
 
 ### Native IR text capture
@@ -641,20 +670,24 @@ Setting optional `context.ir_dump` captures each defined function once in source
 order, after verification and root lowering and before encoding. The default
 null pointer disables capture. A capacity failure stops compilation before the
 unit object is published; successfully captured earlier functions remain in the
-caller-owned buffer. Capturing text preserves generated object bytes. Native
-Generated closure bodies use stable `LAMBDA#N` labels and include verified
-function-address operations. CLI dump options remain unfinished driver work.
+caller-owned buffer. Capturing text preserves generated object bytes. Generated
+closure bodies use stable `LAMBDA#N` labels and include verified function-address
+operations. The native CLI exposes `--dump-ir=hir|ssa|lir|all`; its hosted
+controller grows the capture buffer and retries from the assembled source
+snapshot. The library API retains explicit caller-owned capacity.
 
 ### Native output target selection
 
-The native subset uses target IDs 0 (x86-64 Linux / SysV / ELF64, default) and
-1 (AArch64 Linux / AAPCS64 / ELF64), and
-2 (RISC-V64 Linux / LP64D / ELF64). `context.target` selects the output target;
+The native subset uses target IDs 0 (x86-64 Linux / SysV / ELF64, default),
+1 (AArch64 Linux / AAPCS64 / ELF64), 2 (RISC-V64 Linux / LP64D / ELF64),
+3 (x86-64 Windows / Microsoft x64 / COFF), 4 (x86-64 none / ELF64), and
+5 (RISC-V64 none / ELF64). `context.target` selects the output target;
 `native_prepare_driver` initializes it to 0. An unsupported ID fails with phase
 10 before source collection. `native_run_compiler_target(source, output, level,
 target)` validates level and target before any source read or allocation.
-The CLI accepts either supported `--target=...`, optionally together with
-`-O0`/`-O1` in either order, before `SOURCE OUTPUT.o`.
+The CLI accepts these target names with `-O0`/`-O1` before or after the source.
+The none targets reject managed runtime use and link only through their explicit
+freestanding startup/linker path.
 
 All three ELF output targets share frontend and HIR/SSA/LIR verification
 for scalar signatures, floating locals, memory, and data. AArch64 uses eight
@@ -664,8 +697,8 @@ writer emits machine 183 and a local `$x` mapping symbol. Its existing ELF call
 API defaults to x86-64; `write_elf64_calls_target` selects explicitly. Backend
 and ELF validation reject unaligned AArch64 call/function spans and malformed
 import placeholders. Natural integer, pointer and floating records through 16 bytes use the
-verified native aggregate path described above. Broader hosted language support
-remains pending.
+verified native aggregate path described above. Unsupported hosted language
+forms remain documented above; M9 ANSI Common Lisp conformance is not claimed.
 
 Native RISC-V64 emits RV64IM instructions for integer-only functions and
 F/D payload moves for floating signatures, with LP64D ELF machine 243 and flag 4.
@@ -748,9 +781,15 @@ use records (three seeded); exhaustion rejects the unit without writing an objec
 These records do not allocate in the native core. A failed source package form
 ends collection; whole-DEFPACKAGE rollback is not a public guarantee.
 
-Package redefinition, source package mutation functions, general macro environments,
-managed compile-time values, growable compiler tables, Unicode reader case
-conversion remain pending.
+Package redefinition, source package mutation functions, general macro
+environments, Unicode reader case conversion, and general build-host evaluation
+remain unsupported. Native macro definitions and bindings use managed vectors
+held through opaque handles; generated syntax and reader identities remain in
+capacity-checked caller-owned arenas. The hosted CLI retries syntax-capacity
+failures from the same assembled source bytes with larger arenas. The lower
+level in-memory API retains explicit capacity limits.
+
+### Native macro evaluation
 
 The native build-host macro slice accepts top-level `defmacro` with a proper
 list of fixed symbol parameters and build-host body forms. A body can return an
@@ -771,13 +810,13 @@ verifier checks links, spans, IDs, prefix shape and bounded traversal. Copies
 preserve symbol identities and original input nodes. Generated template nodes
 point to the source invocation; substituted arguments retain caller origins.
 One-step and repeated expansion roll arena counts back on failure and latch
-errors. The hosted development bounds are 256 macro definitions, 128 argument
-bindings, 128 syntax depth and 2,048 expansion steps per function, in addition
-to the source-derived syntax/identity arena capacity. Exhaustion rejects the
-unit without an object. These compile-time bounds imply no target allocation
-guarantee. General macro lambda lists, arbitrary build-host evaluation,
-`eval-when`, macrolet/symbol-macrolet and growable managed compiler data remain
-required M8 work.
+errors. The hosted controller derives initial syntax/identity capacities from
+the assembled source and retries only parser-capacity exhaustion. The low-level
+registry, binding and expansion-step limits remain checked and bounded; the
+in-memory API does not retry. Exhaustion rejects the unit without an object.
+These compile-time bounds imply no target allocation guarantee. Dotted macro
+lambda lists, arbitrary build-host evaluation, macrolet/symbol-macrolet, and
+general conditions remain unsupported.
 
 Native macro lambda lists additionally support a `&rest` or `&body`
 parameter after positional parameters and empty lambda lists spelled `NIL`. Rest values are fresh syntax
@@ -804,11 +843,11 @@ and reader quotation agree; empty list expressions and quoted empty lists
 represent NIL. Integer zero remains true. Failed argument binding or default
 evaluation publishes no partial expansion. Proper nested list patterns bind
 corresponding syntax elements, including empty patterns matching NIL. Nested
-`&optional` patterns support bare variables and `(pattern [default
-[supplied-p]])`; all-optional patterns called with NIL or `()` evaluate defaults
-and bind supplied-p flags to NIL. Quote and function reader prefixes are
-normalized as two-element syntax lists in a private expansion copy, preserving
-caller identities and origins. Dotted patterns and nested `&rest`, `&key` and
+`&optional` parameters support bare variables and `(pattern [default
+[supplied-p]])`; an all-optional pattern called with NIL or `()` evaluates its
+defaults and binds supplied-p flags to NIL. Standard quote and function reader
+prefixes are treated as their two-element source lists during destructuring,
+with caller syntax preserved. Dotted patterns and nested `&rest`, `&key` and
 `&aux` sections remain unsupported. General build-host evaluation remains
 unsupported.
 
@@ -824,7 +863,7 @@ unevaluated invocation, including its macro name. It consumes no positional
 argument and can precede required, optional, rest/body and auxiliary sections.
 Returning or substituting this value copies the invocation while preserving
 caller symbol identities and origins. Repeated whole-invocation expansion uses
-the existing expansion-step bound. Destructured `&whole` variables and
+the existing expansion-step bound. A destructured `&whole` variable and
 `&environment` remain unsupported.
 
 Native macro lambda lists accept `&key` bare variables and
@@ -841,10 +880,12 @@ or the invocation's first `:allow-other-keys` value is true. This value is
 unevaluated syntax: NIL/empty lists are false and zero is true. Key/value lists
 must have even length. `:allow-other-keys` is accepted as a control argument
 and can also be explicitly named by a parameter. Failures restore syntax and
-identity counts and clear unpublished bindings. Explicitly named key variables
-may use proper nested list patterns; missing keys evaluate defaults before
-destructuring. Dotted key patterns, nested `&rest`, `&key` and `&aux`, and
-`&environment` remain unsupported.
+identity counts and clear unpublished bindings. Destructuring key variables
+are supported for explicitly named keys when the variable pattern is a proper
+nested list pattern. For example, `((nil (left right)) default)` matches the
+Common Lisp NIL keyword name and binds the two list elements; a missing key
+evaluates its default before destructuring. Dotted key patterns, nested
+`&rest`, `&key` and `&aux`, and `&environment` remain unsupported.
 
 The native build-host macro evaluator supports Common Lisp `if` with two or
 three operands. It evaluates the predicate once and only the selected branch;

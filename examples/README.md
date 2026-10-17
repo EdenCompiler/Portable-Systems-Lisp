@@ -1,5 +1,7 @@
 # Examples
 
+[Project](../README.md) / [Documentation](../docs/README.md) / Examples
+
 Examples are grouped by the compiler feature they demonstrate. Start with
 `native/` for typed programs written entirely in Lisp, then `hosted/` for
 managed values. The interop examples have
