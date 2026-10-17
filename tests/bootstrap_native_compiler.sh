@@ -42,6 +42,23 @@ case $host_target in
   *) echo "unsupported bootstrap host: $host_target" >&2; exit 2 ;;
 esac
 
+case $host_target in
+  x86_64-windows-gnu) runtime_platform=windows ;;
+  *) runtime_platform=linux ;;
+esac
+host_runtime_sources="$project_root/runtime/value.c $project_root/runtime/cons.c $project_root/runtime/string.c $project_root/runtime/symbol.c $project_root/runtime/package.c $project_root/runtime/closure.c $project_root/runtime/vector.c $project_root/runtime/values.c $project_root/runtime/gc.c $project_root/runtime/startup.c"
+host_runtime_platform_object=$work_dir/runtime-platform.o
+"$host_compiler" -O0 -std=c11 -Wall -Wextra -Werror \
+  -c "$project_root/runtime/platform_$runtime_platform.c" \
+  -o "$host_runtime_platform_object"
+host_link() {
+  case " $* " in
+    *native-core*.o*|*core-*.o*)
+      "$host_compiler" "$@" $host_runtime_sources "$host_runtime_platform_object" ;;
+    *) "$host_compiler" "$@" ;;
+  esac
+}
+
 module_source() {
   case $1 in
     atoms|reader) printf '%s/bootstrap/frontend/%s.lisp' "$project_root" "$1" ;;
@@ -63,54 +80,54 @@ run_host() {
 if test -n "${PSL_NATIVE_CORE_OBJECT:-}"; then
   cp "$PSL_NATIVE_CORE_OBJECT" "$work_dir/native-core.o"
 else
-  "$project_root/pslcc" --target="$host_target" -c \
+  "$project_root/pslcc" --profile=hosted --target="$host_target" -c \
     "$project_root/bootstrap/native-core.lisp" \
     -o "$work_dir/native-core.o"
 fi
 if test -n "${PSL_NATIVE_HOST_OBJECT:-}"; then
   cp "$PSL_NATIVE_HOST_OBJECT" "$work_dir/native-host.o"
 else
-  "$project_root/pslcc" --target="$host_target" -c \
+  "$project_root/pslcc" --profile=hosted --target="$host_target" -c \
     "$project_root/bootstrap/host/driver.lisp" -o "$work_dir/native-host.o"
 fi
 if test -n "${PSL_NATIVE_SOURCE_OBJECT:-}"; then
   cp "$PSL_NATIVE_SOURCE_OBJECT" "$work_dir/native-source.o"
 else
-  "$project_root/pslcc" --target="$host_target" -c \
+  "$project_root/pslcc" --profile=hosted --target="$host_target" -c \
     "$project_root/bootstrap/host/source_unit.lisp" -o "$work_dir/native-source.o"
 fi
 if test -n "${PSL_NATIVE_INPUT_OBJECT:-}"; then
   cp "$PSL_NATIVE_INPUT_OBJECT" "$work_dir/native-input.o"
 else
-  "$project_root/pslcc" --target="$host_target" -c \
+  "$project_root/pslcc" --profile=hosted --target="$host_target" -c \
     "$project_root/bootstrap/host/source_io.lisp" -o "$work_dir/native-input.o"
 fi
 if test -n "${PSL_NATIVE_PATH_OBJECT:-}"; then
   cp "$PSL_NATIVE_PATH_OBJECT" "$work_dir/native-path.o"
 else
-  "$project_root/pslcc" --target="$host_target" -c \
+  "$project_root/pslcc" --profile=hosted --target="$host_target" -c \
     "$project_root/$path_source" -o "$work_dir/native-path.o"
 fi
 if test -n "${PSL_NATIVE_DRIVER_OBJECT:-}"; then
   cp "$PSL_NATIVE_DRIVER_OBJECT" "$work_dir/native-driver.o"
 else
-  "$project_root/pslcc" --target="$host_target" -c \
+  "$project_root/pslcc" --profile=hosted --target="$host_target" -c \
     "$project_root/bootstrap/host/compiler.lisp" -o "$work_dir/native-driver.o"
 fi
 if test -n "${PSL_NATIVE_OUTPUT_OBJECT:-}"; then
   cp "$PSL_NATIVE_OUTPUT_OBJECT" "$work_dir/native-output.o"
 else
-  "$project_root/pslcc" --target="$host_target" -c \
+  "$project_root/pslcc" --profile=hosted --target="$host_target" -c \
     "$project_root/bootstrap/host/output.lisp" -o "$work_dir/native-output.o"
 fi
 if test -n "${PSL_NATIVE_DIAGNOSTICS_OBJECT:-}"; then
   cp "$PSL_NATIVE_DIAGNOSTICS_OBJECT" "$work_dir/native-diagnostics.o"
 else
-  "$project_root/pslcc" --target="$host_target" -c \
+  "$project_root/pslcc" --profile=hosted --target="$host_target" -c \
     "$project_root/bootstrap/host/diagnostics.lisp" \
     -o "$work_dir/native-diagnostics.o"
 fi
-"$host_compiler" -std=c11 -Wall -Wextra -Werror \
+host_link -std=c11 -Wall -Wextra -Werror \
   "$project_root/tests/harness_bootstrap_reader_metadata.c" "$work_dir/native-core.o" \
   -o "$work_dir/reader-metadata-check$host_suffix"
 run_host "$work_dir/reader-metadata-check$host_suffix"
@@ -120,17 +137,17 @@ if test "$host_target" = x86_64-linux-gnu; then
   source_allocator_flags='-DPSL_TEST_ALLOCATOR_FAULTS -Wl,--wrap=malloc -Wl,--wrap=calloc -Wl,--wrap=realloc -Wl,--wrap=free'
 fi
 mkdir "$work_dir/source-input-fixtures"
-"$host_compiler" -std=c11 -Wall -Wextra -Werror $source_allocator_flags \
+host_link -std=c11 -Wall -Wextra -Werror $source_allocator_flags \
   "$project_root/tests/harness_bootstrap_source_io.c" "$work_dir/native-input.o" \
   -o "$work_dir/source-input-check$host_suffix"
 run_host "$work_dir/source-input-check$host_suffix" "$work_dir/source-input-fixtures"
-"$host_compiler" -std=c11 -Wall -Wextra -Werror $path_expect \
+host_link -std=c11 -Wall -Wextra -Werror $path_expect \
   "$project_root/tests/harness_bootstrap_source_path.c" "$work_dir/native-path.o" \
   -o "$work_dir/source-path-check$host_suffix"
 run_host "$work_dir/source-path-check$host_suffix" \
   "$project_root/bootstrap/native-core.lisp" \
   "$project_root/bootstrap/./native-core.lisp" "$work_dir/missing-path"
-"$host_compiler" -Wall -Wextra -Werror $source_allocator_flags \
+host_link -Wall -Wextra -Werror $source_allocator_flags \
   "$project_root/tests/harness_bootstrap_source_unit.c" \
   "$work_dir/native-core.o" "$work_dir/native-source.o" -o "$work_dir/source-unit-check$host_suffix"
 run_host "$work_dir/source-unit-check$host_suffix"
@@ -138,11 +155,11 @@ allocator_flags=
 if test "$host_target" = x86_64-linux-gnu; then
   allocator_flags='-DPSL_TEST_ALLOCATOR_FAULTS -Wl,--wrap=calloc -Wl,--wrap=free'
 fi
-"$host_compiler" -Wall -Wextra -Werror $allocator_flags \
+host_link -Wall -Wextra -Werror $allocator_flags \
   "$project_root/tests/harness_bootstrap_driver.c" \
   "$work_dir/native-core.o" "$work_dir/native-host.o" -o "$work_dir/driver-check$host_suffix"
 run_host "$work_dir/driver-check$host_suffix"
-"$host_compiler" -Wall -Wextra -Werror $allocator_flags \
+host_link -Wall -Wextra -Werror $allocator_flags \
   "$project_root/tests/harness_bootstrap_compiler.c" "$work_dir/native-driver.o" \
   -o "$work_dir/compiler-driver-check$host_suffix"
 run_host "$work_dir/compiler-driver-check$host_suffix"
@@ -151,7 +168,7 @@ compiler_link_flags=
 if test "$host_target" = x86_64-windows-gnu; then
   compiler_link_flags='-Wl,--stack,8388608'
 fi
-"$host_compiler" -Wall -Wextra -Werror $compiler_link_flags "$project_root/bootstrap/driver.c" \
+host_link -Wall -Wextra -Werror $compiler_link_flags "$project_root/bootstrap/driver.c" \
   "$project_root/bootstrap/host/platform_stdio.c" \
   "$project_root/bootstrap/host/platform_toolchain.c" \
   "$work_dir/native-core.o" "$work_dir/native-host.o" "$work_dir/native-source.o" \
@@ -168,7 +185,7 @@ run_host "$work_dir/pslcc-native-slice$host_suffix" -O1 --target="$host_target" 
   "$project_root/bootstrap/object/static_data.lisp" \
   "$work_dir/static-data-native.o"
 for writer in stage0 native; do
-  "$host_compiler" -std=c11 -Wall -Wextra -Werror \
+  host_link -std=c11 -Wall -Wextra -Werror \
     "$project_root/tests/harness_bootstrap_static_data_writer.c" \
     "$work_dir/static-data-$writer.o" \
     -o "$work_dir/static-data-$writer$host_suffix"
@@ -177,7 +194,7 @@ for writer in stage0 native; do
 done
 cmp "$work_dir/static-data-output-stage0.o" \
     "$work_dir/static-data-output-native.o"
-"$host_compiler" -std=c11 -Wall -Wextra -Werror \
+host_link -std=c11 -Wall -Wextra -Werror \
   "$project_root/tests/harness_bootstrap_static_data.c" \
   "$work_dir/static-data-output-native.o" \
   -o "$work_dir/static-data-check$host_suffix"
@@ -309,7 +326,7 @@ if objdump -d "$work_dir/inline-1.o" | grep -q 'call.*<inline_pair>'; then
   exit 1
 fi
 objdump -d "$work_dir/inline-1.o" | grep -q 'call.*<inline_load>'
-"$host_compiler" -Wall -Wextra -Werror "$project_root/tests/harness_bootstrap_inline_api.c" \
+host_link -Wall -Wextra -Werror "$project_root/tests/harness_bootstrap_inline_api.c" \
   "$work_dir/native-core.o" "$work_dir/native-host.o" -o "$work_dir/inline-api$host_suffix"
 run_host "$work_dir/inline-api$host_suffix"
 for level in 0 1; do
@@ -382,22 +399,24 @@ if test "$host_target" = x86_64-linux-gnu; then
   "$work_dir/compiler-native-check"
 fi
 if test "$host_target" = x86_64-linux-gnu; then
-  cc -Wall -Wextra -Werror $source_allocator_flags \
+  host_link -Wall -Wextra -Werror $source_allocator_flags \
     "$project_root/tests/harness_bootstrap_source_unit.c" \
     "$work_dir/native-core.o" "$work_dir/native-source-native.o" -o "$work_dir/source-native-check"
   "$work_dir/source-native-check"
 fi
-test "$(nm -u "$work_dir/native-host-native.o" | wc -l)" -eq 3
+test "$(nm -u "$work_dir/native-host-native.o" | wc -l)" -eq 5
 nm -u "$work_dir/native-host-native.o" | grep -q ' U calloc$'
 nm -u "$work_dir/native-host-native.o" | grep -q ' U free$'
 nm -u "$work_dir/native-host-native.o" | grep -q ' U native_ct_seed_standard$'
+nm -u "$work_dir/native-host-native.o" | grep -q ' U psl_rt_value_handle_open$'
+nm -u "$work_dir/native-host-native.o" | grep -q ' U psl_rt_value_handle_close$'
 if test "$host_target" = x86_64-linux-gnu; then
-  cc -Wall -Wextra -Werror $allocator_flags \
+  host_link -Wall -Wextra -Werror $allocator_flags \
     "$project_root/tests/harness_bootstrap_driver.c" \
     "$work_dir/native-core.o" "$work_dir/native-host-native.o" -o "$work_dir/driver-native-check"
   "$work_dir/driver-native-check"
 fi
-"$host_compiler" -Wall -Wextra -Werror \
+host_link -Wall -Wextra -Werror \
   "$project_root/tests/harness_bootstrap_unit.c" \
   "$work_dir/native-core.o" -o "$work_dir/unit-api$host_suffix"
 run_host "$work_dir/unit-api$host_suffix" "$work_dir/unit-api.o"
@@ -405,23 +424,23 @@ readelf -r "$work_dir/unit-api.o" | grep -q 'R_X86_64_PLT32.*unit_c - 4'
 cc -Wall -Wextra -Werror "$project_root/tests/harness_bootstrap_unit_output.c" \
   "$work_dir/unit-api.o" -o "$work_dir/unit-api-output"
 "$work_dir/unit-api-output"
-"$host_compiler" -Wall -Wextra -Werror \
+host_link -Wall -Wextra -Werror \
   "$project_root/tests/harness_bootstrap_hir.c" \
   "$work_dir/native-core.o" -o "$work_dir/hir-verifier$host_suffix"
 run_host "$work_dir/hir-verifier$host_suffix"
-"$host_compiler" -Wall -Wextra -Werror \
+host_link -Wall -Wextra -Werror \
   "$project_root/tests/harness_bootstrap_memory_hir.c" \
   "$work_dir/native-core.o" -o "$work_dir/memory-hir-verifier$host_suffix"
 run_host "$work_dir/memory-hir-verifier$host_suffix"
-"$host_compiler" -Wall -Wextra -Werror \
+host_link -Wall -Wextra -Werror \
   "$project_root/tests/harness_bootstrap_ir.c" \
   "$work_dir/native-core.o" -o "$work_dir/ir-verifier$host_suffix"
 run_host "$work_dir/ir-verifier$host_suffix"
-"$host_compiler" -Wall -Wextra -Werror \
+host_link -Wall -Wextra -Werror \
   "$project_root/tests/harness_bootstrap_layout.c" \
   "$work_dir/native-core.o" -o "$work_dir/layout-check$host_suffix"
 run_host "$work_dir/layout-check$host_suffix"
-"$host_compiler" -Wall -Wextra -Werror \
+host_link -Wall -Wextra -Werror \
   "$project_root/tests/harness_bootstrap_signatures.c" \
   "$project_root/tests/provider_bootstrap_source_diagnostics.c" \
   "$work_dir/native-core.o" "$work_dir/native-source.o" "$work_dir/native-input.o" \
@@ -433,7 +452,7 @@ run_host "$work_dir/signature-check$host_suffix" \
   "$project_root/bootstrap/frontend/atoms.lisp" \
   "$project_root/bootstrap/frontend/reader.lisp"
 
-"$host_compiler" -Wall -Wextra -Werror \
+host_link -Wall -Wextra -Werror \
   "$project_root/tests/harness_bootstrap_source.c" \
   "$work_dir/native-core.o" -o "$work_dir/source-check$host_suffix"
 run_host "$work_dir/source-check$host_suffix"
@@ -486,7 +505,7 @@ for module in parser source; do
   test "$(nm -u "$work_dir/$module-native.o" | wc -l)" -eq 0
 done
 
-"$host_compiler" -Wall -Wextra -Werror \
+host_link -Wall -Wextra -Werror \
   "$project_root/tests/harness_bootstrap_relocations.c" \
   "$work_dir/native-core.o" -o "$work_dir/relocation-check$host_suffix"
 run_host "$work_dir/relocation-check$host_suffix"
@@ -840,7 +859,7 @@ cc -Wall -Wextra -Werror \
 "$work_dir/integer-module-stage0"
 
 for source in bootstrap_usize bootstrap_integer_types bootstrap_mixed_integers; do
-  "$project_root/pslcc" --target=x86_64-linux-gnu -c \
+  "$project_root/pslcc" --profile=hosted --target=x86_64-linux-gnu -c \
     "$project_root/tests/$source.lisp" -o "$work_dir/$source-stage0.o"
   cc -Wall -Wextra -Werror "$project_root/tests/harness_$source.c" \
     "$work_dir/$source-stage0.o" -o "$work_dir/$source-stage0"
@@ -988,13 +1007,13 @@ run_host "$work_dir/pslcc-native-slice$host_suffix" --target="$host_target" \
     "$project_root/tests/bootstrap_symbols.lisp" "$work_dir/symbols.o"
 nm -g --defined-only "$work_dir/symbols.o" | grep -q ' T answer$'
 nm --defined-only "$work_dir/symbols.o" | grep -q ' t helper-one$'
-"$host_compiler" -Wall -Wextra -Werror "$project_root/tests/harness_bootstrap_symbols.c" \
+host_link -Wall -Wextra -Werror "$project_root/tests/harness_bootstrap_symbols.c" \
   "$work_dir/symbols.o" -o "$work_dir/symbols$host_suffix"
 run_host "$work_dir/symbols$host_suffix"
 "$project_root/pslcc" --target="$host_target" -c \
   "$project_root/tests/bootstrap_symbols.lisp" \
   -o "$work_dir/symbols-stage0.o"
-"$host_compiler" -Wall -Wextra -Werror \
+host_link -Wall -Wextra -Werror \
   "$project_root/tests/harness_bootstrap_symbols.c" \
   "$work_dir/symbols-stage0.o" -o "$work_dir/symbols-stage0$host_suffix"
 run_host "$work_dir/symbols-stage0$host_suffix"
@@ -1065,22 +1084,22 @@ for source in bootstrap_mixed_operator bootstrap_mixed_argument bootstrap_cast_a
 done
 
 if test "$host_target" != x86_64-linux-gnu; then
-  "$project_root/pslcc" --target=x86_64-linux-gnu -c \
+  "$project_root/pslcc" --profile=hosted --target=x86_64-linux-gnu -c \
     "$project_root/bootstrap/native-core.lisp" \
     -o "$work_dir/native-reference-core.o"
-  "$project_root/pslcc" -c "$project_root/bootstrap/host/driver.lisp" \
+  "$project_root/pslcc" --profile=hosted -c "$project_root/bootstrap/host/driver.lisp" \
     -o "$work_dir/native-reference-host.o"
-  "$project_root/pslcc" -c "$project_root/bootstrap/host/source_unit.lisp" \
+  "$project_root/pslcc" --profile=hosted -c "$project_root/bootstrap/host/source_unit.lisp" \
     -o "$work_dir/native-reference-source.o"
-  "$project_root/pslcc" -c "$project_root/bootstrap/host/source_io.lisp" \
+  "$project_root/pslcc" --profile=hosted -c "$project_root/bootstrap/host/source_io.lisp" \
     -o "$work_dir/native-reference-input.o"
-  "$project_root/pslcc" -c "$project_root/bootstrap/host/source_path_posix.lisp" \
+  "$project_root/pslcc" --profile=hosted -c "$project_root/bootstrap/host/source_path_posix.lisp" \
     -o "$work_dir/native-reference-path.o"
-  "$project_root/pslcc" -c "$project_root/bootstrap/host/compiler.lisp" \
+  "$project_root/pslcc" --profile=hosted -c "$project_root/bootstrap/host/compiler.lisp" \
     -o "$work_dir/native-reference-driver.o"
-  "$project_root/pslcc" -c "$project_root/bootstrap/host/output.lisp" \
+  "$project_root/pslcc" --profile=hosted -c "$project_root/bootstrap/host/output.lisp" \
     -o "$work_dir/native-reference-output.o"
-  "$project_root/pslcc" -c "$project_root/bootstrap/host/diagnostics.lisp" \
+  "$project_root/pslcc" --profile=hosted -c "$project_root/bootstrap/host/diagnostics.lisp" \
     -o "$work_dir/native-reference-diagnostics.o"
   cc -Wall -Wextra -Werror "$project_root/bootstrap/driver.c" \
     "$project_root/bootstrap/host/platform_stdio.c" \
@@ -1194,29 +1213,29 @@ if test "$host_target" != x86_64-linux-gnu; then
   cmp "$work_dir/pointers.o" "$work_dir/pointers-reference.o"
 fi
 
-"$project_root/pslcc" -O0 --target="$host_target" -c \
+"$project_root/pslcc" -O0 --profile=hosted --target="$host_target" -c \
   "$project_root/bootstrap/native-core.lisp" \
   -o "$work_dir/native-core-O0.o"
-"$project_root/pslcc" -O0 --target="$host_target" -c \
+"$project_root/pslcc" -O0 --profile=hosted --target="$host_target" -c \
   "$project_root/bootstrap/host/driver.lisp" -o "$work_dir/native-host-O0.o"
-"$project_root/pslcc" -O0 --target="$host_target" -c \
+"$project_root/pslcc" -O0 --profile=hosted --target="$host_target" -c \
   "$project_root/bootstrap/host/source_unit.lisp" -o "$work_dir/native-source-O0.o"
-"$project_root/pslcc" -O0 --target="$host_target" -c \
+"$project_root/pslcc" -O0 --profile=hosted --target="$host_target" -c \
   "$project_root/bootstrap/host/source_io.lisp" -o "$work_dir/native-input-O0.o"
-"$project_root/pslcc" -O0 --target="$host_target" -c \
+"$project_root/pslcc" -O0 --profile=hosted --target="$host_target" -c \
   "$project_root/$path_source" -o "$work_dir/native-path-O0.o"
-"$project_root/pslcc" -O0 --target="$host_target" -c \
+"$project_root/pslcc" -O0 --profile=hosted --target="$host_target" -c \
   "$project_root/bootstrap/host/compiler.lisp" -o "$work_dir/native-driver-O0.o"
-"$project_root/pslcc" -O0 --target="$host_target" -c \
+"$project_root/pslcc" -O0 --profile=hosted --target="$host_target" -c \
   "$project_root/bootstrap/host/output.lisp" -o "$work_dir/native-output-O0.o"
-"$project_root/pslcc" -O0 --target="$host_target" -c \
+"$project_root/pslcc" -O0 --profile=hosted --target="$host_target" -c \
   "$project_root/bootstrap/host/diagnostics.lisp" \
   -o "$work_dir/native-diagnostics-O0.o"
-"$host_compiler" -Wall -Wextra -Werror $allocator_flags \
+host_link -Wall -Wextra -Werror $allocator_flags \
   "$project_root/tests/harness_bootstrap_compiler.c" "$work_dir/native-driver-O0.o" \
   -o "$work_dir/compiler-driver-O0-check$host_suffix"
 run_host "$work_dir/compiler-driver-O0-check$host_suffix"
-"$host_compiler" -Wall -Wextra -Werror $source_allocator_flags \
+host_link -Wall -Wextra -Werror $source_allocator_flags \
   "$project_root/tests/harness_bootstrap_source_unit.c" \
   "$work_dir/native-core-O0.o" "$work_dir/native-source-O0.o" -o "$work_dir/source-unit-O0-check$host_suffix"
 run_host "$work_dir/source-unit-O0-check$host_suffix"
@@ -1225,7 +1244,7 @@ if test "$host_target" = x86_64-linux-gnu; then
     "$work_dir/native-core-O0.o" "$work_dir/native-source-O0.o" \
     "$work_dir/native-input-O0.o" "$work_dir/native-path-O0.o"
 fi
-"$host_compiler" -Wall -Wextra -Werror $allocator_flags \
+host_link -Wall -Wextra -Werror $allocator_flags \
   "$project_root/tests/harness_bootstrap_driver.c" \
   "$work_dir/native-core-O0.o" "$work_dir/native-host-O0.o" -o "$work_dir/driver-O0-check$host_suffix"
 run_host "$work_dir/driver-O0-check$host_suffix"
@@ -1234,7 +1253,7 @@ compiler_link_flags=
 if test "$host_target" = x86_64-windows-gnu; then
   compiler_link_flags='-Wl,--stack,8388608'
 fi
-"$host_compiler" -Wall -Wextra -Werror $compiler_link_flags "$project_root/bootstrap/driver.c" \
+host_link -Wall -Wextra -Werror $compiler_link_flags "$project_root/bootstrap/driver.c" \
   "$project_root/bootstrap/host/platform_stdio.c" \
   "$project_root/bootstrap/host/platform_toolchain.c" \
   "$work_dir/native-core-O0.o" "$work_dir/native-host-O0.o" "$work_dir/native-source-O0.o" \

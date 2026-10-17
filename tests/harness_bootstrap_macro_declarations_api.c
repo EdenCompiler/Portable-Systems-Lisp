@@ -1,4 +1,6 @@
 #include "../bootstrap/native_api.h"
+#include "../runtime/psl_runtime.h"
+#include "harness_bootstrap_macro_registry.h"
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
@@ -24,13 +26,12 @@ int main(void) {
     struct native_compile_context compiler={.parser=&parser,.source=(const uint8_t *)text,.integer=&integer,
         .data_bytes=scratch,.data_byte_capacity=sizeof scratch};
     struct native_tree_context tree={.parser=&parser,.reader=&reader,.limit=32};
-    struct native_macro_definition definitions[5]={{0}};
-    struct native_macro_registry registry={.parser=&parser,.source=(const uint8_t *)text,.tree=&tree,.definitions=definitions,.capacity=5};
+    uintptr_t definition_handle=macro_test_open_definition_handle(5);
+    struct native_macro_registry registry={.parser=&parser,.source=(const uint8_t *)text,.tree=&tree,.definition_handle=definition_handle,.capacity=5};
     uintptr_t definition=parser_next(&parser);
     assert(definition && native_resolve_source_identities(&compiler,&reader));
     assert(native_macro_register(&registry,definition)==1);
-    struct native_macro_binding bindings[3]={{0}};
-    struct native_macro_call call={.registry=&registry,.bindings=bindings,.capacity=3,.step_limit=32};
+    struct native_macro_call call={.registry=&registry,.binding_handle=psl_rt_value_handle_open(),.capacity=3,.step_limit=32};
     struct native_macro_expansion result={0};
     for (unsigned supplied=0;supplied<2;++supplied) {
         uintptr_t form=parser_next(&parser);
@@ -92,8 +93,12 @@ int main(void) {
     assert(identities[result.form-1].symbol==env.nil_symbol);
     assert(identities[result.form-1].origin==form);
     assert(native_tree_verify(&tree,result.form));
-    struct native_macro_definition saved_definitions[5];
-    memcpy(saved_definitions,definitions,sizeof definitions);
+    uintptr_t saved_definitions[5][3];
+    for(unsigned i=1;i<=registry.count;++i) {
+        saved_definitions[i-1][0]=native_macro_definition_symbol_at(&registry,i);
+        saved_definitions[i-1][1]=native_macro_definition_parameters_at(&registry,i);
+        saved_definitions[i-1][2]=native_macro_definition_body_at(&registry,i);
+    }
     for(unsigned invalid=0;invalid<3;++invalid) {
         registry.error=0; tree.error=0;
         definition=parser_next(&parser);
@@ -102,7 +107,11 @@ int main(void) {
         struct psl_ast_node before[256]; memcpy(before,nodes,count*sizeof *nodes);
         assert(!native_macro_register(&registry,definition));
         assert(registry.error==NATIVE_MACRO_UNSUPPORTED && registry.count==4);
-        assert(!memcmp(saved_definitions,definitions,sizeof definitions));
+        for(unsigned i=1;i<=registry.count;++i) {
+            assert(saved_definitions[i-1][0]==native_macro_definition_symbol_at(&registry,i));
+            assert(saved_definitions[i-1][1]==native_macro_definition_parameters_at(&registry,i));
+            assert(saved_definitions[i-1][2]==native_macro_definition_body_at(&registry,i));
+        }
         assert(!memcmp(before,nodes,count*sizeof *nodes));
         assert(parser.count==count && reader.count==count);
     }
@@ -117,6 +126,8 @@ int main(void) {
     assert(identities[result.form-1].symbol==identities[argument-1].symbol);
     assert(identities[result.form-1].origin==argument);
     assert(native_tree_verify(&tree,result.form));
+    psl_rt_value_handle_close(call.binding_handle);
+    macro_test_close_definition_handle(definition_handle);
     puts("macro declaration API preserves caller syntax, rejects unsupported specifications without publication and recovers");
 
 

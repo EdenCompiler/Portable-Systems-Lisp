@@ -23,9 +23,12 @@ NATIVE_OUTPUT := $(BUILD_DIR)/native-output.o
 NATIVE_DIAGNOSTICS := $(BUILD_DIR)/native-diagnostics.o
 NATIVE_OBJECTS := $(NATIVE_CORE) $(NATIVE_HOST) $(NATIVE_SOURCE) $(NATIVE_INPUT) $(NATIVE_PATH) $(NATIVE_DRIVER) $(NATIVE_OUTPUT) $(NATIVE_DIAGNOSTICS)
 HOST_SOURCES := bootstrap/driver.c bootstrap/host/platform_stdio.c bootstrap/host/platform_toolchain.c
+RUNTIME_SOURCES := runtime/value.c runtime/cons.c runtime/string.c runtime/symbol.c \
+	runtime/package.c runtime/closure.c runtime/vector.c runtime/values.c \
+	runtime/gc.c runtime/startup.c runtime/platform_linux.c
 HOST_HEADERS := $(shell find bootstrap -name '*.h')
 
-.PHONY: test-native-freestanding-link test-native-large-startup test-native-compile-time test-native-macro-growth test-native-none-objects test-native-cl-user test-native-cli-ir test-native-cli-link test-managed-vectors test-native-vectors test-native-source-identities test-lexical-validation all compiler native stage0 compile example test test-native test-static-data test-self-core test-bootstrap-corpus test-native-environment test-native-cli test-native-ir test-native-function-addresses test-native-closures \
+.PHONY: test-native-freestanding-link test-native-large-startup test-native-compile-time test-native-macro-growth test-native-none-objects test-native-cl-user test-native-cli-ir test-native-cli-link test-managed-vectors test-native-vectors test-native-source-identities test-lexical-validation all compiler native stage0 compile example test test-native test-static-data test-self-core test-bootstrap-corpus test-native-environment test-native-cli test-native-ir test-native-function-addresses test-native-closures test-native-macros \
         test-windows test-native-win64-frame test-native-managed test-native-roots test-native-byte-strings test-native-string-literals test-native-runtime-symbols test-native-multiple-values test-native-word-aggregates test-native-integer-aggregates test-native-float-aggregates test-native-windows test-aarch64 test-native-aarch64 test-native-riscv64 test-riscv64 clean help
 
 all: compiler
@@ -49,32 +52,32 @@ $(BUILD_DIR):
 	mkdir -p "$@"
 
 $(NATIVE_CORE): $(BOOTSTRAP_SOURCES) $(STAGE0_SOURCES) | $(BUILD_DIR)
-	$(PSLCC) $(PSLFLAGS) -c bootstrap/native-core.lisp -o "$@"
+	$(PSLCC) $(PSLFLAGS) --profile=hosted -c bootstrap/native-core.lisp -o "$@"
 
 $(NATIVE_HOST): $(BOOTSTRAP_SOURCES) $(STAGE0_SOURCES) | $(BUILD_DIR)
-	$(PSLCC) $(PSLFLAGS) -c bootstrap/host/driver.lisp -o "$@"
+	$(PSLCC) $(PSLFLAGS) --profile=hosted -c bootstrap/host/driver.lisp -o "$@"
 
 $(NATIVE_SOURCE): $(BOOTSTRAP_SOURCES) $(STAGE0_SOURCES) | $(BUILD_DIR)
-	$(PSLCC) $(PSLFLAGS) -c bootstrap/host/source_unit.lisp -o "$@"
+	$(PSLCC) $(PSLFLAGS) --profile=hosted -c bootstrap/host/source_unit.lisp -o "$@"
 
 $(NATIVE_INPUT): $(BOOTSTRAP_SOURCES) $(STAGE0_SOURCES) | $(BUILD_DIR)
-	$(PSLCC) $(PSLFLAGS) -c bootstrap/host/source_io.lisp -o "$@"
+	$(PSLCC) $(PSLFLAGS) --profile=hosted -c bootstrap/host/source_io.lisp -o "$@"
 
 $(NATIVE_PATH): $(BOOTSTRAP_SOURCES) $(STAGE0_SOURCES) | $(BUILD_DIR)
-	$(PSLCC) $(PSLFLAGS) -c bootstrap/host/source_path_posix.lisp -o "$@"
+	$(PSLCC) $(PSLFLAGS) --profile=hosted -c bootstrap/host/source_path_posix.lisp -o "$@"
 
 $(NATIVE_DRIVER): $(BOOTSTRAP_SOURCES) $(STAGE0_SOURCES) | $(BUILD_DIR)
-	$(PSLCC) $(PSLFLAGS) -c bootstrap/host/compiler.lisp -o "$@"
+	$(PSLCC) $(PSLFLAGS) --profile=hosted -c bootstrap/host/compiler.lisp -o "$@"
 
 $(NATIVE_OUTPUT): $(BOOTSTRAP_SOURCES) $(STAGE0_SOURCES) | $(BUILD_DIR)
-	$(PSLCC) $(PSLFLAGS) -c bootstrap/host/output.lisp -o "$@"
+	$(PSLCC) $(PSLFLAGS) --profile=hosted -c bootstrap/host/output.lisp -o "$@"
 
 $(NATIVE_DIAGNOSTICS): $(BOOTSTRAP_SOURCES) $(STAGE0_SOURCES) | $(BUILD_DIR)
-	$(PSLCC) $(PSLFLAGS) -c bootstrap/host/diagnostics.lisp -o "$@"
+	$(PSLCC) $(PSLFLAGS) --profile=hosted -c bootstrap/host/diagnostics.lisp -o "$@"
 
 # Build the native compiler host for the current Linux typed subset.
-$(NATIVE_COMPILER): $(NATIVE_OBJECTS) $(HOST_SOURCES) $(HOST_HEADERS)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(HOST_SOURCES) $(NATIVE_OBJECTS) $(LDFLAGS) $(LDLIBS) -o "$@"
+$(NATIVE_COMPILER): $(NATIVE_OBJECTS) $(HOST_SOURCES) $(RUNTIME_SOURCES) $(HOST_HEADERS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(HOST_SOURCES) $(NATIVE_OBJECTS) $(RUNTIME_SOURCES) $(LDFLAGS) $(LDLIBS) -o "$@"
 
 $(BUILD_DIR)/arithmetic: examples/native/arithmetic.lisp $(STAGE0_SOURCES) | $(BUILD_DIR)
 	$(PSLCC) $(PSLFLAGS) "$<" -o "$@"
@@ -90,6 +93,9 @@ test-native: test-static-data
 
 test-native-managed: native
 	sh tests/bootstrap_managed_values.sh "$(NATIVE_COMPILER)" "$(TARGET)"
+
+test-native-macros: native
+	sh tests/bootstrap_macros.sh "$(NATIVE_COMPILER)" "$(TARGET)"
 
 test-native-roots: native
 	sh tests/bootstrap_managed_roots.sh "$(NATIVE_COMPILER)" "$(TARGET)"

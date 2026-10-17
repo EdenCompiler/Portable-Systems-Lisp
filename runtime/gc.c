@@ -7,6 +7,14 @@
 static psl_object *objects;
 static psl_root *roots;
 static psl_root *permanent_roots;
+struct psl_value_handle {
+    struct psl_value_handle *next;
+    size_t token;
+    psl_value value;
+};
+static struct psl_value_handle *value_handles;
+static size_t next_value_handle = 1;
+static size_t value_handle_count;
 static size_t object_count;
 static size_t collection_limit = 256;
 
@@ -59,6 +67,61 @@ void psl_rt_register_permanent_roots(psl_value *values, size_t count) {
     permanent_roots = root;
 }
 
+static struct psl_value_handle *find_value_handle(size_t token) {
+    if (token == 0) {
+        abort();
+    }
+    for (struct psl_value_handle *handle = value_handles; handle != NULL;
+         handle = handle->next) {
+        if (handle->token == token) {
+            return handle;
+        }
+    }
+    abort();
+}
+
+size_t psl_rt_value_handle_open(void) {
+    if (next_value_handle == SIZE_MAX) {
+        abort();
+    }
+    struct psl_value_handle *handle = malloc(sizeof(*handle));
+    if (handle == NULL) {
+        abort();
+    }
+    handle->token = next_value_handle++;
+    handle->value = PSL_NIL;
+    handle->next = value_handles;
+    value_handles = handle;
+    value_handle_count++;
+    return handle->token;
+}
+
+psl_value psl_rt_value_handle_get(size_t token) {
+    return find_value_handle(token)->value;
+}
+
+void psl_rt_value_handle_set(size_t token, psl_value value) {
+    find_value_handle(token)->value = value;
+}
+
+void psl_rt_value_handle_close(size_t token) {
+    struct psl_value_handle **link = &value_handles;
+    while (*link != NULL && (*link)->token != token) {
+        link = &(*link)->next;
+    }
+    if (token == 0 || *link == NULL) {
+        abort();
+    }
+    struct psl_value_handle *handle = *link;
+    *link = handle->next;
+    free(handle);
+    value_handle_count--;
+}
+
+size_t psl_rt_live_value_handles(void) {
+    return value_handle_count;
+}
+
 static void mark_value(psl_value value, psl_object **work, size_t *used) {
     psl_object *object = find_object(value);
     if (object != NULL && !object->marked) {
@@ -78,6 +141,10 @@ static void mark_registered_roots(psl_object **work, size_t *used) {
         for (size_t index = 0; index < root->count; index++) {
             mark_value(root->values[index], work, used);
         }
+    }
+    for (struct psl_value_handle *handle = value_handles; handle != NULL;
+         handle = handle->next) {
+        mark_value(handle->value, work, used);
     }
 }
 

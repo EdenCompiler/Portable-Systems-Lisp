@@ -36,8 +36,8 @@
   (aliases (ptr native_ct_alias))
   (identities (ptr native_source_identity))
   (buckets (ptr usize))
-  (macro_definitions (ptr native_macro_definition))
-  (macro_bindings (ptr native_macro_binding)))
+  (macro_definition_handle usize)
+  (macro_binding_handle usize))
 
 (defcstruct native_driver
   (source (ptr u8))

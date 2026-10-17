@@ -67,13 +67,13 @@ for level in 0 1; do
   status=$?; test "$status" -eq 1
  fi
  test ! -e "$work_dir/rejected.o"
- bootstrap_fixture_compile native "$compiler" "$level" "$target" freestanding \
+ bootstrap_fixture_compile native "$compiler" "$level" "$target" hosted \
   "$project_root/bootstrap/native-core.lisp" "$work_dir/native-core.o"
- bootstrap_fixture_compile native "$compiler" "$level" "$target" freestanding \
+ bootstrap_fixture_compile native "$compiler" "$level" "$target" hosted \
   "$project_root/bootstrap/host/driver.lisp" "$work_dir/native-host.o"
- bootstrap_fixture_compile seed "$project_root/pslcc" "$level" "$target" freestanding \
+ bootstrap_fixture_compile seed "$project_root/pslcc" "$level" "$target" hosted \
   "$project_root/bootstrap/native-core.lisp" "$work_dir/seed-core.o"
- bootstrap_fixture_compile seed "$project_root/pslcc" "$level" "$target" freestanding \
+ bootstrap_fixture_compile seed "$project_root/pslcc" "$level" "$target" hosted \
   "$project_root/bootstrap/host/driver.lisp" "$work_dir/seed-host.o"
  for version in native seed; do
   "$target_cc" -O2 -std=c11 -Wall -Wextra -Werror "$project_root/tests/harness_bootstrap_closure_ir_api.c" "$work_dir/$version-core.o" "$work_dir/$version-host.o" -o "$work_dir/api$target_suffix"

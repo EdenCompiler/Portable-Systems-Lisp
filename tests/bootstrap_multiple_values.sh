@@ -29,13 +29,13 @@ for level in 0 1; do
   "$target_cc" -O2 -std=c11 -Wall -Wextra -Werror "$project_root/tests/harness_bootstrap_multiple_values.c" "$work_dir/$version.o" "$project_root/runtime/value.c" "$project_root/runtime/cons.c" "$project_root/runtime/string.c" "$project_root/runtime/values.c" "$project_root/runtime/gc.c" "$project_root/runtime/startup.c" "$work_dir/platform.o" -o "$work_dir/check$target_suffix"
   run_target "$work_dir/check$target_suffix"
  done
- bootstrap_fixture_compile native "$compiler" "$level" "$target" freestanding \
+ bootstrap_fixture_compile native "$compiler" "$level" "$target" hosted \
   "$project_root/bootstrap/native-core.lisp" "$work_dir/native-core.o"
- bootstrap_fixture_compile native "$compiler" "$level" "$target" freestanding \
+ bootstrap_fixture_compile native "$compiler" "$level" "$target" hosted \
   "$project_root/bootstrap/host/driver.lisp" "$work_dir/native-host.o"
- bootstrap_fixture_compile seed "$project_root/pslcc" "$level" "$target" freestanding \
+ bootstrap_fixture_compile seed "$project_root/pslcc" "$level" "$target" hosted \
   "$project_root/bootstrap/native-core.lisp" "$work_dir/seed-core.o"
- bootstrap_fixture_compile seed "$project_root/pslcc" "$level" "$target" freestanding \
+ bootstrap_fixture_compile seed "$project_root/pslcc" "$level" "$target" hosted \
   "$project_root/bootstrap/host/driver.lisp" "$work_dir/seed-host.o"
  for version in native seed; do
   "$target_cc" -O2 -std=c11 -Wall -Wextra -Werror "$project_root/tests/harness_bootstrap_multiple_values_api.c" "$work_dir/$version-core.o" "$work_dir/$version-host.o" -o "$work_dir/api$target_suffix"

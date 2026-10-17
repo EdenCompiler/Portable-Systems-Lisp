@@ -126,7 +126,7 @@ if test "${PSL_SKIP_NATIVE_CORE_DUMP:-0}" = 1; then
   printf 'Native IR CLI selectors and object identity passed (%s; full-core dump run separately)\n' "$target"
 else
   # Exercise the capacity calculation on the largest owned compilation unit.
-  run_compiler_host "$compiler" -O1 -c "$project_root/bootstrap/native-core.lisp" \
+  run_compiler_host "$compiler" -O1 --profile=hosted -c "$project_root/bootstrap/native-core.lisp" \
     --target="$target" -o "$work_dir/native-core.o" --dump-ir=all \
     >"$work_dir/native-core.ir"
   test -s "$work_dir/native-core.o"

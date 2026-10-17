@@ -1,19 +1,24 @@
-;; Build-host macro definitions and argument bindings have separate ownership.
+;; Compiler-owned macro vectors are rooted by distinct host runtime handles.
+(ffi:import-function "psl_rt_value_handle_open" () -> usize)
+(ffi:import-function "psl_rt_value_handle_close" ((token usize)) -> void :no-allocation)
+
 (defun native_allocate_macros (storage)
   (declare (type (ptr native_storage) storage) (returns c-int))
-  (store (field-pointer storage 'macro_definitions)
-         (ptr-cast (ptr native_macro_definition)
-                   (ffi:call calloc 256 (sizeof 'native_macro_definition))))
-  (store (field-pointer storage 'macro_bindings)
-         (ptr-cast (ptr native_macro_binding)
-                   (ffi:call calloc 128 (sizeof 'native_macro_binding))))
-  (if (= (ptr-address (deref (field-pointer storage 'macro_definitions))) 0) 0
-      (if (= (ptr-address (deref (field-pointer storage 'macro_bindings))) 0) 0 1)))
+  (store (field-pointer storage 'macro_definition_handle)
+         (ffi:call psl_rt_value_handle_open))
+  (store (field-pointer storage 'macro_binding_handle)
+         (ffi:call psl_rt_value_handle_open))
+  (if (= (deref (field-pointer storage 'macro_definition_handle)) 0) 0
+      (if (= (deref (field-pointer storage 'macro_binding_handle)) 0) 0 1)))
 
 (defun native_release_macros (storage)
   (declare (type (ptr native_storage) storage) (returns c-int))
-  (ffi:call free (ptr-cast (ptr void) (deref (field-pointer storage 'macro_definitions))))
-  (store (field-pointer storage 'macro_definitions) (ptr-from-address (ptr native_macro_definition) 0))
-  (ffi:call free (ptr-cast (ptr void) (deref (field-pointer storage 'macro_bindings))))
-  (store (field-pointer storage 'macro_bindings) (ptr-from-address (ptr native_macro_binding) 0))
+  (let ((definitions (deref (field-pointer storage 'macro_definition_handle))))
+    (if (= definitions 0) 0
+        (progn (ffi:call psl_rt_value_handle_close definitions) 1)))
+  (store (field-pointer storage 'macro_definition_handle) 0)
+  (let ((handle (deref (field-pointer storage 'macro_binding_handle))))
+    (if (= handle 0) 0
+        (progn (ffi:call psl_rt_value_handle_close handle) 1)))
+  (store (field-pointer storage 'macro_binding_handle) 0)
   1)

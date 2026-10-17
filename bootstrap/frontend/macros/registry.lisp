@@ -5,6 +5,9 @@
 (include "../identity_syntax.lisp")
 (include "constant_names.lisp")
 
+(ffi:import-function "psl_rt_value_handle_open" () -> usize)
+(ffi:import-function "psl_rt_value_handle_close" ((token usize)) -> void :no-allocation)
+
 (defun native_macro_fail (registry error)
   (declare (type (ptr native_macro_registry) registry) (type u32 error) (returns usize))
   (if (= (deref (field-pointer registry 'error)) 0)
@@ -15,15 +18,86 @@
   (declare (type (ptr native_macro_registry) registry) (returns (ptr psl_parser)))
   (deref (field-pointer registry 'parser)))
 
-(defun native_macro_definition_at (registry index)
+(defun native_macro_definition_vector (registry)
+  (declare (type (ptr native_macro_registry) registry) (returns value))
+  (let ((handle (deref (field-pointer registry 'definition_handle))))
+    (let ((vector (ffi:call psl_rt_value_handle_get handle)))
+      (if (cl:eq vector nil)
+          (let ((created (psl:make-value-vector
+                          (deref (field-pointer registry 'capacity)) nil)))
+            (ffi:call psl_rt_value_handle_set handle created)
+            created)
+          vector))))
+
+(defun native_macro_definition_box (registry reference)
+  (declare (type (ptr native_macro_registry) registry) (type usize reference)
+           (returns value))
+  (if (< #x3fffffffffffffff reference)
+      (progn (native_macro_fail registry 4) nil)
+      (psl:box-fixnum (wrap-cast s64 reference))))
+
+(defun native_macro_definition_index_valid (registry index)
   (declare (type (ptr native_macro_registry) registry) (type usize index)
-           (returns (ptr native_macro_definition)))
-  (pointer+ (deref (field-pointer registry 'definitions)) (wrap-cast isize (wrap- index 1))))
+           (returns c-int))
+  (if (if (= index 0) t (< (deref (field-pointer registry 'count)) index))
+      (progn (native_macro_fail registry 4) 0) 1))
+
+(defun native_macro_definition_read_entry (registry index)
+  (declare (type (ptr native_macro_registry) registry) (type usize index)
+           (returns value))
+  (if (= (native_macro_definition_index_valid registry index) 0) nil
+      (psl:value-vector-ref (native_macro_definition_vector registry)
+                            (wrap- index 1))))
+
+(defun native_macro_definition_symbol_at (registry index)
+  (declare (type (ptr native_macro_registry) registry) (type usize index)
+           (returns usize) (c-export :c))
+  (if (= (native_macro_definition_index_valid registry index) 0) 0
+      (wrap-cast usize
+        (psl:unbox-fixnum
+          (cl:car (native_macro_definition_read_entry registry index))))))
+
+(defun native_macro_definition_parameters_at (registry index)
+  (declare (type (ptr native_macro_registry) registry) (type usize index)
+           (returns usize) (c-export :c))
+  (if (= (native_macro_definition_index_valid registry index) 0) 0
+      (let ((tail (cl:cdr (native_macro_definition_read_entry registry index))))
+        (wrap-cast usize (psl:unbox-fixnum (cl:car tail))))))
+
+(defun native_macro_definition_body_at (registry index)
+  (declare (type (ptr native_macro_registry) registry) (type usize index)
+           (returns usize) (c-export :c))
+  (if (= (native_macro_definition_index_valid registry index) 0) 0
+      (let ((tail (cl:cdr (native_macro_definition_read_entry registry index))))
+        (wrap-cast usize (psl:unbox-fixnum (cl:cdr tail))))))
+
+(defun native_macro_definition_set_at (registry index symbol parameters body)
+  (declare (type (ptr native_macro_registry) registry) (type usize index symbol parameters body)
+           (returns c-int) (c-export :c))
+  (if (if (= index 0) t (< (deref (field-pointer registry 'capacity)) index))
+      (progn (native_macro_fail registry 1) 0)
+      (if (< (wrap+ (deref (field-pointer registry 'count)) 1) index)
+          (progn (native_macro_fail registry 1) 0)
+      (if (if (= symbol 0) t (= parameters 0))
+          (progn (native_macro_fail registry 4) 0)
+          (let ((boxed_symbol (native_macro_definition_box registry symbol))
+                (boxed_parameters (native_macro_definition_box registry parameters))
+                (boxed_body (native_macro_definition_box registry body)))
+            (if (< 0 (deref (field-pointer registry 'error))) 0
+                (let ((temporary (ffi:call psl_rt_value_handle_open)))
+                  (let ((tail (cl:cons boxed_parameters boxed_body)))
+                    (ffi:call psl_rt_value_handle_set temporary tail)
+                    (let ((entry (cl:cons boxed_symbol
+                                          (ffi:call psl_rt_value_handle_get temporary))))
+                      (psl:value-vector-set (native_macro_definition_vector registry)
+                                            (wrap- index 1) entry)
+                      (ffi:call psl_rt_value_handle_close temporary)
+                      1)))))))))
 
 (defun native_macro_lookup_from (registry symbol index)
   (declare (type (ptr native_macro_registry) registry) (type usize symbol index) (returns usize))
   (if (< (deref (field-pointer registry 'count)) index) 0
-      (if (= (deref (field-pointer (native_macro_definition_at registry index) 'symbol)) symbol) index
+      (if (= (native_macro_definition_symbol_at registry index) symbol) index
           (native_macro_lookup_from registry symbol (wrap+ index 1)))))
 
 (defun native_macro_lookup (registry symbol)
@@ -198,12 +272,10 @@
   (let ((prior (native_macro_lookup registry symbol)))
     (let ((index (if (= prior 0) (wrap+ (deref (field-pointer registry 'count)) 1) prior)))
       (if (< (deref (field-pointer registry 'capacity)) index) (native_macro_fail registry 1)
-          (let ((definition (native_macro_definition_at registry index)))
-            (store (field-pointer definition 'symbol) symbol)
-            (store (field-pointer definition 'parameters) parameters)
-            (store (field-pointer definition 'body) body)
-            (if (= prior 0) (store (field-pointer registry 'count) index) (wrap-cast usize 0))
-            index)))))
+          (if (= (native_macro_definition_set_at registry index symbol parameters body) 0) 0
+              (progn
+                (if (= prior 0) (store (field-pointer registry 'count) index) (wrap-cast usize 0))
+                index))))))
 
 (defun native_macro_name_prefix_p (env symbol a b length index)
   (declare (type (ptr native_ct_environment) env) (type usize symbol length index)

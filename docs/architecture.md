@@ -560,8 +560,16 @@ evaluation. The list module evaluates element forms into fresh syntax lists
 using constructors shared with rest-argument binding. Expression/function
 modules select target executable positions.
 Generated nodes retain original source spans and separate origin references.
-The hosted driver allocates and releases the registry/binding arenas; the
-compiler core receives this storage through its explicit context.
+The hosted compiler stores macro definitions and lexical bindings in managed
+VALUE vectors. Each vector is held through an opaque runtime handle, so C driver
+records contain tokens rather than tagged VALUE bits or untracked heap
+pointers. Entries box source symbol and AST IDs as fixnums; they do not retain
+addresses into the caller-owned syntax arena. Driver release closes both
+handles. Native compiler modules are built hosted and explicitly link the
+runtime, independently of the selected profile of user output. Source bytes,
+parser nodes, identities, HIR/SSA/LIR, object buffers and diagnostics remain
+typed caller-owned arenas; this slice does not migrate those datasets to
+managed collections.
 
 The POSIX C-source adapter stages compiler/linker intermediates alongside the
 requested destination. Its final rename therefore publishes within one

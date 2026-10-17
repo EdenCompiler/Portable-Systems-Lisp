@@ -15,6 +15,12 @@ run_windows() {
   WINEDEBUG=-all wine "$@"
 }
 
+runtime_sources="$project_root/runtime/value.c $project_root/runtime/cons.c $project_root/runtime/string.c $project_root/runtime/symbol.c $project_root/runtime/package.c $project_root/runtime/closure.c $project_root/runtime/vector.c $project_root/runtime/values.c $project_root/runtime/gc.c $project_root/runtime/startup.c"
+cc -O0 -std=gnu11 -Wall -Wextra -Werror -c \
+  "$project_root/runtime/platform_linux.c" -o "$work_dir/runtime-platform-linux.o"
+"$cross_cc" -O0 -std=gnu11 -Wall -Wextra -Werror -c \
+  "$project_root/runtime/platform_windows.c" -o "$work_dir/runtime-platform-windows.o"
+
 check_fixture() {
   name=$1
   level=$2
@@ -120,14 +126,15 @@ compile_modules() {
     name=${pair%%:*}
     source=${pair#*:}
     if test "$generation" -eq 1; then
-      "$compiler" --target="$target" "$project_root/$source" "$work_dir/$name-$generation.o"
+      "$compiler" --profile=hosted --target="$target" "$project_root/$source" "$work_dir/$name-$generation.o"
     else
-      run_windows "$work_dir/compiler-$((generation - 1)).exe" --target="$target" \
+      run_windows "$work_dir/compiler-$((generation - 1)).exe" --profile=hosted --target="$target" \
         "$project_root/$source" "$work_dir/$name-$generation.o"
       cmp "$work_dir/$name-1.o" "$work_dir/$name-$generation.o"
     fi
   done
-  test "$("$cross_nm" -u "$work_dir/core-$generation.o" | wc -l)" -eq 0
+  "$cross_nm" -u "$work_dir/core-$generation.o" | grep -q 'psl_rt_value_handle_open'
+  "$cross_nm" -u "$work_dir/core-$generation.o" | grep -q 'psl_rt_value_handle_close'
   "$cross_cc" -Wall -Wextra -Werror "$project_root/bootstrap/driver.c" \
     "$project_root/bootstrap/host/platform_stdio.c" \
     "$project_root/bootstrap/host/platform_toolchain.c" \
@@ -135,6 +142,7 @@ compile_modules() {
     "$work_dir/source-$generation.o" "$work_dir/driver-$generation.o" \
     "$work_dir/input-$generation.o" "$work_dir/path-$generation.o" \
     "$work_dir/output-$generation.o" "$work_dir/diagnostics-$generation.o" \
+    $runtime_sources "$work_dir/runtime-platform-windows.o" \
     -o "$work_dir/compiler-$generation.exe"
 }
 
@@ -167,14 +175,16 @@ for generation in 1 2 3; do
 done
 
 # Exercise the public COFF writer from Linux and Windows compiler hosts.
-"$project_root/pslcc" -c "$project_root/bootstrap/native-core.lisp" \
+"$project_root/pslcc" --profile=hosted -c "$project_root/bootstrap/native-core.lisp" \
   -o "$work_dir/core-linux-api.o"
 cc -std=gnu11 -Wall -Wextra -Werror \
   "$project_root/tests/harness_bootstrap_coff.c" "$work_dir/core-linux-api.o" \
+  $runtime_sources "$work_dir/runtime-platform-linux.o" \
   -o "$work_dir/coff-linux-api"
 "$work_dir/coff-linux-api" "$work_dir/api-linux.o" "$work_dir/overflow-linux.o"
 "$cross_cc" -std=gnu11 -Wall -Wextra -Werror \
   "$project_root/tests/harness_bootstrap_coff.c" "$work_dir/core-1.o" \
+  $runtime_sources "$work_dir/runtime-platform-windows.o" \
   -o "$work_dir/coff-windows-api.exe"
 run_windows "$work_dir/coff-windows-api.exe" "$work_dir/api-windows.o" "$work_dir/overflow-windows.o"
 cmp "$work_dir/api-linux.o" "$work_dir/api-windows.o"

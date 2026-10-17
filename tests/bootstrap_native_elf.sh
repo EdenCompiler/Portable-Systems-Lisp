@@ -26,6 +26,10 @@ run_target() {
   "$emulator" -L "$sysroot" "$@"
 }
 
+runtime_sources="$project_root/runtime/value.c $project_root/runtime/cons.c $project_root/runtime/string.c $project_root/runtime/symbol.c $project_root/runtime/package.c $project_root/runtime/closure.c $project_root/runtime/vector.c $project_root/runtime/values.c $project_root/runtime/gc.c $project_root/runtime/startup.c"
+"$cross_cc" -O0 -std=c11 -Wall -Wextra -Werror -c \
+  "$project_root/runtime/platform_linux.c" -o "$work_dir/runtime-platform.o"
+
 check_fixture() {
   name=$1
   level=$2
@@ -141,14 +145,15 @@ compile_modules() {
     name=${pair%%:*}
     source=${pair#*:}
     if test "$generation" -eq 1; then
-      "$compiler" --target="$target" "$project_root/$source" "$work_dir/$name-$generation.o"
+      "$compiler" --profile=hosted --target="$target" "$project_root/$source" "$work_dir/$name-$generation.o"
     else
-      run_target "$work_dir/compiler-$((generation - 1))" --target="$target" \
+      run_target "$work_dir/compiler-$((generation - 1))" --profile=hosted --target="$target" \
         "$project_root/$source" "$work_dir/$name-$generation.o"
       cmp "$work_dir/$name-1.o" "$work_dir/$name-$generation.o"
     fi
   done
-  test "$(nm -u "$work_dir/core-$generation.o" | wc -l)" -eq 0
+  nm -u "$work_dir/core-$generation.o" | grep -q 'psl_rt_value_handle_open'
+  nm -u "$work_dir/core-$generation.o" | grep -q 'psl_rt_value_handle_close'
   "$cross_cc" -Wall -Wextra -Werror "$project_root/bootstrap/driver.c" \
     "$project_root/bootstrap/host/platform_stdio.c" \
     "$project_root/bootstrap/host/platform_toolchain.c" \
@@ -156,6 +161,7 @@ compile_modules() {
     "$work_dir/source-$generation.o" "$work_dir/driver-$generation.o" \
     "$work_dir/input-$generation.o" "$work_dir/path-$generation.o" \
     "$work_dir/output-$generation.o" "$work_dir/diagnostics-$generation.o" \
+    $runtime_sources "$work_dir/runtime-platform.o" \
     -o "$work_dir/compiler-$generation"
 }
 

@@ -1,4 +1,6 @@
 #include "../bootstrap/native_api.h"
+#include "../runtime/psl_runtime.h"
+#include "harness_bootstrap_macro_registry.h"
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
@@ -11,7 +13,20 @@ static struct native_ct_use uses[32];
 static struct native_ct_alias aliases[8];
 static struct native_source_identity identities[24000];
 static struct psl_ast_node nodes[24000];
-static uintptr_t next_form(struct psl_parser *,struct native_compile_context *,struct native_reader_environment *);
+static uintptr_t next_form(struct psl_parser *parser,struct native_compile_context *compiler,struct native_reader_environment *reader) {
+    uintptr_t form=parser_next(parser);
+    assert(form && native_resolve_source_identities(compiler,reader));
+    return form;
+}
+static void rejected(struct native_macro_call *call,uintptr_t form,struct native_macro_expansion *result,uint32_t error) {
+    struct psl_parser *parser=call->registry->parser;
+    uintptr_t count=parser->count;
+    assert(!native_macroexpand_1(call,form,result));
+    assert(call->error==error && !call->count && !call->registry->tree->depth);
+    assert(parser->count==count && parser->environment->count==count);
+    assert(result->form==form && !result->expanded);
+    call->error=0; call->registry->tree->error=0;
+}
 static void explicit_nil_default_identity(void) {
     const char *source="(defmacro nil_default (&key ((:value value) nil)) value) (nil_default) (nil_default :value nil)";
     memset(names,0,sizeof names); memset(packages,0,sizeof packages); memset(symbols,0,sizeof symbols);
@@ -29,19 +44,19 @@ static void explicit_nil_default_identity(void) {
     struct native_compile_context compiler={.parser=&parser,.source=(const uint8_t *)source,.integer=&integer,
         .data_bytes=scratch,.data_byte_capacity=sizeof scratch};
     struct native_tree_context tree={.parser=&parser,.reader=&reader,.limit=32};
-    struct native_macro_definition definitions[1]={{0}};
-    struct native_macro_registry registry={.parser=&parser,.source=(const uint8_t *)source,.tree=&tree,.definitions=definitions,.capacity=1};
+    uintptr_t definition_handle=macro_test_open_definition_handle(1);
+    struct native_macro_registry registry={.parser=&parser,.source=(const uint8_t *)source,.tree=&tree,.definition_handle=definition_handle,.capacity=1};
     uintptr_t definition=next_form(&parser,&compiler,&reader);
     assert(native_macro_register(&registry,definition)==1);
-    struct native_macro_binding bindings[1]={{0}};
-    struct native_macro_call call={.registry=&registry,.bindings=bindings,.capacity=0,.step_limit=32};
+    uintptr_t binding_handle=psl_rt_value_handle_open();
+    struct native_macro_call call={.registry=&registry,.binding_handle=binding_handle,.capacity=0,.step_limit=32};
     struct native_macro_expansion result={0};
     uintptr_t omitted=next_form(&parser,&compiler,&reader),count=parser.count;
     struct psl_ast_node before[64]; assert(count<=64); memcpy(before,nodes,count*sizeof *nodes);
     assert(!native_macroexpand_1(&call,omitted,&result));
     assert(call.error==NATIVE_MACRO_CAPACITY && !call.count && !tree.depth);
     assert(parser.count==count && reader.count==count && !memcmp(before,nodes,count*sizeof *nodes));
-    assert(!bindings[0].symbol && !bindings[0].form);
+    assert(psl_rt_value_handle_get(binding_handle)==PSL_NIL);
     call.capacity=1; call.error=0; tree.error=0;
     assert(native_macroexpand_1(&call,omitted,&result) && result.expanded);
     assert(identities[result.form-1].symbol==env.nil_symbol && identities[result.form-1].origin==omitted);
@@ -53,11 +68,9 @@ static void explicit_nil_default_identity(void) {
     assert(native_macroexpand_1(&call,supplied,&result) && result.expanded);
     assert(identities[result.form-1].symbol==env.nil_symbol && identities[result.form-1].origin==argument);
     assert(native_tree_verify(&tree,result.form));
-}
-static uintptr_t next_form(struct psl_parser *parser,struct native_compile_context *compiler,struct native_reader_environment *reader) {
-    uintptr_t form=parser_next(parser);
-    assert(form && native_resolve_source_identities(compiler,reader));
-    return form;
+    psl_rt_value_handle_close(binding_handle);
+    macro_test_close_definition_handle(definition_handle);
+    assert(psl_rt_live_value_handles()==0);
 }
 static void null_reader_nil_key_rejects_safely(void) {
     memset(names,0,sizeof names); memset(packages,0,sizeof packages); memset(symbols,0,sizeof symbols);
@@ -76,28 +89,22 @@ static void null_reader_nil_key_rejects_safely(void) {
     struct native_compile_context compiler={.parser=&parser,.source=(const uint8_t *)source,.integer=&integer,
         .data_bytes=scratch,.data_byte_capacity=sizeof scratch};
     struct native_tree_context tree={.parser=&parser,.reader=&reader,.limit=32};
-    struct native_macro_definition definitions[1]={{0}};
+    uintptr_t definition_handle=macro_test_open_definition_handle(1);
     struct native_macro_registry registry={.parser=&parser,.source=(const uint8_t *)source,.tree=&tree,
-        .definitions=definitions,.capacity=1};
+        .definition_handle=definition_handle,.capacity=1};
     assert(native_macro_register(&registry,next_form(&parser,&compiler,&reader))==1);
     uintptr_t invocation=next_form(&parser,&compiler,&reader),count=parser.count;
-    struct native_macro_binding bindings[2]={{0}};
-    struct native_macro_call call={.registry=&registry,.bindings=bindings,.capacity=2,.step_limit=32};
+    uintptr_t binding_handle=psl_rt_value_handle_open();
+    struct native_macro_call call={.registry=&registry,.binding_handle=binding_handle,.capacity=2,.step_limit=32};
     struct native_macro_expansion result={0};
     parser.environment=NULL;
     assert(!native_macroexpand_1(&call,invocation,&result));
     assert(call.error && !call.count && !tree.depth);
     assert(parser.count==count && reader.count==count && result.form==invocation && !result.expanded);
-    assert(!bindings[0].symbol && !bindings[0].form && !bindings[1].symbol && !bindings[1].form);
-}
-static void rejected(struct native_macro_call *call,uintptr_t form,struct native_macro_expansion *result,uint32_t error) {
-    struct psl_parser *parser=call->registry->parser;
-    uintptr_t count=parser->count;
-    assert(!native_macroexpand_1(call,form,result));
-    assert(call->error==error && !call->count && !call->registry->tree->depth);
-    assert(parser->count==count && parser->environment->count==count);
-    assert(result->form==form && !result->expanded);
-    call->error=0; call->registry->tree->error=0;
+    assert(psl_rt_value_handle_get(binding_handle)==PSL_NIL);
+    psl_rt_value_handle_close(binding_handle);
+    macro_test_close_definition_handle(definition_handle);
+    assert(psl_rt_live_value_handles()==0);
 }
 int main(void) {
     null_reader_nil_key_rejects_safely();
@@ -116,11 +123,10 @@ int main(void) {
     struct psl_parsed_integer integer={0};
     struct native_compile_context compiler={.parser=&parser,.source=(const uint8_t *)text,.integer=&integer,.data_bytes=scratch,.data_byte_capacity=sizeof scratch};
     struct native_tree_context tree={.parser=&parser,.reader=&reader,.limit=32};
-    struct native_macro_definition definitions[2]={{0}};
-    struct native_macro_registry registry={.parser=&parser,.source=(const uint8_t *)text,.tree=&tree,.definitions=definitions,.capacity=2};
+    uintptr_t definition_handle=macro_test_open_definition_handle(2);
+    struct native_macro_registry registry={.parser=&parser,.source=(const uint8_t *)text,.tree=&tree,.definition_handle=definition_handle,.capacity=2};
     assert(native_macro_register(&registry,next_form(&parser,&compiler,&reader))==1);
-    struct native_macro_binding bindings[6]={{0}};
-    struct native_macro_call call={.registry=&registry,.bindings=bindings,.capacity=6,.step_limit=32};
+    struct native_macro_call call={.registry=&registry,.binding_handle=psl_rt_value_handle_open(),.capacity=6,.step_limit=32};
     struct native_macro_expansion result={0};
     uintptr_t form=0;
     for(unsigned supplied=0;supplied<2;++supplied) {
@@ -140,7 +146,7 @@ int main(void) {
             assert(nodes[out_y-1].length==nodes[argument-1].length);
             assert(identities[out_y-1].origin==argument);
             /* The rest binding keeps the complete original keyword argument list. */
-            uintptr_t rest=nodes[bindings[1].form-1].first;
+            uintptr_t rest=nodes[native_macro_binding_form_at(&call,2)-1].first;
             assert(identities[rest-1].symbol==identities[nodes[x-1].next-1].symbol);
             assert(identities[rest-1].origin==nodes[x-1].next);
         } else assert(identities[out_y-1].origin==form);
@@ -165,10 +171,19 @@ int main(void) {
     uintptr_t argument=nodes[nodes[nodes[form-1].first-1].next-1].next;
     assert(identities[result.form-1].symbol==identities[argument-1].symbol);
     assert(identities[result.form-1].origin==argument);
-    struct native_macro_definition before_definitions[2]; memcpy(before_definitions,definitions,sizeof definitions);
+    uintptr_t before_definitions[2][3];
+    for(unsigned i=1;i<=registry.count;++i) {
+        before_definitions[i-1][0]=native_macro_definition_symbol_at(&registry,i);
+        before_definitions[i-1][1]=native_macro_definition_parameters_at(&registry,i);
+        before_definitions[i-1][2]=native_macro_definition_body_at(&registry,i);
+    }
     uintptr_t bad=next_form(&parser,&compiler,&reader),count=parser.count;
     assert(!native_macro_register(&registry,bad) && registry.error==NATIVE_MACRO_UNSUPPORTED);
-    assert(!memcmp(before_definitions,definitions,sizeof definitions));
+    for(unsigned i=1;i<=registry.count;++i) {
+        assert(before_definitions[i-1][0]==native_macro_definition_symbol_at(&registry,i));
+        assert(before_definitions[i-1][1]==native_macro_definition_parameters_at(&registry,i));
+        assert(before_definitions[i-1][2]==native_macro_definition_body_at(&registry,i));
+    }
     assert(parser.count==count && reader.count==count);
     /* Large flat invocation lists must not require proportional C stack. */
     char *wide=malloc(120000);
@@ -195,5 +210,7 @@ int main(void) {
     assert(!memcmp(wide+nodes[result.form-1].start,"42",2));
     assert(native_tree_verify(&tree,result.form));
     free(wide);
-    puts("macro keyword API preserves caller/rest syntax, explicit NIL defaults and first duplicates, rolls back errors and handles 10,000-pair invocation lists");
+    psl_rt_value_handle_close(call.binding_handle);
+    macro_test_close_definition_handle(definition_handle);
+    puts("macro keyword API preserves caller/rest syntax and explicit NIL defaults, rejects a missing reader, chooses first duplicates and rolls back arity, capacity, defaults, invalid redefinition and 10,000-pair invocation lists");
 }

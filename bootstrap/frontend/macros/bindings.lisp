@@ -62,6 +62,7 @@
            (returns c-int) (c-export :c))
   (let ((registry (deref (field-pointer call 'registry)))
         (parser (native_macro_call_parser call)))
+    (native_macro_clear_bindings call)
     (store (field-pointer call 'count) 0)
     (store (field-pointer call 'origin) form)
     (if (< 0 (deref (field-pointer call 'error))) 0
@@ -69,11 +70,11 @@
             (progn (native_macro_call_fail call 4) 0)
             (if (if (= definition 0) t (< (deref (field-pointer registry 'count)) definition))
                 (progn (native_macro_call_fail call 4) 0)
-                (let ((record (native_macro_definition_at registry definition)))
+                (let ((parameters (native_macro_definition_parameters_at registry definition)))
                   (let ((head (deref (field-pointer (parser_node parser form) 'first))))
-                    (if (= (ast_symbol_identity parser head) (deref (field-pointer record 'symbol)))
+                    (if (= (ast_symbol_identity parser head) (native_macro_definition_symbol_at registry definition))
                         (if (= (native_macro_bind_arguments call
-                             (deref (field-pointer (parser_node parser (deref (field-pointer record 'parameters))) 'first))
+                             (deref (field-pointer (parser_node parser parameters) 'first))
                              (native_macro_next registry head)) 1) 1
-                            (progn (store (field-pointer call 'count) 0) 0))
+                            (progn (native_macro_clear_bindings call) 0))
                         (progn (native_macro_call_fail call 4) 0)))))))))

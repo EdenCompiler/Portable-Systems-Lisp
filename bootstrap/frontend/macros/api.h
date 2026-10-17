@@ -19,20 +19,18 @@ struct native_tree_context {
     uint32_t error;
     uintptr_t remaining, last;
 };
-struct native_macro_definition { uintptr_t symbol, parameters, body; };
 struct native_macro_registry {
     struct psl_parser *parser;
     const uint8_t *source;
     struct native_tree_context *tree;
-    struct native_macro_definition *definitions;
+    uintptr_t definition_handle;
     uintptr_t count, capacity;
     uint32_t error;
 };
-struct native_macro_binding { uintptr_t symbol, form; };
 struct native_macro_expansion { uintptr_t form; int32_t expanded; };
 struct native_macro_call {
     struct native_macro_registry *registry;
-    struct native_macro_binding *bindings;
+    uintptr_t binding_handle;
     uintptr_t count, capacity, origin;
     uint32_t error;
     uintptr_t steps, step_limit;
@@ -42,6 +40,17 @@ extern int native_tree_verify(struct native_tree_context *,uintptr_t);
 extern uintptr_t native_tree_copy(struct native_tree_context *,uintptr_t);
 extern uintptr_t native_macro_register(struct native_macro_registry *,uintptr_t);
 extern uintptr_t native_macro_lookup(struct native_macro_registry *,uintptr_t);
+/* One-based compiler-owned managed macro-definition slots. */
+extern uintptr_t native_macro_definition_symbol_at(struct native_macro_registry *,uintptr_t);
+extern uintptr_t native_macro_definition_parameters_at(struct native_macro_registry *,uintptr_t);
+extern uintptr_t native_macro_definition_body_at(struct native_macro_registry *,uintptr_t);
+extern int native_macro_definition_set_at(struct native_macro_registry *,uintptr_t,uintptr_t,uintptr_t,uintptr_t);
+/* One-based compiler-owned lexical binding slots; zero IDs are reserved for
+   unused parallel-initializer slots and therefore never resolve as bindings. */
+extern uintptr_t native_macro_binding_symbol_at(struct native_macro_call *,uintptr_t);
+extern uintptr_t native_macro_binding_form_at(struct native_macro_call *,uintptr_t);
+extern int native_macro_binding_set_at(struct native_macro_call *,uintptr_t,uintptr_t,uintptr_t);
+extern int native_macro_truncate_bindings(struct native_macro_call *,uintptr_t);
 extern int native_macro_prepare_call(struct native_macro_call *,uintptr_t,uintptr_t);
 extern int native_macroexpand_1(struct native_macro_call *,uintptr_t,struct native_macro_expansion *);
 extern int native_macroexpand(struct native_macro_call *,uintptr_t,struct native_macro_expansion *);

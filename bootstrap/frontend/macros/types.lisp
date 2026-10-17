@@ -1,28 +1,20 @@
 (include "tree_types.lisp")
 
-(defcstruct native_macro_definition
-  (symbol usize)
-  (parameters usize)
-  (body usize))
-
 (defcstruct native_macro_registry
   (parser (ptr psl_parser))
   (source (ptr u8))
   (tree (ptr native_tree_context))
-  (definitions (ptr native_macro_definition))
+  (definition_handle usize)
   (count usize)
   (capacity usize)
   (error u32))
 
-(defcstruct native_macro_binding
-  (symbol usize)
-  (form usize))
 (defcstruct native_macro_expansion
   (form usize)
   (expanded c-int))
 (defcstruct native_macro_call
   (registry (ptr native_macro_registry))
-  (bindings (ptr native_macro_binding))
+  (binding_handle usize)
   (count usize)
   (capacity usize)
   (origin usize)

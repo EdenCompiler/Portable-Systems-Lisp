@@ -4,12 +4,16 @@ set -eu
 project_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 work_dir=$(mktemp -d)
 trap 'rm -rf "$work_dir"' EXIT HUP INT TERM
+runtime_sources="$project_root/runtime/value.c $project_root/runtime/cons.c $project_root/runtime/string.c $project_root/runtime/symbol.c $project_root/runtime/package.c $project_root/runtime/closure.c $project_root/runtime/vector.c $project_root/runtime/values.c $project_root/runtime/gc.c $project_root/runtime/startup.c"
+cc -O0 -std=c11 -Wall -Wextra -Werror -c \
+  "$project_root/runtime/platform_linux.c" -o "$work_dir/runtime-platform.o"
 
 build_driver() {
   cc -Wall -Wextra -Werror "$project_root/bootstrap/driver.c" \
     "$project_root/bootstrap/host/platform_stdio.c" \
     "$project_root/bootstrap/host/platform_toolchain.c" \
-    "$1" "$2" "$3" "$4" "$5" "$6" "$7" "$8" -o "$9"
+    "$1" "$2" "$3" "$4" "$5" "$6" "$7" "$8" \
+    $runtime_sources "$work_dir/runtime-platform.o" -o "$9"
 }
 
 compare_diagnostic() {
@@ -56,21 +60,21 @@ compare_rejections() {
 
 # These are generations of the native compiler core, with the same temporary
 # C path/diagnostic adapter at each generation. They are not complete Stage 1-3 compilers.
-"$project_root/pslcc" -c "$project_root/bootstrap/native-core.lisp" \
+"$project_root/pslcc" --profile=hosted -c "$project_root/bootstrap/native-core.lisp" \
   -o "$work_dir/core-0.o"
-"$project_root/pslcc" -c "$project_root/bootstrap/host/driver.lisp" \
+"$project_root/pslcc" --profile=hosted -c "$project_root/bootstrap/host/driver.lisp" \
   -o "$work_dir/host-0.o"
-"$project_root/pslcc" -c "$project_root/bootstrap/host/source_unit.lisp" \
+"$project_root/pslcc" --profile=hosted -c "$project_root/bootstrap/host/source_unit.lisp" \
   -o "$work_dir/source-0.o"
-"$project_root/pslcc" -c "$project_root/bootstrap/host/source_io.lisp" \
+"$project_root/pslcc" --profile=hosted -c "$project_root/bootstrap/host/source_io.lisp" \
   -o "$work_dir/input-0.o"
-"$project_root/pslcc" -c "$project_root/bootstrap/host/source_path_posix.lisp" \
+"$project_root/pslcc" --profile=hosted -c "$project_root/bootstrap/host/source_path_posix.lisp" \
   -o "$work_dir/path-0.o"
-"$project_root/pslcc" -c "$project_root/bootstrap/host/compiler.lisp" \
+"$project_root/pslcc" --profile=hosted -c "$project_root/bootstrap/host/compiler.lisp" \
   -o "$work_dir/driver-0.o"
-"$project_root/pslcc" -c "$project_root/bootstrap/host/output.lisp" \
+"$project_root/pslcc" --profile=hosted -c "$project_root/bootstrap/host/output.lisp" \
   -o "$work_dir/output-0.o"
-"$project_root/pslcc" -c "$project_root/bootstrap/host/diagnostics.lisp" \
+"$project_root/pslcc" --profile=hosted -c "$project_root/bootstrap/host/diagnostics.lisp" \
   -o "$work_dir/diagnostics-0.o"
 for generation in 0 1 2; do
   build_driver "$work_dir/core-$generation.o" "$work_dir/host-$generation.o" \
@@ -78,24 +82,25 @@ for generation in 0 1 2; do
     "$work_dir/input-$generation.o" "$work_dir/path-$generation.o" \
     "$work_dir/output-$generation.o" "$work_dir/diagnostics-$generation.o" \
     "$work_dir/compiler-$generation"
-  PATH=/nonexistent "$work_dir/compiler-$generation" \
+  PATH=/nonexistent "$work_dir/compiler-$generation" --profile=hosted \
     "$project_root/bootstrap/native-core.lisp" "$work_dir/core-$((generation + 1)).o"
-  PATH=/nonexistent "$work_dir/compiler-$generation" \
+  PATH=/nonexistent "$work_dir/compiler-$generation" --profile=hosted \
     "$project_root/bootstrap/host/driver.lisp" "$work_dir/host-$((generation + 1)).o"
-  PATH=/nonexistent "$work_dir/compiler-$generation" \
+  PATH=/nonexistent "$work_dir/compiler-$generation" --profile=hosted \
     "$project_root/bootstrap/host/source_unit.lisp" "$work_dir/source-$((generation + 1)).o"
-  PATH=/nonexistent "$work_dir/compiler-$generation" \
+  PATH=/nonexistent "$work_dir/compiler-$generation" --profile=hosted \
     "$project_root/bootstrap/host/source_io.lisp" "$work_dir/input-$((generation + 1)).o"
-  PATH=/nonexistent "$work_dir/compiler-$generation" \
+  PATH=/nonexistent "$work_dir/compiler-$generation" --profile=hosted \
     "$project_root/bootstrap/host/source_path_posix.lisp" "$work_dir/path-$((generation + 1)).o"
-  PATH=/nonexistent "$work_dir/compiler-$generation" \
+  PATH=/nonexistent "$work_dir/compiler-$generation" --profile=hosted \
     "$project_root/bootstrap/host/compiler.lisp" "$work_dir/driver-$((generation + 1)).o"
-  PATH=/nonexistent "$work_dir/compiler-$generation" \
+  PATH=/nonexistent "$work_dir/compiler-$generation" --profile=hosted \
     "$project_root/bootstrap/host/output.lisp" "$work_dir/output-$((generation + 1)).o"
-  PATH=/nonexistent "$work_dir/compiler-$generation" \
+  PATH=/nonexistent "$work_dir/compiler-$generation" --profile=hosted \
     "$project_root/bootstrap/host/diagnostics.lisp" \
     "$work_dir/diagnostics-$((generation + 1)).o"
-  test "$(nm -u "$work_dir/core-$((generation + 1)).o" | wc -l)" -eq 0
+  nm -u "$work_dir/core-$((generation + 1)).o" | grep -q 'psl_rt_value_handle_open'
+  nm -u "$work_dir/core-$((generation + 1)).o" | grep -q 'psl_rt_value_handle_close'
   readelf -h "$work_dir/core-$((generation + 1)).o" | grep -q 'REL (Relocatable file)'
   PSL_NATIVE_DRIVER_OBJECT="$work_dir/driver-$generation.o" \
     PSL_NATIVE_OUTPUT_OBJECT="$work_dir/output-$generation.o" \

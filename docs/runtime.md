@@ -62,6 +62,14 @@ reject wrong kinds and out-of-bounds indices and do not allocate. Stage 0 and
 native hosted source use the same five PSL vector operations. Compiler-owned
 collection migration remains open.
 
+The native compiler's macro registry uses opaque value handles as C-owned
+roots. Handle tokens are monotonic, nonzero, and never reused. Opening creates
+an active NIL root; get/set do not allocate or collect; close accepts any
+active token regardless of close order and rejects stale or zero tokens.
+Precise collection marks values held by active handles. These handles are a
+compiler-host service; freestanding user objects do not acquire a GC dependency
+unless their own source explicitly requires managed runtime modules.
+
 ## Modules and linking
 
 The linker compiles the transitive dependency closure of the modules used by

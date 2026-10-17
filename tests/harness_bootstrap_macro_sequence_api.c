@@ -1,4 +1,6 @@
 #include "../bootstrap/native_api.h"
+#include "../runtime/psl_runtime.h"
+#include "harness_bootstrap_macro_registry.h"
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
@@ -24,13 +26,12 @@ int main(void) {
     struct native_compile_context compiler={.parser=&parser,.source=(const uint8_t *)text,.integer=&integer,
         .data_bytes=scratch,.data_byte_capacity=sizeof scratch};
     struct native_tree_context tree={.parser=&parser,.reader=&reader,.limit=32};
-    struct native_macro_definition definitions[4]={{0}};
-    struct native_macro_registry registry={.parser=&parser,.source=(const uint8_t *)text,.tree=&tree,.definitions=definitions,.capacity=4};
+    uintptr_t definition_handle=macro_test_open_definition_handle(4);
+    struct native_macro_registry registry={.parser=&parser,.source=(const uint8_t *)text,.tree=&tree,.definition_handle=definition_handle,.capacity=4};
     uintptr_t definition=parser_next(&parser);
     assert(definition && native_resolve_source_identities(&compiler,&reader));
     assert(native_macro_register(&registry,definition)==1);
-    struct native_macro_binding bindings[3]={{0}};
-    struct native_macro_call call={.registry=&registry,.bindings=bindings,.capacity=3,.step_limit=32};
+    struct native_macro_call call={.registry=&registry,.binding_handle=psl_rt_value_handle_open(),.capacity=3,.step_limit=32};
     struct native_macro_expansion result={0};
     for (unsigned supplied=0;supplied<2;++supplied) {
         uintptr_t form=parser_next(&parser);
@@ -92,6 +93,8 @@ int main(void) {
     assert(identities[result.form-1].symbol==env.nil_symbol);
     assert(identities[result.form-1].origin==form);
     assert(native_tree_verify(&tree,result.form));
+    psl_rt_value_handle_close(call.binding_handle);
+    macro_test_close_definition_handle(definition_handle);
     puts("macro sequence API preserves selected syntax and rolls back discarded-form, capacity, arity and depth failures");
 
 

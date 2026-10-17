@@ -47,6 +47,13 @@ void psl_rt_collect(void);
 void psl_rt_collect_precise(void);
 size_t psl_rt_live_objects(void);
 
+/* Opaque monotonic tokens keep one managed VALUE alive until close. */
+size_t psl_rt_value_handle_open(void);
+psl_value psl_rt_value_handle_get(size_t token);
+void psl_rt_value_handle_set(size_t token, psl_value value);
+void psl_rt_value_handle_close(size_t token);
+size_t psl_rt_live_value_handles(void);
+
 psl_value psl_rt_cons(psl_value first, psl_value rest);
 /* Registers its arguments internally; other live values require caller roots. */
 psl_value psl_rt_cons_precise(psl_value first, psl_value rest);

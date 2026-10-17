@@ -6,7 +6,7 @@
             (tree (native_macro_tree call)))
         (let ((origin (deref (field-pointer tree 'origin))))
           (store (field-pointer tree 'origin) form)
-          (let ((copy (native_macro_eval_sequence call (deref (field-pointer (native_macro_definition_at registry definition) 'body)))))
+          (let ((copy (native_macro_eval_sequence call (native_macro_definition_body_at registry definition))))
             (store (field-pointer tree 'origin) origin)
             copy)))))
 
@@ -31,7 +31,7 @@
                           (let ((copy (native_macro_apply_definition call definition form)))
                             (if (if (= copy 0) t (= (native_tree_verify tree copy) 0))
                                 (progn
-                                  (store (field-pointer call 'count) 0)
+                                  (native_macro_clear_bindings call)
                                   (store (field-pointer parser 'count) saved)
                                   (store (field-pointer parser 'error) saved_error)
                                   (store (field-pointer (deref (field-pointer tree 'reader)) 'count) saved)
@@ -75,7 +75,7 @@
           (progn
             (let ((origin (native_macro_origin_reference tree (deref (field-pointer call 'origin)) 2048)))
               (store (field-pointer call 'origin) origin))
-            (store (field-pointer call 'count) 0)
+            (native_macro_clear_bindings call)
             (store (field-pointer parser 'count) count)
             (store (field-pointer parser 'error) error)
             (store (field-pointer (deref (field-pointer tree 'reader)) 'count) count)

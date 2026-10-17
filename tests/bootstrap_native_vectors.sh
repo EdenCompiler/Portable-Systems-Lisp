@@ -40,13 +40,13 @@ for level in 0 1; do
     done
   done
 
-  bootstrap_fixture_compile native "$compiler" "$level" "$target" freestanding \
+  bootstrap_fixture_compile native "$compiler" "$level" "$target" hosted \
     "$project_root/bootstrap/native-core.lisp" "$work_dir/native-core.o"
-  bootstrap_fixture_compile native "$compiler" "$level" "$target" freestanding \
+  bootstrap_fixture_compile native "$compiler" "$level" "$target" hosted \
     "$project_root/bootstrap/host/driver.lisp" "$work_dir/native-host.o"
-  bootstrap_fixture_compile seed "$project_root/pslcc" "$level" "$target" freestanding \
+  bootstrap_fixture_compile seed "$project_root/pslcc" "$level" "$target" hosted \
     "$project_root/bootstrap/native-core.lisp" "$work_dir/seed-core.o"
-  bootstrap_fixture_compile seed "$project_root/pslcc" "$level" "$target" freestanding \
+  bootstrap_fixture_compile seed "$project_root/pslcc" "$level" "$target" hosted \
     "$project_root/bootstrap/host/driver.lisp" "$work_dir/seed-host.o"
   for version in native seed; do
     for test in native_vectors_api runtime_signatures; do

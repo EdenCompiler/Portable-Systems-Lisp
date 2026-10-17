@@ -1,4 +1,5 @@
 #include "../bootstrap/native_api.h"
+#include "../runtime/psl_runtime.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,7 +38,8 @@ void __wrap_free(void *memory) {
             --live_count;
             break;
         }
-        assert(i < MAX_TRACKED_ALLOCATIONS);
+        /* Managed runtime handle nodes are owned outside the driver's
+           calloc arena and are checked through the runtime handle count. */
     }
     __real_free(memory);
 }
@@ -111,10 +113,13 @@ static void check_initialized(struct native_driver *d) {
     assert(d->code.data == d->storage.code && d->code.capacity == 1048576 + 16 * cap);
     assert(d->object.data == d->storage.object && d->object.capacity == 1049600 + 80 * cap);
     assert(!d->code.length && !d->object.length);
-    assert(d->context.macro_registry.definitions == d->storage.macro_definitions);
-    assert(d->context.macro_registry.capacity == 256);
-    assert(d->context.macro_call.bindings == d->storage.macro_bindings);
-    assert(d->context.macro_call.capacity == 128);
+    assert(d->storage.macro_definition_handle != 0);
+    assert(d->storage.macro_binding_handle != 0);
+    assert(d->context.macro_registry.definition_handle ==
+           d->storage.macro_definition_handle);
+    assert(d->context.macro_registry.capacity == cap);
+    assert(d->context.macro_call.binding_handle == d->storage.macro_binding_handle);
+    assert(d->context.macro_call.capacity == cap);
     assert(d->context.parser == &d->parser && d->context.source == d->source);
     assert(d->context.integer == &d->integer && d->context.hir == &d->hir);
     assert(d->context.code == &d->code && d->context.fixups == &d->calls);
@@ -163,6 +168,7 @@ static void check_released(struct native_driver *driver) {
 #ifdef PSL_TEST_ALLOCATOR_FAULTS
     assert(!live_count && source_frees == 1);
 #endif
+    assert(psl_rt_live_value_handles() == 0);
 }
 
 static void test_prepare_compile_release(void) {

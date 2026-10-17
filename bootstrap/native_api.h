@@ -378,8 +378,8 @@ struct native_storage {
     struct native_ct_alias *aliases;
     struct native_source_identity *identities;
     uintptr_t *buckets;
-    struct native_macro_definition *macro_definitions;
-    struct native_macro_binding *macro_bindings;
+    uintptr_t macro_definition_handle;
+    uintptr_t macro_binding_handle;
 };
 
 struct native_driver {

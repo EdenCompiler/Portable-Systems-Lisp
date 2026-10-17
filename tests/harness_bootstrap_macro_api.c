@@ -1,4 +1,6 @@
 #include "../bootstrap/native_api.h"
+#include "../runtime/psl_runtime.h"
+#include "harness_bootstrap_macro_registry.h"
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
@@ -27,14 +29,27 @@ int main(void) {
     struct native_compile_context compiler = {.parser=&parser, .source=(const uint8_t *)text,
         .integer=&integer, .data_bytes=scratch, .data_byte_capacity=sizeof scratch};
     struct native_tree_context tree = {.parser=&parser, .reader=&reader, .limit=32};
-    struct native_macro_definition definitions[1] = {{0}};
+    uintptr_t definition_handle = macro_test_open_definition_handle(1);
     struct native_macro_registry registry = {.parser=&parser, .source=(const uint8_t *)text, .tree=&tree,
-        .definitions=definitions, .capacity=1};
+        .definition_handle=definition_handle, .capacity=1};
     uintptr_t root = parser_next(&parser);
     assert(root && native_resolve_source_identities(&compiler, &reader));
     assert(native_macro_register(&registry, root) == 1);
-    struct native_macro_binding bindings[1] = {{0}};
-    struct native_macro_call call = {.registry=&registry, .bindings=bindings, .capacity=1, .step_limit=32};
+    psl_rt_collect_precise();
+    uintptr_t saved_symbol=native_macro_definition_symbol_at(&registry,1);
+    uintptr_t saved_parameters=native_macro_definition_parameters_at(&registry,1);
+    uintptr_t saved_body=native_macro_definition_body_at(&registry,1);
+    assert(saved_symbol && saved_parameters && saved_body);
+    registry.error=0;
+    assert(native_macro_definition_symbol_at(&registry,0)==0 && registry.error==NATIVE_MACRO_REFERENCE);
+    registry.error=0;
+    assert(!native_macro_definition_set_at(&registry,2,saved_symbol,saved_parameters,saved_body));
+    assert(registry.error==NATIVE_MACRO_CAPACITY);
+    registry.error=0;
+    assert(native_macro_definition_symbol_at(&registry,1)==saved_symbol);
+    assert(native_macro_definition_parameters_at(&registry,1)==saved_parameters);
+    assert(native_macro_definition_body_at(&registry,1)==saved_body);
+    struct native_macro_call call = {.registry=&registry, .binding_handle=psl_rt_value_handle_open(), .capacity=1, .step_limit=32};
     root = parser_next(&parser);
     assert(root && native_resolve_source_identities(&compiler, &reader));
     uintptr_t argument = nodes[nodes[root-1].first-1].next;
@@ -100,5 +115,7 @@ int main(void) {
     call.error=0; tree.error=0; parser.environment=NULL;
     assert(!native_tree_copy(&tree, expanded));
     parser.environment=&reader;
+    psl_rt_value_handle_close(call.binding_handle);
+    macro_test_close_definition_handle(definition_handle);
     puts("native macroexpand-1 clones templates, preserves caller identities and rolls back capacity failures");
 }

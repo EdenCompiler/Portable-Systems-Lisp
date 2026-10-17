@@ -1597,6 +1597,21 @@ the rejection fixture. All four production target gates and smoke passed.
 General build-host calls, destructuring/environment parameters, EVAL-WHEN,
 managed compiler collections and the complete M8 Stage 1–3 gates remain open.
 
+### M8 hosted compiler macro collections
+
+The native compiler stores macro definitions and lexical-binding records in
+managed VALUE vectors. Opaque monotonic runtime handles root those vectors
+across precise collections and close during driver release. The hosted compiler
+executable explicitly links the runtime; freestanding user output keeps its
+independent profile. Macro definition and binding limits derive from the
+checked source arena, while vector allocation remains lazy. Native and Stage 0
+macro/API checks cover O0/O1 behavior and capacity beyond 256 definitions and
+128 binding slots. Runtime handle C checks cover precise GC, arbitrary close
+order, stale-token rejection, and O0/O2 callers. Syntax, identities, IR,
+diagnostics, and other compiler arenas remain typed caller-owned storage, so
+this is a partial compiler-collection migration rather than completion of the
+M8 subgate.
+
 ### M8 native lexical closures and defined function addresses
 
 The native hosted compiler lowers one-argument lexical lambdas, FUNCTION forms
