@@ -1,8 +1,7 @@
 (include "binding_values.lisp")
 
-(defun native_macro_boolean_form (call reference truth)
-  (declare (type (ptr native_macro_call) call) (type usize reference)
-           (type c-int truth) (returns usize))
+(defun native_macro_symbol_form (call reference symbol)
+  (declare (type (ptr native_macro_call) call) (type usize reference symbol) (returns usize))
   (let ((parser (native_macro_call_parser call)) (tree (native_macro_tree call)))
     (let ((reader (deref (field-pointer tree 'reader))))
       (if (< (deref (field-pointer parser 'count)) (deref (field-pointer reader 'capacity)))
@@ -14,12 +13,19 @@
                     (let ((identity (pointer+ (deref (field-pointer reader 'identities))
                                                (wrap-cast isize (wrap- copy 1)))))
                       (store (field-pointer identity 'origin) (deref (field-pointer call 'origin)))
-                      (store (field-pointer identity 'symbol)
-                             (if (= truth 0) (deref (field-pointer (deref (field-pointer reader 'environment)) 'nil_symbol))
-                                 (deref (field-pointer (deref (field-pointer reader 'environment)) 'true_symbol)))))
+                      (store (field-pointer identity 'symbol) symbol))
                     copy))))
           (native_macro_call_fail call 3)))))
 
+
+(defun native_macro_boolean_form (call reference truth)
+  (declare (type (ptr native_macro_call) call) (type usize reference)
+           (type c-int truth) (returns usize))
+  (let ((env (deref (field-pointer (deref (field-pointer (native_macro_tree call) 'reader))
+                                  'environment))))
+    (native_macro_symbol_form call reference
+      (if (= truth 0) (deref (field-pointer env 'nil_symbol))
+          (deref (field-pointer env 'true_symbol))))))
 
 (defun native_macro_list_form (call parameters)
   (declare (type (ptr native_macro_call) call) (type usize parameters) (returns usize))

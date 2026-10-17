@@ -1597,6 +1597,20 @@ the rejection fixture. All four production target gates and smoke passed.
 General build-host calls, destructuring/environment parameters, EVAL-WHEN,
 managed compiler collections and the complete M8 Stage 1–3 gates remain open.
 
+### M8 native nested macro patterns
+
+Native macro destructuring supports proper nested required lists, nested
+`&optional` patterns, and nested list patterns for explicitly named NIL `&key`
+parameters. Empty patterns match NIL; missing optional/key values evaluate
+defaults before binding supplied-p state. Quote and function reader prefixes
+are normalized as source lists in a private expansion copy. Malformed and short
+patterns roll back parser/identity state and unpublished managed bindings.
+Dotted patterns, nested `&rest`, `&key`, `&aux`, destructured `&whole`, and
+`&environment` remain unsupported.
+
+The combined focused integration gate is still required before this slice can
+be treated as part of a complete M8 release.
+
 ### M8 hosted compiler macro collections
 
 The native compiler stores macro definitions and lexical-binding records in

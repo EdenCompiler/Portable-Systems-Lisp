@@ -802,8 +802,15 @@ identities. The default evaluator accepts the same argument, constant,
 quotation and backquote forms as macro bodies. Canonical `(quote datum)`
 and reader quotation agree; empty list expressions and quoted empty lists
 represent NIL. Integer zero remains true. Failed argument binding or default
-evaluation publishes no partial expansion. Destructuring parameters and
-general build-host evaluation remain unsupported.
+evaluation publishes no partial expansion. Proper nested list patterns bind
+corresponding syntax elements, including empty patterns matching NIL. Nested
+`&optional` patterns support bare variables and `(pattern [default
+[supplied-p]])`; all-optional patterns called with NIL or `()` evaluate defaults
+and bind supplied-p flags to NIL. Quote and function reader prefixes are
+normalized as two-element syntax lists in a private expansion copy, preserving
+caller identities and origins. Dotted patterns and nested `&rest`, `&key` and
+`&aux` sections remain unsupported. General build-host evaluation remains
+unsupported.
 
 Native macro lambda lists also accept a final `&aux` section, with bare
 variables or `(variable [default])` specifications. Auxiliary defaults evaluate
@@ -817,8 +824,8 @@ unevaluated invocation, including its macro name. It consumes no positional
 argument and can precede required, optional, rest/body and auxiliary sections.
 Returning or substituting this value copies the invocation while preserving
 caller symbol identities and origins. Repeated whole-invocation expansion uses
-the existing expansion-step bound. Nested destructuring and `&environment`
-remain unsupported.
+the existing expansion-step bound. Destructured `&whole` variables and
+`&environment` remain unsupported.
 
 Native macro lambda lists accept `&key` bare variables and
 `(variable [default [supplied-p]])` specifications, including explicit
@@ -834,8 +841,10 @@ or the invocation's first `:allow-other-keys` value is true. This value is
 unevaluated syntax: NIL/empty lists are false and zero is true. Key/value lists
 must have even length. `:allow-other-keys` is accepted as a control argument
 and can also be explicitly named by a parameter. Failures restore syntax and
-identity counts and clear unpublished bindings. Destructuring key variables
-and `&environment` remain unsupported.
+identity counts and clear unpublished bindings. Explicitly named key variables
+may use proper nested list patterns; missing keys evaluate defaults before
+destructuring. Dotted key patterns, nested `&rest`, `&key` and `&aux`, and
+`&environment` remain unsupported.
 
 The native build-host macro evaluator supports Common Lisp `if` with two or
 three operands. It evaluates the predicate once and only the selected branch;

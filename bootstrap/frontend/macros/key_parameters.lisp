@@ -69,7 +69,9 @@
     (let ((node (parser_node parser reference)))
       (let ((name (native_macro_key_name registry reference)) (explicit (native_macro_key_explicit registry reference)))
         (cond
-          ((= (native_macro_parameter_p registry name) 0) 0)
+          ((= (if (< 0 explicit)
+                  (native_macro_destructuring_pattern_p registry name)
+                  (native_macro_parameter_p registry name)) 0) 0)
           ((if (< 0 explicit)
                (if (= (native_macro_key_explicit_identity registry reference) 0) t
                    (if (= (native_macro_raw_dot_p registry explicit) 1) t

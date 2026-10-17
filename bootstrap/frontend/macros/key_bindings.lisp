@@ -125,7 +125,7 @@
                      (native_macro_default_value call parameter (native_macro_optional_default call parameter)))))
       (if (= value 0) 0
           (let ((registry (deref (field-pointer call 'registry))))
-            (if (= (native_macro_add_binding call (native_macro_key_name registry parameter) value) 0) 0
+            (if (= (native_macro_bind_pattern call (native_macro_key_name registry parameter) value) 0) 0
                 (let ((supplied (native_macro_next registry (native_macro_optional_default call parameter))))
                   (if (= supplied 0) 1
                       (let ((flag (native_macro_boolean_form call supplied (if (= argument 0) 0 1))))

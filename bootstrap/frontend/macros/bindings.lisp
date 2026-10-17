@@ -49,7 +49,7 @@
            (native_macro_bind_arguments_from call (native_macro_next registry parameters)
                                             (native_macro_next registry arguments) optional)))
       ((= arguments 0) (progn (native_macro_call_fail call 2) 0))
-      ((= (native_macro_add_binding call parameters arguments) 0) 0)
+      ((= (native_macro_bind_pattern call parameters arguments) 0) 0)
       (t (native_macro_bind_arguments_from call (native_macro_next registry parameters)
                                            (native_macro_next registry arguments) optional)))))
 

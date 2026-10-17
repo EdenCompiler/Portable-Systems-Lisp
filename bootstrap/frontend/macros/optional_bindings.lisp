@@ -26,11 +26,13 @@
   (if (< 0 argument) argument
       (native_macro_default_value call parameter (native_macro_optional_default call parameter))))
 
+(include "destructuring.lisp")
+
 (defun native_macro_bind_optional (call parameter argument)
   (declare (type (ptr native_macro_call) call) (type usize parameter argument) (returns c-int))
   (let ((value (native_macro_optional_value call parameter argument)))
     (if (= value 0) 0
-        (if (= (native_macro_add_binding call (native_macro_optional_name call parameter) value) 0) 0
+        (if (= (native_macro_bind_pattern call (native_macro_optional_name call parameter) value) 0) 0
             (let ((supplied (native_macro_next (deref (field-pointer call 'registry))
                                              (native_macro_optional_default call parameter))))
               (if (= supplied 0) 1

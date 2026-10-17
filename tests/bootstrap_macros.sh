@@ -16,7 +16,7 @@ esac
 runtime_sources="$project_root/runtime/value.c $project_root/runtime/cons.c $project_root/runtime/string.c $project_root/runtime/symbol.c $project_root/runtime/package.c $project_root/runtime/closure.c $project_root/runtime/vector.c $project_root/runtime/values.c $project_root/runtime/gc.c $project_root/runtime/startup.c $work_dir/runtime-platform.o"
 sh "$project_root/tests/bootstrap_macro_constant_oracle.sh"
 for level in 0 1; do
-  for fixture in macros macro_rest macro_optional macro_aux macro_whole macro_control macro_sequence macro_lists macro_declarations macro_keys macro_let macro_nil_key_name macro_eval_when; do
+  for fixture in macros macro_rest macro_optional macro_aux macro_whole macro_control macro_sequence macro_lists macro_declarations macro_keys macro_let macro_nil_key_name macro_eval_when macro_destructuring macro_nil_key_destructuring; do
   source=$project_root/tests/bootstrap_$fixture.lisp
   run_compiler_host "$compiler" "-O$level" --profile=freestanding --target="$target" "$source" "$work_dir/native.o"
   run_compiler_host "$compiler" "-O$level" --profile=freestanding --target="$target" "$source" "$work_dir/repeat.o"
@@ -43,7 +43,7 @@ for level in 0 1; do
   run_compiler_host "$compiler" "-O$level" --profile=hosted --target="$target" -c "$source" -o "$work_dir/api-native.o"
   "$project_root/pslcc" "-O$level" --profile=hosted --target="$target" -c "$source" -o "$work_dir/api-stage0.o"
   for version in native stage0; do
-    for fixture in macro_api macro_optional_api macro_aux_api macro_whole_api macro_control_api macro_sequence_api macro_lists_api macro_declarations_api macro_keys_api macro_let_api; do
+    for fixture in macro_api macro_optional_api macro_aux_api macro_whole_api macro_control_api macro_sequence_api macro_lists_api macro_declarations_api macro_keys_api macro_let_api macro_destructuring_api macro_nil_key_destructuring_api macro_pattern_prefix_api; do
       "$target_cc" -O2 -std=c11 -Wall -Wextra -Werror \
         "$project_root/tests/harness_bootstrap_$fixture.c" "$work_dir/api-$version.o" \
         $runtime_sources \
@@ -106,7 +106,7 @@ for level in 0 1; do
 done
 # Prove Linux native expansion needs no host Lisp executable or tool subprocess.
 if test "$compiler_host_target" = x86_64-linux-gnu; then
-  for fixture in macros macro_rest macro_optional macro_aux macro_whole macro_control macro_sequence macro_lists macro_declarations macro_keys macro_let macro_nil_key_name macro_eval_when; do
+  for fixture in macros macro_rest macro_optional macro_aux macro_whole macro_control macro_sequence macro_lists macro_declarations macro_keys macro_let macro_nil_key_name macro_eval_when macro_destructuring macro_nil_key_destructuring; do
     PATH=/nonexistent "$compiler" --target="$target" "$project_root/tests/bootstrap_$fixture.lisp" "$work_dir/without-host-lisp.o"
   done
 fi

@@ -1,0 +1,5 @@
+(defmacro key-pair (&key ((nil (left right)) '(19 23)))
+  (list 'wrap+ left right))
+(defun missing-key-pattern-element ()
+  (declare (returns u64))
+  (key-pair nil (1)))

@@ -198,10 +198,63 @@
         (let ((supplied (if (= (deref (field-pointer node 'kind)) 1)
                             (native_macro_next registry (native_macro_next registry name)) (wrap-cast usize 0))))
           (cond
-            ((= (native_macro_parameter_p registry name) 0) 0)
+            ((= (native_macro_destructuring_pattern_p registry name) 0) 0)
             ((= supplied 0) 1)
             ((< 0 (native_macro_next registry supplied)) 0)
             (t (native_macro_parameter_p registry supplied))))))))
+
+(defun native_macro_destructuring_variable_p (registry reference)
+  (declare (type (ptr native_macro_registry) registry) (type usize reference) (returns c-int))
+  (cond
+    ((= (native_macro_parameter_p registry reference) 0) 0)
+    ((= (native_macro_optional_marker_p registry reference) 1) 0)
+    ((= (native_macro_rest_marker_p registry reference) 1) 0)
+    ((= (native_macro_whole_marker_p registry reference) 1) 0)
+    ((= (native_macro_key_marker_p registry reference) 1) 0)
+    ((= (native_macro_aux_marker_p registry reference) 1) 0)
+    (t 1)))
+
+(defun native_macro_destructuring_pattern_p (registry reference)
+  (declare (type (ptr native_macro_registry) registry) (type usize reference) (returns c-int))
+  (if (= reference 0) 0
+      (let ((node (parser_node (native_macro_parser registry) reference)))
+        (if (= (deref (field-pointer node 'kind)) 1)
+            (native_macro_validate_destructuring_parameters
+              registry (deref (field-pointer node 'first)) 0)
+            (native_macro_destructuring_variable_p registry reference)))))
+
+(defun native_macro_validate_destructuring_optional_p (registry reference)
+  (declare (type (ptr native_macro_registry) registry) (type usize reference) (returns c-int))
+  (let ((node (parser_node (native_macro_parser registry) reference)))
+    (if (= (deref (field-pointer node 'kind)) 1)
+        (let ((pattern (deref (field-pointer node 'first))))
+          (if (= (native_macro_destructuring_pattern_p registry pattern) 0) 0
+              (let ((default (native_macro_next registry pattern)))
+                (let ((supplied (native_macro_next registry default)))
+                  (if (< 0 (native_macro_next registry supplied)) 0
+                      (if (= supplied 0) 1
+                          (native_macro_destructuring_variable_p registry supplied)))))))
+        (native_macro_destructuring_pattern_p registry reference))))
+
+(defun native_macro_validate_destructuring_parameters (registry reference optional)
+  (declare (type (ptr native_macro_registry) registry) (type usize reference)
+           (type c-int optional) (returns c-int))
+  (if (= reference 0) 1
+      (let ((next (native_macro_next registry reference)))
+        (cond
+          ((= (native_macro_optional_marker_p registry reference) 1)
+           (if (= optional 1) 0
+               (native_macro_validate_destructuring_parameters registry next 1)))
+          ((= (native_macro_rest_marker_p registry reference) 1) 0)
+          ((= (native_macro_key_marker_p registry reference) 1) 0)
+          ((= (native_macro_aux_marker_p registry reference) 1) 0)
+          ((= (native_macro_whole_marker_p registry reference) 1) 0)
+          ((= optional 1)
+           (if (= (native_macro_validate_destructuring_optional_p registry reference) 1)
+               (native_macro_validate_destructuring_parameters registry next optional) 0))
+          ((= (native_macro_destructuring_pattern_p registry reference) 1)
+           (native_macro_validate_destructuring_parameters registry next optional))
+          (t 0)))))
 
 (include "key_parameters.lisp")
 
@@ -253,7 +306,7 @@
      (native_macro_validate_optional_parameters registry (native_macro_next registry reference)))
     ((= (native_macro_rest_marker_p registry reference) 1)
      (native_macro_validate_rest_tail registry reference))
-    ((= (native_macro_parameter_p registry reference) 0) 0)
+    ((= (native_macro_destructuring_pattern_p registry reference) 0) 0)
     (t (store (field-pointer (deref (field-pointer registry 'tree)) 'cursor)
               (native_macro_next registry reference)) 1)))
 
