@@ -8,7 +8,8 @@ static int valid(struct native_compile_context *context, uintptr_t root) {
 int main(void) {
     static const uint8_t source[] = "u8 u16";
     struct psl_ast_node syntax[] = {
-        {8, 0, 2, 0, 0, 0}, {8, 3, 3, 0, 0, 0}
+        {.kind = 8, .start = 0, .length = 2},
+        {.kind = 8, .start = 3, .length = 3}
     };
     struct psl_parser parser = {0};
     struct native_type_shape shape = {0};
