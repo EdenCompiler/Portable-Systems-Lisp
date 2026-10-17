@@ -15,6 +15,7 @@ esac
   -c "$project_root/runtime/platform_$platform.c" -o "$work_dir/runtime-platform.o"
 runtime_sources="$project_root/runtime/value.c $project_root/runtime/cons.c $project_root/runtime/string.c $project_root/runtime/symbol.c $project_root/runtime/package.c $project_root/runtime/closure.c $project_root/runtime/vector.c $project_root/runtime/values.c $project_root/runtime/gc.c $project_root/runtime/startup.c $work_dir/runtime-platform.o"
 sh "$project_root/tests/bootstrap_macro_constant_oracle.sh"
+sbcl --noinform --script "$project_root/tests/bootstrap_macro_nil_key_sbcl_oracle.lisp"
 for level in 0 1; do
   for fixture in macros macro_rest macro_optional macro_aux macro_whole macro_control macro_sequence macro_lists macro_declarations macro_keys macro_let macro_nil_key_name macro_eval_when macro_destructuring macro_nil_key_destructuring; do
   source=$project_root/tests/bootstrap_$fixture.lisp
@@ -40,8 +41,8 @@ for level in 0 1; do
     -o "$work_dir/shape-check$target_suffix"
   run_target "$work_dir/shape-check$target_suffix"
   source=$project_root/bootstrap/native-core.lisp
-  run_compiler_host "$compiler" "-O$level" --profile=hosted --target="$target" -c "$source" -o "$work_dir/api-native.o"
-  "$project_root/pslcc" "-O$level" --profile=hosted --target="$target" -c "$source" -o "$work_dir/api-stage0.o"
+  bootstrap_fixture_compile native "$compiler" "$level" "$target" hosted "$source" "$work_dir/api-native.o"
+  bootstrap_fixture_compile seed "$project_root/pslcc" "$level" "$target" hosted "$source" "$work_dir/api-stage0.o"
   for version in native stage0; do
     for fixture in macro_api macro_optional_api macro_aux_api macro_whole_api macro_control_api macro_sequence_api macro_lists_api macro_declarations_api macro_keys_api macro_let_api macro_destructuring_api macro_nil_key_destructuring_api macro_pattern_prefix_api; do
       "$target_cc" -O2 -std=c11 -Wall -Wextra -Werror \
